@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""Exercise the external CLI contract without real model calls or credentials."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from unittest.mock import patch
+
+SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/claude_runner.py'
+spec = importlib.util.spec_from_file_location('runner', SCRIPT)
+runner = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(runner)
+
+FAKE = '''#!/usr/bin/env python3
+import json,os,sys,subprocess,time,signal
+from pathlib import Path
+args=sys.argv[1:]
+def value(flag): return args[args.index(flag)+1]
+if args==['--version']:
+    print('2.1.275 (Claude Code)');sys.exit(0)
+if args==['--help']:
+    print('--print --output-format --verbose --model --effort --max-budget-usd --permission-mode --permission-prompts --session-id --resume --allowedTools --tools --mcp-config --strict-mcp-config');sys.exit(0)
+if args==['auth','status','--json']:
+    Path('auth-cwd.txt').write_text(os.getcwd())
+    print(json.dumps(dict(loggedIn=True,authMethod='claude.ai',apiProvider='firstParty',subscriptionType='pro',email='must-not-appear@example.com',token='must-not-appear')));sys.exit(0)
+mode=Path('scenario.txt').read_text() if Path('scenario.txt').exists() else 'ok'
+with open('invocations.jsonl','a') as f:f.write(json.dumps(args)+'\\n')
+assert '--allow-tool' not in args
+assert '--continue' not in args
+assert '--permission-prompts' in args and value('--permission-prompts')=='none'
+assert '--max-turns' in args and '--max-budget-usd' in args
+session=value('--resume') if '--resume' in args else value('--session-id')
+Path('received-prompt.txt').write_text(sys.stdin.read())
+init=dict(type='system',subtype='init',session_id=session,cwd=os.getcwd(),model='test-model',permissionMode='default',tools=['Read'],mcp_servers=[])
+if mode=='wrong-mode':init['permissionMode']='bypassPermissions'
+if mode=='bad-mcp':init['mcp_servers']=[dict(name='required',status='failed')]
+print(json.dumps(init),flush=True)
+if mode in ('timeout','interrupt'):
+    Path('running').write_text('yes')
+    if mode=='timeout':
+        child="import signal,time;from pathlib import Path;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(4);Path('survived').write_text('bad');time.sleep(10)"
+        subprocess.Popen([sys.executable,'-c',child])
+    time.sleep(30)
+if mode=='missing':sys.exit(0)
+if mode=='malformed':print('not JSON')
+if mode=='denied':print(json.dumps(dict(type='system',subtype='permission_denied',tool_name='Edit')))
+result=dict(type='result',subtype='success',is_error=False,session_id=session,result='implemented',permission_denials=[],total_cost_usd=0.01)
+if mode=='error':result.update(is_error=True,result="You've hit your session limit")
+if mode=='wrong-session':result['session_id']='wrong-session'
+if mode=='result-denied':result['permission_denials']=[dict(tool_name='Edit')]
+print(json.dumps(result))
+if mode=='duplicate':print(json.dumps(result))
+'''
+
+
+class RunnerTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name).resolve()
+        self.repo = self.root / 'repo'
+        self.repo.mkdir()
+        self.task = self.root / 'task'
+        self.request = self.root / 'request.md'
+        self.request.write_text('Implement the bounded test task.')
+        self.fake = self.root / 'fake-claude'
+        self.fake.write_text(FAKE)
+        self.fake.chmod(0o700)
+        subprocess.run(['git', 'init', '-q', str(self.repo)], check=True)
+        (self.repo / 'code.txt').write_text('baseline\n')
+        subprocess.run(['git', 'add', '.'], cwd=self.repo, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@localhost',
+                        'commit', '-qm', 'Add fixture'], cwd=self.repo, check=True)
+        self.env = dict(os.environ)
+        for name in runner.AUTH_ENV:
+            self.env.pop(name, None)
+        self.env['PYTHONDONTWRITEBYTECODE'] = '1'
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def args(self, *extra):
+        return [sys.executable, str(SCRIPT), 'run', '--claude-bin', str(self.fake),
+                '--checkout', str(self.repo), '--task-dir', str(self.task),
+                '--request-file', str(self.request), '--model', 'test-model',
+                '--effort', 'high', '--timeout', '10', *extra]
+
+    def invoke(self, scenario='ok', *extra):
+        (self.repo / 'scenario.txt').write_text(scenario)
+        p = subprocess.run(self.args(*extra), cwd=self.root, env=self.env,
+                           capture_output=True, text=True, timeout=30)
+        return p, json.loads(p.stdout)
+
+    def test_round_trip_uses_exact_session_and_scoped_flags(self):
+        first, a = self.invoke('ok', '--allow-tool', 'Edit', '--tools', '')
+        second, b = self.invoke()
+        self.assertEqual(first.returncode, 0, a)
+        self.assertEqual(second.returncode, 0, b)
+        self.assertEqual(a['session_id'], b['session_id'])
+        self.assertFalse(a['resumed'])
+        self.assertTrue(b['resumed'])
+        calls = [json.loads(line) for line in (self.repo / 'invocations.jsonl').read_text().splitlines()]
+        self.assertIn('--allowedTools', calls[0])
+        self.assertIn('--session-id', calls[0])
+        self.assertIn('--resume', calls[1])
+        self.assertEqual((self.repo / 'auth-cwd.txt').read_text(), str(self.repo))
+        self.assertIn('This explicitly invoked workflow', (self.repo / 'received-prompt.txt').read_text())
+        self.assertNotIn('must-not-appear', first.stdout)
+        before = json.loads((self.task / 'rounds/001/git-before.json').read_text())
+        self.assertIn('sha256', before['unstaged'])
+
+    def test_zero_exit_is_not_enough(self):
+        for scenario in ('missing', 'malformed', 'duplicate', 'error', 'denied',
+                         'result-denied', 'bad-mcp', 'wrong-session', 'wrong-mode'):
+            with self.subTest(scenario=scenario):
+                self.task = self.root / scenario
+                p, data = self.invoke(scenario)
+                self.assertNotEqual(p.returncode, 0)
+                self.assertEqual(data['status'], 'failure')
+                state = json.loads((self.task / 'runner-state.json').read_text())
+                self.assertEqual(state['status'], 'failure')
+                self.assertEqual(state['round_count'], 1)
+
+    def test_round_limit_counts_failed_attempts(self):
+        self.invoke('error', '--max-rounds', '1')
+        p, data = self.invoke('ok', '--max-rounds', '1')
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('exhausted', data['error'])
+        self.assertEqual(len((self.repo / 'invocations.jsonl').read_text().splitlines()), 1)
+
+    def test_checkout_mismatch_refused(self):
+        self.invoke()
+        state = self.task / 'runner-state.json'
+        data = json.loads(state.read_text())
+        data['checkout'] = str(self.root)
+        state.write_text(json.dumps(data))
+        p, data = self.invoke()
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('mismatch', data['error'])
+
+    def test_linked_state_and_rounds_refused(self):
+        self.task.mkdir()
+        target = self.root / 'preserve.json'
+        target.write_text('do not overwrite')
+        state = self.task / 'runner-state.json'
+        state.symlink_to(target)
+        p, data = self.invoke()
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(target.read_text(), 'do not overwrite')
+        state.unlink()
+        (self.task / 'rounds').symlink_to(self.root)
+        p, data = self.invoke()
+        self.assertNotEqual(p.returncode, 0)
+
+    def test_task_inside_checkout_and_task_symlink_refused(self):
+        self.task = self.repo / 'private'
+        self.assertNotEqual(self.invoke()[0].returncode, 0)
+        self.task = self.root / 'linked-task'
+        self.task.symlink_to(self.repo, target_is_directory=True)
+        self.assertNotEqual(self.invoke()[0].returncode, 0)
+
+    def test_locks_cover_task_and_checkout(self):
+        self.task.mkdir()
+        for path in (self.task / '.task.lock', self.repo / '.git/coordinate-codex-claude.lock'):
+            with runner.locked(path):
+                p, data = self.invoke()
+                self.assertNotEqual(p.returncode, 0)
+                self.assertIn('another runner', data['error'])
+
+    def test_timeout_kills_child_that_outlives_parent(self):
+        p, data = self.invoke('timeout', '--timeout', '0.8')
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(data['process']['status'], 'timeout')
+        time.sleep(2)
+        self.assertFalse((self.repo / 'survived').exists())
+        self.assertEqual(json.loads((self.task / 'runner-state.json').read_text())['round_count'], 1)
+
+    def test_interrupt_preserves_session_and_releases_locks(self):
+        (self.repo / 'scenario.txt').write_text('interrupt')
+        p = subprocess.Popen(self.args(), cwd=self.root, env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 10
+            while not (self.repo / 'running').exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertTrue((self.repo / 'running').exists())
+            initial = json.loads((self.task / 'runner-state.json').read_text())
+            self.assertEqual(initial['status'], 'running')
+            p.send_signal(signal.SIGINT)
+            stdout, _ = p.communicate(timeout=10)
+            interrupted = json.loads(stdout)
+            self.assertEqual(interrupted['process']['status'], 'interrupted')
+            _, resumed = self.invoke()
+            self.assertEqual(resumed['session_id'], initial['session_id'])
+            self.assertTrue(resumed['resumed'])
+        finally:
+            if p.poll() is None:
+                p.kill()
+                p.wait()
+
+    def test_alternate_credentials_refused_without_exposure(self):
+        self.env['ANTHROPIC_API_KEY'] = 'must-not-appear-secret'
+        p, data = self.invoke()
+        self.assertNotEqual(p.returncode, 0)
+        self.assertNotIn('must-not-appear-secret', p.stdout + p.stderr)
+        self.assertFalse((self.repo / 'invocations.jsonl').exists())
+
+    def test_invalid_limits_and_bypass_rejected(self):
+        for flag, value in (('--timeout', 'nan'), ('--max-rounds', '0'),
+                            ('--max-budget-usd', 'inf'), ('--max-turns', '-1'),
+                            ('--permission-mode', 'bypassPermissions')):
+            p = subprocess.run(self.args(flag, value), capture_output=True, env=self.env, timeout=10)
+            self.assertNotEqual(p.returncode, 0)
+        self.assertFalse((self.repo / 'invocations.jsonl').exists())
+
+    def test_desktop_version_order_is_numeric(self):
+        root = self.root / 'desktop'
+        for version in ('2.1.9', '2.1.10'):
+            p = root / version / 'claude.app/Contents/MacOS/claude'
+            p.parent.mkdir(parents=True)
+            p.write_text('binary')
+            p.chmod(0o700)
+        with patch.object(runner.shutil, 'which', return_value=None):
+            self.assertIn('2.1.10/', runner.executable(desktop_root=root))
+
+
+if __name__ == '__main__':
+    unittest.main()
