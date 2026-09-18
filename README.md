@@ -25,7 +25,7 @@ and should remain in their provider-managed locations.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and summarizes push readiness from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
-- `coordinate-codex-claude`: Explicitly delegates an ordered implementation batch to Claude, with Claude handling implementation and corrections while Codex owns design, independent review, and final acceptance.
+- `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.
 - `organize-photos-for-line-sharing`: Safely builds outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
 - `product-overview-syncer`: Conservatively syncs an existing product or architecture overview Markdown document with the current codebase reality.

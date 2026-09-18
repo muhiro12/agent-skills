@@ -1,5 +1,7 @@
 # <Task name>
 
+- Entry: delegated implementation | incoming work review
+- Origin: <Codex brief, direct Claude work, manual edits, or mixed; known evidence>
 - Stage: design | implement | review | done
 - Next owner: Codex | Claude
 - Brief revision: <number>
@@ -8,12 +10,20 @@
 - Execution checkout: <actual absolute path; confirm after session start>
 - Branch / base commit: <branch or detached HEAD / full SHA>
 - Existing unrelated changes: <none or exact paths and ownership>
-- Dispatch: automated
+- Dispatch: not needed | automated
 - Execution route: <verified executable or adapter reference>
 - Implementation session: <explicit session ID; optional until started>
 - Run limits: <per-call time/usage and maximum calls; sized for the whole batch>
 - Session model / effort: <observed or user-reported; optional, not a selector>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>
+
+## Incoming review scope (omit for delegated implementation)
+
+- User outcome and authority: <requested review/fixes; commit or rewrite authority>
+- Frozen input: <base..head SHAs plus staged/unstaged patch hashes and relevant untracked files>
+- Publication baseline: <confirmed remote/ref and observed tip, or unresolved>
+- Original writer: <stopped; session identity if known, otherwise unavailable>
+- Existing evidence: <exact revision, checks and gaps; no prior brief required>
 
 ## Brief — Codex
 
@@ -30,7 +40,7 @@
 ### Design and discretion
 
 <Important decisions and rationale; choices Claude may make independently.>
-<Link applicable repository contracts and durable decisions.>
+<Link applicable repository contracts, relevant current principles, and commit conventions.>
 
 ### Verification
 
@@ -41,7 +51,7 @@
 <Material blockers or necessary intermediate decisions and the dependent work
 they affect. Default: return once the whole batch is implemented and checked.>
 
-## Implementation result — Claude
+## Implementation result — Claude (omit if no dispatch)
 
 - Brief revision implemented: <number>
 - Actual checkout and review input: <base..head SHAs, or HEAD and diff artifacts>
@@ -54,8 +64,10 @@ they affect. Default: return once the whole batch is implemented and checked.>
 
 ## Review and final result — Codex
 
-- Reviewed input: <exact revision/diff and brief revision>
-- Findings / disposition: <acceptance or grouped Claude corrections; direct Codex fixes and reason>
+- Reviewed input: <exact revision/diff and brief revision or reconstructed incoming scope>
+- Development-contract review: <behavior, architecture/style, verification, scope/public artifacts; governing sources>
+- Commit review: <messages, semantic units, author metadata, publication status; authorized corrections>
+- Findings / disposition: <acceptance, bounded Codex adjustments, or grouped Claude rework; entry and reason>
 - Final adjustments and verification: <changes and evidence, if any>
 - Final revision and outcome: <Codex acceptance of every item and their integration>
 - Accepted limitations: <none or explicitly accepted remaining limitations>

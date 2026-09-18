@@ -1,12 +1,21 @@
 # Automatic dispatch
 
-Use `scripts/claude_runner.py` after the user explicitly invokes this skill.
+Use `scripts/claude_runner.py` when an explicitly invoked workflow actually
+needs Claude implementation or substantial incoming-review corrections. An
+incoming review with bounded Codex fixes does not require runner preflight.
 The active Codex task is the coordinator: it runs Claude, inspects the returned
 code, returns grouped implementation findings to the same Claude session, and
-accepts the final result. Direct Codex corrections follow the bounded exceptions
-in the skill. The helper makes
+accepts the final result. Correction ownership follows the selected entry in
+the skill; incoming reviews permit bounded Codex adjustments. The helper makes
 one bounded implementation call; it neither calls a second Codex model nor
 provides a daemon, scheduler, or a wake-up mechanism after Codex finishes.
+
+For incoming work created outside this runner, do not fabricate a saved runner
+state or replace its session UUID with an external session ID. Resume only a
+matching runner-managed task whose identity and checkout have been verified.
+Otherwise create a new bounded correction task with the exact incoming diff,
+user outcome, development constraints, and grouped findings. This is a new
+implementation session, not a resumption of the original author's session.
 
 ## Resolve the runtime
 

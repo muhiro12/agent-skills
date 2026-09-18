@@ -1,6 +1,6 @@
 interface:
   display_name: "Codex and Claude Coordination"
-  short_description: "Delegate a batch to Claude; Codex reviews and finishes"
-  default_prompt: "Use $coordinate-codex-claude to plan this task or ordered Issue batch, have Claude implement it automatically, have Claude complete verification and grouped corrections, then have Codex independently review and accept the complete result while recording available usage-limit evidence."
+  short_description: "Delegate to Claude or review existing unpushed work"
+  default_prompt: "Use $coordinate-codex-claude to delegate new implementation or review existing unpushed Claude or manual work, checking behavior, development contracts, and commit quality before Codex acceptance."
 policy:
   allow_implicit_invocation: false
