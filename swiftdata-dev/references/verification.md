@@ -116,3 +116,11 @@ is not blanket CloudKit compatibility. It did not exercise production, original
 release binaries/toolchains, older runtimes, simultaneous device conflicts, or
 external blob relocation. The store's support/cache directories were empty.
 Private account identifiers and raw logs are not needed to reuse this method.
+
+
+Cloud metadata pending flags are diagnostic details, not a public convergence
+contract. In the same scoped test, a local deletion left zero pending flags
+before its export was observed; a subsequent app restart exported the deletion.
+Require completed operations and an independent import/value comparison before
+claiming delivery. Record any restart needed, and inspect orphan relationships
+separately from financial-record loss or duplication.
