@@ -86,3 +86,33 @@ Retain the original error and recoverable store when initialization fails.
 Separate entitlement/location problems, schema incompatibility, and runtime
 failures. A successful preview, fresh empty store, or build cannot substitute
 for the failing persistence path.
+
+
+## Scoped cloud-backed upgrade and relocation observation
+
+On 2026-09-19, a signed iOS 27.0 simulator with Xcode 27.0 (`27A266a`)
+exercised a two-record synthetic CloudKit development store. The previous
+release's unmodified source was built with that toolchain, imported the records,
+and edited/exported a value. Installing the candidate over its existing store
+adopted an explicit versioned schema while retaining stored attribute names.
+Values, shared many-to-many tags, store UUID, and cloud record names survived;
+cloud setup, import, and export completed successfully.
+
+The same synced store was then placed at the application's legacy location.
+Its relocation path copied SQLite sidecars, validated locally with CloudKit
+disabled, and reopened with sync enabled. A subsequent decimal-value edit was
+exported and matched both a resumed older synchronized snapshot and a fresh
+cloud import. No duplicate records or broken shared-tag membership were found.
+The resumed snapshot check exercised later imports using existing sync history,
+which a fresh-store check alone could not cover.
+
+Some overlapping automatic export requests were cancelled with Cocoa `134417`
+because another export was pending; subsequent operations succeeded and pending
+record flags cleared. Diagnose the eventual operation and data state rather
+than treating every cancellation as corruption or ignoring all sync errors.
+
+This supports those specific unchanged-field upgrade and relocation paths; it
+is not blanket CloudKit compatibility. It did not exercise production, original
+release binaries/toolchains, older runtimes, simultaneous device conflicts, or
+external blob relocation. The store's support/cache directories were empty.
+Private account identifiers and raw logs are not needed to reuse this method.
