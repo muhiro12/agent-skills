@@ -17,6 +17,7 @@ and should remain in their provider-managed locations.
 ## Included Skills
 
 - `app-store-release-notes-writer`: Generates App Store Connect-ready release notes across supported locales from a git range and project localization settings.
+- `app-store-release-preparer`: Prepares versions, localized release notes, descriptions, and screenshots through Apogee with read-back verification and resumable deferred work.
 - `apple-hig-ui-guardian`: Audits and repairs Apple-platform UI work against Apple's Human Interface Guidelines.
 - `apple-intelligence-dev`: Builds and evaluates Apple Intelligence features with current Apple guidance, grounded generation, lifecycle safety, and platform-specific evidence.
 - `apple-ios-dev-flow`: Uses current-repository evidence first, Apple guidance second, and an optional local sibling reference repository as a fallback for Apple-platform implementation work.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "App Store Release Preparer"
+  short_description: "Prepare localized Store releases through Apogee"
+  default_prompt: "Use $app-store-release-preparer to prepare this app's next release with Apogee, including the version, localized What's New, and any needed description or screenshot updates."
