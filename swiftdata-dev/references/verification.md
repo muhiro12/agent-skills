@@ -14,6 +14,31 @@ to introduce a backup feature, a shared library, or a particular test layout.
 | Synced attribute rename | Inspect exported field keys and fresh imports, then test supported old/new clients; successful export alone is insufficient |
 | Another process or CloudKit | Observe the affected reader or device; a local save or in-memory test does not prove propagation |
 
+## Attribute evidence to each changed path
+
+For a multi-part persistence change, map each change to the operation actually
+exercised and the remaining gap. A fresh-store cloud round trip can exercise the
+new container and current relationships without exercising an old-store upgrade,
+store relocation, extension access, or sync re-enablement. Do not transfer a
+passing result to another path merely because both use the same factory.
+
+Record whether historical fixtures were reconstructed and compiled with today's
+SDK or produced by the shipped executable. The former verifies schema-shape
+recognition; it does not reproduce historical framework metadata or an existing
+CloudKit synchronization history. Keep both kinds of evidence distinguishable.
+
+Choose non-default synthetic values when checking scalar fidelity, plus shared
+relationships when checking graph identity. A zero-value round trip does not
+establish decimal precision, and an identifier attribute surviving sync does not
+make a store-local `PersistentIdentifier` portable across devices.
+
+For extension ownership changes, test missing-store and old-store startup before
+the host, then reading after host migration. A local read-only container test is
+not a signed Widget or App Intent runtime test. Apple's
+[WWDC26 group lab](https://developer.apple.com/videos/play/wwdc2026/8017/)
+recommends leaving the migration plan out of extensions and handling the error
+path so the host app can perform migration.
+
 ## Reproduce a failure before generalizing it
 
 Capture the failing operation, error/stack, model declarations, store type,

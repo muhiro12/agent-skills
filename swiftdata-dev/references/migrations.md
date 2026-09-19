@@ -108,6 +108,18 @@ For relocation, verify that the destination opens the expected existing data
 and resources rather than a newly created empty store. Opening a container
 alone cannot establish that the original data reached the intended location.
 
+If relocation validates a copied store with CloudKit disabled, that proves only
+local opening/migration. Separately exercise reopening a previously synced store
+with sync enabled, subsequent local export, and remote import without duplicate
+records or lost relationships. A fresh cloud import into an empty store does not
+exercise preservation of synchronization metadata during relocation. Use a
+recoverable synthetic fixture with sync history before trying archived user data.
+
+When both source and destination exist, treat the choice as recovery policy;
+file size, modification time, or successful opening alone cannot identify the
+authoritative financial or user data. Verify preservation on conflict and on
+validation failure separately from the successful transfer path.
+
 For Core Data adoption, compare entity, attribute, relationship, configuration,
 and store identity with Apple's mapping requirements before enabling coexistence.
 Do not add a second independent sync owner for the same data. See
