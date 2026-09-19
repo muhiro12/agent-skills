@@ -93,3 +93,20 @@ history fetching for the actual changes. See
 When history consumption is the task, test token handling and the relevant
 deletion behavior using the actual store. The presence of history APIs does not
 require the application to implement a custom synchronization protocol.
+
+## Retained selections after deletion
+
+In a scoped iOS 27.0 / Xcode 27.0 CloudKit development test on 2026-09-19,
+local deletion and imported deletion correctly removed records, but navigation
+retained the selected model and displayed stale relationship counts and totals.
+Re-querying the selected persistent identifier and clearing selection when it
+left the query results corrected the observed presentation. Parent selection
+also needed invalidation when its record disappeared.
+
+For a similar symptom, verify query membership as well as model-property
+observation; a retained reference alone does not establish that a record still
+belongs to the current results. Exercise deletion while detail is visible,
+both when its parent disappears and when sibling records keep the parent alive.
+Compare database contents and visible totals separately, without navigating back
+to hide stale state. This is a tested application-state correction, not a claim
+that SwiftData model references are generally unsafe or every runtime is affected.
