@@ -5,6 +5,9 @@ the Xcode 27.0 SDK. This date records the research baseline, not a promise that
 APIs or documentation remain unchanged. Recheck exact declarations and platform
 availability in the SDK used by the target project.
 
+CloudKit rename guidance was additionally reviewed on 2026-09-19; its scoped
+runtime evidence is recorded in the [incident reference](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename).
+
 ## Availability landmarks
 
 | Feature family | iOS / macOS introduction | Official starting point |

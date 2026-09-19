@@ -21,7 +21,7 @@ do not use private backing-object access or direct SQLite edits as a workaround.
 | Models cannot use inheritance | Persistent inheritance is supported from iOS 26 / macOS 26 | Distinguish inheritance from protocol-based query failures; see [modeling](modeling.md) |
 | An unversioned first release cannot migrate | Apple DTS explicitly describes a supported path | Reconstruct the original complete schema and test an actual unversioned store; see [migrations](migrations.md#starting-from-an-unversioned-store) |
 | Migration failures must be application mistakes, or must be framework bugs | Both implementation/environment problems and Apple-confirmed historical bugs exist | Diagnose the underlying failure and version; do not infer the cause from an opaque top-level error |
-| A property cannot be renamed | Source rename, persisted-name mapping, and production CloudKit field rename differ | Check supported rename metadata and deployed schema compatibility |
+| A property cannot be renamed | API aliases, local attribute migration, and CloudKit field identity differ | `originalName` does not promise the old cloud key; check [rename guidance](cloudkit-and-surfaces.md#renaming-a-synced-property) |
 | A predicate compiles, so it must be usable in a fetch | Macro acceptance does not prove store translation or correct results | Execute the actual descriptor and affected optimization/runtime path |
 | An exposed option must work end to end | Documentation describes intent; runtime behavior still needs evidence | For Spotlight, see the dated report below |
 
@@ -79,7 +79,7 @@ demonstrated repair of `.spotlight`.
 
 These narrow checks ran on macOS 27.0 build `26A5388g` with Xcode 27.0 build
 `27A266a`. Runtime probes used disposable disk stores, synthetic records, and
-`cloudKitDatabase: .none`. They did not run Incomes or Cookle.
+`cloudKitDatabase: .none`. They did not reproduce the original application incidents.
 
 | Check | Observed result | Limit |
 | --- | --- | --- |

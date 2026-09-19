@@ -27,7 +27,7 @@ deduplication, and CloudKit-backed models have additional restrictions in
 [cloudkit-and-surfaces.md](cloudkit-and-surfaces.md).
 
 For a crash involving the implicit model `id` in a predicate, see the historical
-[identifier predicate case](known-issues.md#identifier-predicate-crash-in-incomes).
+[identifier predicate case](known-issues.md#implicit-identifier-predicate-crash).
 That case does not prohibit an application's explicitly persisted `id` field.
 
 ## Relationship behavior
@@ -48,7 +48,7 @@ other options such as delete rules have their own meaning.
 Verify the required membership and ordering after save/reopen and after a failed
 mutation. The array immediately after assignment alone is not persistence
 evidence. A recorded cascade/rollback failure and its deletion-order workaround
-are described in the [rollback case](known-issues.md#rollback-snapshot-crash-in-cookle);
+are described in the [rollback case](known-issues.md#rollback-snapshot-crash-during-graph-replacement);
 do not apply that workaround to unrelated graphs without checking the failure.
 
 ## Value types and inheritance
@@ -75,4 +75,4 @@ Protocol conformance for shared behavior is a separate question from persistent
 inheritance and store-query translation. Neither the existence of inheritance
 nor a generic predicate failure establishes that models cannot conform to
 protocols. Narrow query-specific failures at the
-[concrete predicate boundary](known-issues.md#concrete-predicate-construction-in-cookle).
+[concrete predicate boundary](known-issues.md#protocol-constrained-predicate-construction).

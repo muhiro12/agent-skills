@@ -57,6 +57,8 @@ implementations remain outside this skill's focus.
   and process boundaries, then resolve models in the receiving context.
 - `rollback()` cannot undo an earlier successful save or arbitrary filesystem
   and network operations. Diagnose the actual failing boundary.
+- For synced-property renames, distinguish local `originalName` migration from
+  CloudKit field identity; consult [CloudKit guidance](references/cloudkit-and-surfaces.md#renaming-a-synced-property).
 - Verify at the boundary that changed. Compilation and in-memory tests do not
   establish old-store migration, disk durability, or CloudKit convergence.
 

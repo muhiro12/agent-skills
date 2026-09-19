@@ -42,11 +42,9 @@ Local rollback cannot rewind changes exported by earlier commits.
 Once promoted, the CloudKit production schema is additive; local schema migration
 alone does not authorize incompatible server-schema changes. Inspect the deployed
 schema and release compatibility before planning removals or representation
-changes. Renaming a Swift property while retaining its persisted identity through
-supported `originalName` metadata is a different operation from renaming a
-production CloudKit field. Production record types and fields cannot be renamed
-or deleted. Do not claim either that every source rename is forbidden or that a
-successful local rename proves cloud compatibility. Check existing local stores,
+changes. Production record types and fields cannot be renamed or deleted.
+Local migration metadata is not a CloudKit field alias; see the
+[rename decision](#renaming-a-synced-property) below. Check existing local stores,
 fresh imports from the deployed cloud schema, and older supported clients.
 
 If product behavior requires uniqueness across devices, define duplicate and
@@ -57,6 +55,42 @@ key across offline devices.
 Treat development-schema initialization and production deployment as
 separate actions with their own authorization. Do not deploy or reset CloudKit
 as part of an ordinary local implementation check.
+
+## Renaming a synced property
+
+Separate the Swift-facing API name, stored model attribute name, and deployed
+CloudKit field name. `@Attribute(originalName:)` identifies the previous attribute
+for local schema migration; it does not promise to keep the old CloudKit key.
+Apple documents the default Core Data mapping as `CD_[attribute.name]` in
+[Reading CloudKit Records for Core Data](https://developer.apple.com/documentation/coredata/reading-cloudkit-records-for-core-data).
+The [WWDC22 schema session](https://developer.apple.com/videos/play/wwdc2022/10120/)
+explicitly separates local migration from CloudKit schema evolution. Apple's
+[WWDC25 rename example](https://developer.apple.com/videos/play/wwdc2025/291/)
+demonstrates local migration syntax, not compatibility with old CloudKit fields.
+
+For a naming-only refactor, consider keeping the stored attribute unchanged and
+exposing a computed property with the clearer name. Keep fetch predicates and
+sort descriptors on the persisted property; a computed alias is not a persisted
+query key. This avoids a cloud schema change without forbidding Swift API renames.
+
+Adding a new stored field while retaining the old one is a different, additive
+migration. Plan for old clients writing the old field and records arriving after
+local migration. A one-time `didMigrate` copy does not reconcile those changes.
+Define the authoritative value and ongoing compatibility behavior before adopting
+dual fields. A new container or custom store/sync is a separate architecture and
+migration project, not a small rename switch.
+
+No supported field-alias switch for the default SwiftData CloudKit store was
+identified in the September 2026 review. Treat this as an API/evidence boundary,
+not proof that every custom persistence design is technically impossible. If a
+new API or workaround is proposed, verify its documented contract and actual
+exported keys, migration of existing data, fresh cloud imports, and supported
+old/new clients before changing the conclusion. Successful local migration or
+successful export alone does not prove the field identity was preserved.
+
+See the [scoped export observation](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename).
+Distinguish a scalar attribute from a relationship when evaluating community
+reports; `@Relationship(originalName:)` is the relationship migration API.
 
 ## App Groups, widgets, and App Intents
 

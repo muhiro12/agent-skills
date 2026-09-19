@@ -1,14 +1,16 @@
 # Recorded SwiftData incidents and workarounds
 
-These cases come from public application history and first-person reports inspected on
-2026-09-16. They are not Apple specifications, a list of bugs in every current
-SDK, or recommendations to copy either application's architecture. No new
-runtime reproduction of these original application failures was performed while
-compiling these records. Separate synthetic checks are described in
-[compatibility.md](compatibility.md#synthetic-checks-on-the-review-environment).
+These cases combine public application history and first-person reports reviewed
+on 2026-09-16 with a separately labeled synthetic CloudKit observation from
+2026-09-19. They are diagnostic leads, not Apple specifications or bugs in every
+SDK. The historical application failures were not newly reproduced for this
+reference. See [compatibility.md](compatibility.md#synthetic-checks-on-the-review-environment)
+for separate local probes. Public source links provide provenance; no checkout
+of the linked apps, particular account, or machine-specific path is required.
 
 | Symptom | Evidence strength | Candidate to investigate |
 | --- | --- | --- |
+| Renamed attribute exports under a new CloudKit key | Scoped iOS 27 simulator observation, consistent with Apple's field mapping | Preserve the stored name for an API-only rename; verify exported keys and fresh imports |
 | Existing data appears absent after adopting SwiftData | First-person sample investigation and reported recovery | Compare resolved store URLs before blaming schema migration |
 | CloudKit initialization prevents migration | Historical community reports, including a later failed workaround | Separate local migration from cloud initialization; reproduce before changing startup |
 | Crash in rollback while replacing a related graph | Historical before/after reproduction and environment recorded | Explicitly delete owned children before parents in that replacement path |
@@ -56,7 +58,7 @@ local migration completion, and subsequent sync. Do not swallow migration
 errors, silently disable expected sync, or move required data transformation
 into a view task merely because a forum workaround did so.
 
-## Rollback snapshot crash in Cookle
+## Rollback snapshot crash during graph replacement
 
 **Observed problem and conditions.** A disk-backed backup replacement deleted
 existing parent records before fetching and deleting their owned children.
@@ -90,7 +92,7 @@ in later SDKs. The test injects an error before committing; actual disk failures
 and CloudKit recovery were not established. Explicit deletion can also load
 more models, so check cost before extending it to larger graphs.
 
-## Identifier predicate crash in Incomes
+## Implicit identifier predicate crash
 
 **Recorded problem.** A 2025-05-26 commit reports a crash in SwiftData filters
 using the model's implicit `id`. The affected model had no explicitly stored
@@ -116,7 +118,7 @@ lookup; it does not make `PersistentIdentifier` a cross-device or archive ID.
 If the current runtime accepts the original query, do not add a compatibility
 workaround solely because this historical commit exists.
 
-## Concrete predicate construction in Cookle
+## Protocol-constrained predicate construction
 
 **Recorded problem and shape.** A 2026-03-08 commit identifies tag preview
 predicates as needing correction. Fetch descriptors for two concrete models
@@ -138,8 +140,9 @@ or guaranteed fix for every generic predicate.
 contains a November 2023 preview failure resolving a protocol-derived key path,
 a February 2024 concrete-descriptor workaround, and a December 2024 report of
 Release-only failure. These are first-person reports, not an Apple-confirmed
-root cause for the Cookle incident. They support comparing concrete expressions
-and testing the affected execution mode, without banning generic abstractions.
+root cause for the recorded application incident. They support comparing concrete
+expressions and testing the affected execution mode, without banning generic
+abstractions.
 
 **When to try it.** For a similar failure involving a protocol-constrained
 model key path, compare the generic expression with a concrete-model expression
@@ -165,3 +168,30 @@ not establish that a design cannot work.
 Publish only relevant technical details and public or synthetic evidence.
 Exclude private logs, user records, account/container identifiers, personal
 paths, and unrelated release or product decisions.
+
+## CloudKit field name after a local attribute rename
+
+**Observation and conditions.** A 2026-09-19 synthetic-record check used Xcode
+27.0 build `27A266a`, an iOS 27.0 simulator, and the CloudKit development
+environment. A stored `Date` was renamed from `date` to `utcDate` using
+`@Attribute(originalName: "date")` and a lightweight versioned migration.
+Local disk migration tests retained the values. A subsequent cloud export
+succeeded, but the exported record's local encoded cache contained `CD_utcDate`,
+not `CD_date`. Export success was therefore insufficient evidence of field-name
+compatibility.
+
+**Alternative and result.** Keeping stored `date` and exposing computed
+`utcDate` produced `CD_date`. A fresh local store imported the synthetic item
+and retained its date, scalar values, identifier attribute, and related tags.
+The observation did not test production, old/new devices together, or an entire
+supported OS range. It establishes this configuration's behavior, not a
+framework regression or a universal failure of `originalName`.
+
+**Decision and provenance.** This matches Apple's documented
+[attribute-to-field mapping](https://developer.apple.com/documentation/coredata/reading-cloudkit-records-for-core-data)
+and [local/cloud migration distinction](https://developer.apple.com/videos/play/wwdc2022/10120/).
+A [2024 developer discussion](https://iosdev.space/@alpennec/112192155491169146)
+also distinguishes the two, but is community interpretation rather than an
+Apple guarantee. The [rename decision](cloudkit-and-surfaces.md#renaming-a-synced-property)
+records the alternatives and their limits. Raw account metadata and local
+artifacts are intentionally not required to use this guidance.

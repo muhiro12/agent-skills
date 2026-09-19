@@ -23,8 +23,9 @@ stages in `SchemaMigrationPlan` aligned with the container's current schema.
 Use supported rename metadata, such as `@Attribute(originalName:)`, when the
 stored meaning remains the same. Relationships have their own
 `@Relationship(originalName:)` parameter; do not apply attribute metadata to
-a relationship. Source renames and deployed CloudKit field changes have
-different compatibility requirements; see [CloudKit guidance](cloudkit-and-surfaces.md).
+a relationship. This metadata maps local migration; it is not a promise to
+retain a deployed CloudKit field key. See the
+[synced-property rename decision](cloudkit-and-surfaces.md#renaming-a-synced-property).
 Choose lightweight migration for supported
 structural transformations; choose a custom stage when values require cleanup,
 deduplication, or transformation. Define duplicate-resolution policy before

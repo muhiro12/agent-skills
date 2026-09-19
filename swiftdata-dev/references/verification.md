@@ -11,6 +11,7 @@ to introduce a backup feature, a shared library, or a particular test layout.
 | Disk durability and relationship recovery | Save to a temporary disk store, release its owners, reopen, and inspect required values and links |
 | Schema migration | Open synthetic stores made from supported historical definitions through the new migration path |
 | External binary storage | Reopen and read the actual payload, not just the parent record or byte-count metadata |
+| Synced attribute rename | Inspect exported field keys and fresh imports, then test supported old/new clients; successful export alone is insufficient |
 | Another process or CloudKit | Observe the affected reader or device; a local save or in-memory test does not prove propagation |
 
 ## Reproduce a failure before generalizing it
@@ -25,7 +26,7 @@ cloud behavior itself is under test. Test the original and changed operation
 against equivalent fixtures. A successful run of the changed code alone does
 not establish that the old code failed, or why it failed.
 
-The [Cookle rollback case](known-issues.md#rollback-snapshot-crash-in-cookle)
+The [graph replacement rollback case](known-issues.md#rollback-snapshot-crash-during-graph-replacement)
 illustrates why a simple graph or an in-memory-only test can miss a failure
 found with a populated disk-backed graph. Its record includes a before/after
 result; the other cases have weaker evidence and are labeled accordingly.
