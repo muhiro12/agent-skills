@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Publication Review"
+  short_description: "Review outgoing Git history for public exposure"
+  default_prompt: "Use $git-publication-review to check whether these changes are suitable for the intended public repository, including destination visibility and outgoing history."
