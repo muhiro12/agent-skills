@@ -8,7 +8,7 @@ description: Maintain product overview documentation by conservatively synchroni
 ## Overview
 
 Use this skill to keep an existing product overview document synchronized with repository truth.
-The output explanation should be concise, polite Japanese by default, while the overview document itself must keep its existing language and tone.
+Keep explanations concise while preserving the overview document's existing language and tone.
 This skill is audit-first: detect doc drift against code, then apply only the smallest evidence-backed corrections needed to restore accuracy.
 
 ## Trigger Conditions
@@ -64,13 +64,13 @@ Use this skill when the user asks to:
 
 ## Response Contract
 
-Return a concise Japanese report with:
+Report concisely using these sections in the conversation's language:
 
-1. `対象ファイル`
-2. `変更セクション`
-3. `根拠`: `変更セクション` ごとに、使用したコード上の根拠を短く列挙する
-4. `見送り事項`: 不確実または根拠不足のため触れなかった事項を列挙する
-5. `検証`
+1. `Target files`
+2. `Changed sections`
+3. `Evidence`: briefly list the code evidence for each changed section
+4. `Deferred items`: list items left unchanged due to uncertainty or missing evidence
+5. `Verification`
 
 ## Verification
 

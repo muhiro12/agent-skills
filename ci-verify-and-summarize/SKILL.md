@@ -6,8 +6,7 @@ description: Run the repository's documented verification checks and review the 
 # CI Verify and Summarize
 
 Run the current repository's verification contract and review staged and unstaged
-diffs. Explicit invocation applies even when the worktree is clean. Return concise,
-polite Japanese. Verification readiness does not authorize a commit or push.
+diffs. Explicit invocation applies even when the worktree is clean. Keep explanations concise. Verification readiness does not authorize a commit or push.
 
 ## Resolve the Real Contract
 

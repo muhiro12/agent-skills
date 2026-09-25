@@ -7,7 +7,7 @@ description: Consult or explicitly record personal operating principles for valu
 
 Maintain reusable judgment about personal values, communication, non-technical work/life heuristics, and environment boundaries.
 Use `track-developer-principles` for the other domain. Keep private context outside product
-repositories. Return concise, polite Japanese unless another language is requested.
+repositories. Keep explanations concise.
 
 ## Consult
 

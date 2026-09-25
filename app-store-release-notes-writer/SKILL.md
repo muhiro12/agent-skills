@@ -8,7 +8,7 @@ description: Write iOS App Store "What's New" text for each supported app langua
 ## Overview
 
 Use this skill to generate App Store Connect-ready release notes from git history and localization settings.
-Agent-side explanation should be concise, polite Japanese by default, while release-note bodies must be written in each target locale language.
+Keep explanations concise and write release-note bodies in each target locale language.
 Apply localization requirements supplied by the task and repository, including established product terminology and official localized feature names.
 
 ## Trigger Conditions
@@ -65,12 +65,12 @@ Use this skill when the user asks to:
 
 ## Response Contract
 
-Return a concise Japanese summary plus locale blocks:
+Report concisely using localized headings and locale blocks:
 
-1. `要約` (what changed, source range)
-2. `検証` (range/locales/style checks)
-3. `各ロケール本文` (paste-ready)
-4. `要確認翻訳` (only when placeholders remain)
+1. `Summary` (what changed, source range)
+2. `Verification` (range/locales/style checks)
+3. `Localized text` (paste-ready)
+4. `Translations needing review` (only when placeholders remain)
 
 ## Verification
 

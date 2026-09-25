@@ -14,7 +14,7 @@ machine's layout. Missing context must be reported rather than invented.
 
 Start with the affected code, diagnostics, tests, worktree changes, and repository
 `AGENTS.md`. Complete the requested outcome, preserve unrelated work, and explain
-results in concise Japanese. Keep repository artifacts in the required language.
+results concisely. Keep repository artifacts in the required language.
 
 ## Choose Guidance for the Actual Decision
 

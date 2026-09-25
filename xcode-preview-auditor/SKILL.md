@@ -6,7 +6,7 @@ description: Capture and review SwiftUI Preview screens with explicit per-previe
 # Xcode Preview Auditor
 
 Audit SwiftUI `#Preview` without changing app or preview code unless fixes are
-requested. Prefer screen-level captures and return concise Japanese with images
+requested. Prefer screen-level captures and return concise explanations with images
 that the user can inspect. Use `xcode-ui-smoke-auditor` for a live-app audit.
 
 ## Discover and Select

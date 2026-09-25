@@ -7,8 +7,8 @@ description: Review or maintain a custom skill portfolio against current usage, 
 
 Review skills for the work the user actually does. Prefer specific reusable
 knowledge, reliable helpers, and important boundaries over generic prompting,
-fixed report ceremonies, and instructions already supplied by Codex. Return
-concise, practical Japanese.
+fixed report ceremonies, and instructions already supplied by Codex. Keep
+explanations concise.
 
 ## Scope and Authorization
 

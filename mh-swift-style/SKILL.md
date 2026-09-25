@@ -119,5 +119,5 @@ when it is already the local pattern and does not reduce clarity.
 ## Output
 
 When this skill materially affects a change or review, mention the style choice
-briefly in Japanese, especially when choosing not to apply a preference because
+briefly, especially when choosing not to apply a preference because
 a stronger source overrides it.

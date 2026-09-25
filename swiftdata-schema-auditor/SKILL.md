@@ -8,7 +8,7 @@ description: "Inspect SwiftData entities, stored properties, relationships, and 
 ## Overview
 
 Use this skill for read-only inspection and design review of SwiftData model code.
-Default explanation language is concise, practical Japanese. Keep code identifiers, type names, attributes, and file names in English.
+Keep code identifiers, type names, attributes, and file names in English.
 
 ## Xcode Skill Catalog
 
@@ -122,41 +122,41 @@ rg --files /path/to/repo | rg '\.swift$'
 
 ## Output Contract
 
-Return a structured Japanese report with these exact sections:
+Report using these sections in the conversation's language:
 
-1. `1) スキーマ概要`
-2. `2) エンティティ一覧`
-3. `3) Relationshipレビュー`
-4. `4) 設計レビュー`
-5. `5) 気になる点`
-6. `6) 改善候補`
+1. `Schema overview`
+2. `Entity inventory`
+3. `Relationship review`
+4. `Design review`
+5. `Findings`
+6. `Improvement candidates`
 
 Use this content contract:
 
-- `1) スキーマ概要`
+- `Schema overview`
   - inspected scope or repository path
   - discovered entity count
   - main entities or aggregate roots if inferable
   - whether versioned schema / migration definitions were found
-- `2) エンティティ一覧`
+- `Entity inventory`
   - summarize each entity with entity name and file path
   - list persisted properties with type, optionality, and default visibility
   - list computed / derived / non-persistent properties when relevant
   - list relationships, inverse, delete rule, and collection shape when identifiable
-- `3) Relationshipレビュー`
+- `Relationship review`
   - summarize one-to-one / one-to-many / many-to-many patterns
   - note inverse consistency, delete-rule risk, cycles, and collection semantics
-- `4) 設計レビュー`
+- `Design review`
   - review naming, optionality, defaults, responsibility split, modeling balance, identity assumptions, migration posture, and architecture fit
-- `5) 気になる点`
+- `Findings`
   - list concrete risks, ambiguities, or suspicious patterns with file-path-based evidence
-- `6) 改善候補`
+- `Improvement candidates`
   - list actionable improvements in priority order
   - keep recommendations bounded and tied to observed code
 
 ## Response Style
 
-- Use Japanese for explanation.
+- Use the conversation's language for explanations.
 - Use English for identifiers, type names, attributes, and file names.
 - Prefer bullet-style structured summaries over long prose.
 - Keep findings concrete and evidence-based.

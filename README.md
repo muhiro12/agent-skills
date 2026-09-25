@@ -49,6 +49,15 @@ and should remain in their provider-managed locations.
 - `xcode-preview-auditor`: Audits SwiftUI `#Preview` coverage and capture results screen-by-screen, with audit-first reporting.
 - `xcode-ui-smoke-auditor`: Runs safe Simulator UI smoke audits for Apple-platform apps and reports visual or interaction risks without auto-fixing by default.
 
+## Response Language
+
+Skill instructions and metadata use English. User-facing explanations follow the
+active conversation and host/user language preferences; artifact language follows
+its target locale or repository contract. Report section names describe content,
+not mandatory English output. Helper output and existing localized artifact
+formats are evidence to interpret, not instructions fixing the reply language.
+Keep personal response-language preferences in local agent instructions.
+
 ## Reuse and Personal Profiles
 
 Platform or tool requirements such as Xcode, SwiftData, or Apogee define the

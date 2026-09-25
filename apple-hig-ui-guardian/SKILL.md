@@ -7,8 +7,7 @@ description: Create, review, or fix Apple UI decisions about navigation, native 
 
 Use Apple HIG and official platform documentation as the platform baseline for
 navigation, controls, layout, accessibility, and platform adaptation. Preserve the user's product intent and stronger
-repository evidence; explain an intentional departure when it matters. Return
-concise Japanese, with code and repository artifacts in their required language.
+repository evidence; explain an intentional departure when it matters. Keep code and repository artifacts in their required language.
 
 ## Scope the Guidance
 

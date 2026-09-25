@@ -96,7 +96,7 @@ Writing archive records requires both explicit skill invocation and capture inte
 
 ## Output Contract
 
-Return user-facing explanations in concise, polite Japanese by default unless the user explicitly asks for another language.
+Use the conversation's language for explanations.
 
 After saving, report:
 

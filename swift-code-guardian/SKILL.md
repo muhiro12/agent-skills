@@ -7,8 +7,7 @@ description: Create, review, or fix Swift APIs, concurrency, ownership, type mod
 
 Use official Swift documentation and API Design Guidelines as the platform baseline for
 Swift APIs, concurrency, ownership, type modeling, and package boundaries. Preserve the user's product intent and stronger
-repository evidence; explain an intentional departure when it matters. Return
-concise Japanese, with code and repository artifacts in their required language.
+repository evidence; explain an intentional departure when it matters. Keep code and repository artifacts in their required language.
 
 ## Scope the Guidance
 

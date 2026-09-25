@@ -7,7 +7,7 @@ description: Choose and complete evidence-backed next work when the user asks to
 
 Use this skill for ambiguous continuation requests such as "続き対応して" or
 "look at recent changes and keep developing". If an objective is already agreed,
-continue it before inventing new work. Return concise, practical Japanese.
+continue it before inventing new work. Keep explanations concise.
 
 ## Find the Next Useful Work
 

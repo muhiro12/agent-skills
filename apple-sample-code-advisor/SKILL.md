@@ -95,12 +95,12 @@ Apple samples should usually beat local sibling repositories for framework adopt
 
 ## Output Contract
 
-Return concise Japanese with:
+Report concisely using localized headings:
 
-1. `参照したサンプル`
-2. `Appleサンプルから見た判断`
-3. `現在のrepoへの適用`
-4. `検証`
-5. `残る判断`
+1. `Samples consulted`
+2. `Findings from Apple samples`
+3. `Application to this repository`
+4. `Verification`
+5. `Open decisions`
 
 For cache operations, include the cache path, command used, sample slug, fetched/refreshed date, and whether any cleanup was dry-run or applied.

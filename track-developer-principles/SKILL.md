@@ -7,7 +7,7 @@ description: Consult or explicitly record durable developer judgment for product
 
 Maintain reusable judgment about development, product, architecture, code quality, and repository workflow.
 Use `track-personal-principles` for the other domain. Keep private context outside product
-repositories. Return concise, polite Japanese unless another language is requested.
+repositories. Keep explanations concise.
 
 ## Consult
 

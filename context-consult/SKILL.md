@@ -68,7 +68,7 @@ This skill is read-only even when triggered.
 
 ## Output Contract
 
-Return a concise context pack in the user's language; for Japanese conversations, use concise, polite Japanese.
+Return a concise context pack in the user's language.
 Use these sections:
 
 1. `Context Pack`

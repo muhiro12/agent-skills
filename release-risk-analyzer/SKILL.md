@@ -8,7 +8,7 @@ description: "Assess release-blocking risk in a Git range using durable-state, e
 ## Overview
 
 Use this skill to turn `<latest-tag>..HEAD` into a scored release-blocking risk assessment.
-Default explanation language is concise, polite Japanese, and the report must lead with the release decision before detailed summaries.
+Lead the report with the release decision before detailed summaries.
 
 ## Trigger Conditions
 
@@ -66,14 +66,14 @@ python3 scripts/review_release_risk.py   --repo /path/to/repository   --format m
 
 ## Response Contract
 
-Return a concise Japanese report with:
+Report concisely using these sections in the conversation's language:
 
-1. `結論` (`Block` / `Hold for review` / `Proceed with caution` / `Review recommended` / `Proceed`) and `リスクスコア` (`0-100`)
-2. `判定理由` (highest score and durable-risk first)
-3. `対象範囲` (base tag, head commit, git range)
-4. `主要リスク` (built-in heuristics, concrete findings, and score contribution)
-5. `リスク差分抜粋` (short diff snippets for findings or medium+ path-rule signals)
-6. `推奨アクション`
+1. `Conclusion` (`Block` / `Hold for review` / `Proceed with caution` / `Review recommended` / `Proceed`) and `Risk score` (`0-100`)
+2. `Rationale` (highest score and durable-risk first)
+3. `Scope` (base tag, head commit, git range)
+4. `Main risks` (built-in heuristics, concrete findings, and score contribution)
+5. `Relevant diff excerpts` (short diff snippets for findings or medium+ path-rule signals)
+6. `Recommended actions`
 
 ## Verification
 

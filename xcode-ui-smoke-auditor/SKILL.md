@@ -7,7 +7,7 @@ description: Inspect a running Apple app in Simulator, capture reviewable screen
 
 Audit the running app using the active Xcode-native live UI capabilities. Keep
 source, project settings, and stored app data unchanged unless the user explicitly
-requests changes. Return concise Japanese and reviewable visual evidence.
+requests changes. Return concise explanations and reviewable visual evidence.
 A smoke audit is scoped runtime evidence, not distribution approval or a
 replacement for package tests, builds, or real-device checks.
 

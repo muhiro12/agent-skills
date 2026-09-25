@@ -127,25 +127,25 @@ Treat these as warning areas where copying is usually wrong unless the user expl
 
 ## Output Contract
 
-Return explanations in concise, practical Japanese.
+Keep explanations concise.
 Use English for code, commands, file names, and identifiers.
 Mention concrete file paths whenever they support a claim.
 
-When reviewing or proposing changes, structure the response as:
+When reviewing or proposing changes, use these sections in the conversation's language:
 
-1. `結論`
-2. `参照箇所`
-3. `差分評価`
-4. `対応方針`
-5. `変更内容` or `提案内容`
-6. `検証`
-7. `保留事項`
+1. `Conclusion`
+2. `References`
+3. `Difference assessment`
+4. `Approach`
+5. `Changes` or `Proposal`
+6. `Verification`
+7. `Open items`
 
-For `差分評価`, classify each major divergence as:
+For `Difference assessment`, classify each major divergence as:
 
-- `揃えるべき`
-- `適応して取り入れるべき`
-- `現状維持でよい`
+- `Align`
+- `Adapt`
+- `Keep as is`
 
 ## Example Requests
 

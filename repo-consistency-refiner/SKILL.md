@@ -8,7 +8,7 @@ description: "Audit structural, architectural, workflow, and documentation consi
 ## Overview
 
 Use this skill as a repository gardener for one repository at a time.
-Default to report-only, return concise polite Japanese, and always cite concrete file paths.
+Default to report-only, keep explanations concise, and always cite concrete file paths.
 Never modify files outside the current repository.
 Use cross-repository constraints only when supplied by the request or applicable contracts; do not discover personal archives or owner-specific profiles.
 
@@ -83,26 +83,26 @@ Use cross-repository constraints only when supplied by the request or applicable
 
 ## Output Contract
 
-Return a concise Japanese report with these sections in this order:
+Report concisely using these sections in the conversation's language:
 
-1. `リポジトリ整合性サマリー`
-2. `構造上の不整合`
-3. `アーキテクチャ上の不整合`
-4. `開発フロー上の不整合`
-5. `ドキュメント上の不整合`
-6. `推奨改善策（優先順）`
+1. `Consistency summary`
+2. `Structural inconsistencies`
+3. `Architectural inconsistencies`
+4. `Workflow inconsistencies`
+5. `Documentation inconsistencies`
+6. `Prioritized improvements`
 
 For each inconsistency section:
 
-- Write `問題なし` when no meaningful inconsistency is found.
+- Write `No findings` when no meaningful inconsistency is found.
 - Otherwise, list only the highest-signal findings first.
 - Explain why each mismatch increases maintenance cost, confusion, or unpredictability.
 - Include concrete repository-relative file paths.
 
-For `推奨改善策（優先順）`:
+For `Prioritized improvements`:
 
 - Order items by maintenance leverage first and implementation risk second.
-- Mark each item as `低`, `中`, or `高` risk.
+- Mark each item as `low`, `medium`, or `high` risk.
 - Distinguish clearly between report-only recommendations and changes that are safe to implement now.
 
 ## Verification

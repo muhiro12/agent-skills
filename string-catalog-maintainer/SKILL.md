@@ -9,7 +9,7 @@ description: "Audit and repair Xcode string catalogs (.xcstrings). Use for stale
 
 Use this skill to keep `.xcstrings` catalogs aligned with the current source tree.
 Default operating mode is catalog-only maintenance: audit catalogs, extract translation tasks, apply safe reviewed `.xcstrings` fixes during the skill run, and leave source-code fixes for a separate follow-up unless the user explicitly expands scope.
-Default explanation language is concise, polite Japanese.
+Use the conversation's language for explanations.
 Apply localization requirements supplied by the task and repository, including established product terminology and official localized feature names.
 
 ## Xcode Skill Catalog
@@ -87,14 +87,14 @@ Use this skill when the user asks to:
 
 ## Response Contract
 
-Return a concise Japanese report with:
+Report concisely using these sections in the conversation's language:
 
-1. `対象カタログ`
-2. `実施内容`
-3. `コード側要修正の stale キー`
-4. `削除候補の検証結果`
-5. `ロケール不足、translation_tasks、翻訳パッチ適用結果`
-6. `検証結果` (including AGENTS.md entrypoint usage when applicable)
+1. `Target catalogs`
+2. `Actions taken`
+3. `Stale keys requiring source fixes`
+4. `Deletion candidate verification`
+5. `Locale gaps, translation_tasks, and translation patch results`
+6. `Verification results` (including AGENTS.md entrypoint usage when applicable)
 
 ## Verification
 

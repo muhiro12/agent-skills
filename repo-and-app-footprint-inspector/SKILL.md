@@ -9,7 +9,7 @@ description: "Measure repository or app source footprint and diagnose concentrat
 
 Use this skill for read-only footprint diagnosis.
 Keep size metrics, but treat them as evidence for maintenance cost, change safety, and structural health.
-Default response language is concise, polite Japanese unless the user asks for another language.
+Use the conversation's language for explanations.
 
 ## Workflow
 
@@ -70,7 +70,7 @@ python3 scripts/measure_footprint.py \
 
 - Use meaningful test LOC and test-file count as proxy evidence only.
 - Never imply real coverage percentages.
-- Prefer labels such as "薄い", "中程度", "比較的健全" in the final Japanese summary.
+- Use qualitative labels such as "limited", "moderate", or "relatively healthy", localized to the conversation.
 
 ### Architectural Concentration
 
@@ -98,23 +98,23 @@ python3 scripts/measure_footprint.py \
 
 ## Output Contract
 
-Return a concise Japanese report with:
+Report concisely using these sections in the conversation's language:
 
-1. `結論`
-2. `対象`
-3. `規模要点`
-4. `診断`
-5. `保守リスク Top 3`
-6. `健全構造シグナル Top 3`
-7. `次の判断`
-8. `補足`
+1. `Conclusion`
+2. `Target`
+3. `Footprint summary`
+4. `Assessment`
+5. `Top maintenance risks`
+6. `Healthy structure signals`
+7. `Next decisions`
+8. `Notes`
 
-For `規模要点`, always include:
+For `Footprint summary`, always include:
 
 - repository/app size as relevant
 - top 3 biggest directories or modules
 
-For `診断`, always cover:
+For `Assessment`, always cover:
 
 - maintenance risk
 - test surface health

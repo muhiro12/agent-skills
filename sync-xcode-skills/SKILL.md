@@ -8,7 +8,7 @@ description: "Export Xcode-provided skills and install normalized, managed copie
 ## Overview
 
 Use this skill to keep Codex's local skill set aligned with the Skills that Xcode exposes through its agent integration.
-Default response language is concise, polite Japanese.
+Use the conversation's language for explanations.
 
 The default installation root is `~/.agents/skills`, Codex's user skill location.
 Use `--skills-root` for an explicitly selected alternate installation; changing

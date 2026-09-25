@@ -98,7 +98,7 @@ do not silently make disposable dependency patches the normal preparation path.
 
 ## Handoff
 
-Return a concise Japanese summary of the version, revision/range, locales,
+Return a concise summary of the version, revision/range, locales,
 text changes, screenshot coverage and capture method, actual remote verification,
 and deferred work with its next concrete step. Link reviewable local assets.
 Use a small status table when several locales or resources differ.

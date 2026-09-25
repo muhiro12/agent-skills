@@ -135,10 +135,10 @@ Move information to the narrowest durable layer that can carry it forward:
 
 ## Output
 
-Return concise Japanese with:
+Report concisely using localized headings:
 
-1. `契約整理`
-2. `配置判断`
-3. `変更内容`
-4. `検証`
-5. `残課題`
+1. `Contract review`
+2. `Policy placement`
+3. `Changes`
+4. `Verification`
+5. `Remaining work`
