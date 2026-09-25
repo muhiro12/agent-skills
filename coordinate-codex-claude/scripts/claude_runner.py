@@ -22,7 +22,9 @@ import uuid
 SKILL = Path(__file__).resolve().parents[1] / 'SKILL.md'
 VISIBLE_FLAGS = ('--print', '--output-format', '--verbose', '--model', '--effort',
                  '--max-budget-usd', '--permission-mode', '--permission-prompts',
-                 '--session-id', '--resume', '--allowedTools')
+                 '--session-id', '--resume', '--allowedTools', '--add-dir')
+OFFICIAL_ENDPOINT = 'https://api.anthropic.com'
+ENDPOINT_ENV = ('ANTHROPIC_BASE_URL', 'ANTHROPIC_API_URL')
 AUTH_KEYS = ('loggedIn', 'authMethod', 'apiProvider', 'subscriptionType')
 AUTH_ENV = ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL',
             'ANTHROPIC_API_URL', 'ANTHROPIC_CUSTOM_HEADERS', 'ANTHROPIC_PROFILE',
@@ -122,9 +124,12 @@ def capture(command, cwd=None, timeout=30):
 
 def probe(binary, cwd, timeout=30):
     problems = []
-    overrides = sorted(name for name in AUTH_ENV if os.environ.get(name))
+    overrides = sorted(name for name in AUTH_ENV if os.environ.get(name)
+                       and not (name in ENDPOINT_ENV and os.environ[name] == OFFICIAL_ENDPOINT))
     if overrides:
         problems.append('alternate credential/provider environment: ' + ', '.join(overrides))
+    if problems:
+        return {'executable': binary, 'eligible': False, 'problems': problems}
     version = capture([binary, '--version'], cwd, timeout)
     help_result = capture([binary, '--help'], cwd, timeout)
     auth_result = capture([binary, 'auth', 'status', '--json'], cwd, timeout)
@@ -291,12 +296,49 @@ def evaluate(path, process, session, checkout, mode):
             'result': result}
 
 
-def command(args, binary, session, resume):
+def compact_status(task_dir):
+    """Read persisted metadata only; never parse the implementation stream."""
+    task_path = checked(Path(task_dir).expanduser().absolute())
+    task = task_path.resolve(strict=True)
+    if not task.is_dir():
+        raise Refusal('task path must be a directory')
+    state = json.loads(checked(task / 'runner-state.json').read_text())
+    if not isinstance(state, dict):
+        raise Refusal('state must be a JSON object')
+    if state.get('task_dir') != str(task):
+        raise Refusal('task directory mismatch')
+    number = state.get('round_count')
+    if not isinstance(number, int) or number < 1:
+        raise Refusal('invalid task round count')
+    rounds = checked(task / 'rounds')
+    folder = checked(rounds / f'{number:03d}')
+    if not rounds.is_dir() or not folder.is_dir():
+        raise Refusal('recorded task round is unavailable')
+    checkpoint = checked(folder / 'checkpoint.md')
+    summary = checked(folder / 'summary.json')
+    return {'recorded_status': state.get('status'), 'round': number,
+            'session_id': state.get('session_id'),
+            'checkpoint': str(checkpoint) if checkpoint.is_file() else None,
+            'checkpoint_modified_at': checkpoint.stat().st_mtime if checkpoint.is_file() else None,
+            'summary': str(summary) if summary.is_file() else None,
+            'note': 'Persisted status is not process liveness or write-ownership evidence.'}
+
+
+def checkpoint_rule(checkpoint):
+    # Do not interpolate glob syntax or rule separators into an allow rule.
+    value = str(checkpoint)
+    if any(character in value for character in '*?[]{}(),\\\n\r'):
+        raise Refusal('checkpoint path cannot be represented as an exact permission rule')
+    return f'Edit(/{value})'  # CLI absolute-path rules start with two slashes.
+
+
+def command(args, binary, session, resume, task, checkpoint):
     result = [binary, '-p', '--output-format', 'stream-json', '--verbose',
               '--model', args.model, '--effort', args.effort,
               '--permission-mode', args.permission_mode, '--permission-prompts', 'none',
               '--max-turns', str(args.max_turns), '--max-budget-usd', str(args.max_budget_usd),
-              '--resume' if resume else '--session-id', session]
+              '--resume' if resume else '--session-id', session,
+              '--add-dir', str(task), '--allowedTools', checkpoint_rule(checkpoint)]
     for rule in args.allow_tool:
         result += ['--allowedTools', rule]
     if args.tools is not None:
@@ -347,11 +389,15 @@ def run(args):
         rounds = checked(task / 'rounds')
         rounds.mkdir(mode=0o700, exist_ok=True)
         folder = checked(rounds / f"{state['round_count'] + 1:03d}")
+        checkpoint = folder / 'checkpoint.md'
+        checkpoint_rule(checkpoint)  # Validate before creating a round or starting Claude.
         folder.mkdir(mode=0o700)  # Never overwrite a previous attempt's evidence.
         prompt = (f'This explicitly invoked workflow is coordinated by Codex. You implement; Codex reviews.\n'
                   f'Use exactly this checkout: {checkout}\nDo not start background work, publish, or commit unless explicitly requested.\n'
                   'Stop all writes and verification before returning. Follow the bounded task request; do not retry denied actions.\n'
-                  'Codex owns the private task record and captures the exact Git diff automatically.\n\n'
+                  'Codex owns the private task record and captures the exact Git diff automatically.\n'
+                  f'For private progress records, you own this separate checkpoint: {folder / "checkpoint.md"}\n'
+                  'Use the Write tool to replace the checkpoint contents at milestones; no shell rename or acknowledgement is needed.\n\n'
                   + SKILL.read_text() + '\n\n# Current task request\n' + request)
         new_file(folder / 'prompt.md', prompt.encode())
         snapshot(checkout, folder, 'before')
@@ -359,12 +405,14 @@ def run(args):
         atomic_json(state_path, state)  # Persist identity and count before spawning.
         summary = {'status': 'failure', 'round': state['round_count'], 'session_id': state['session_id'],
                    'resumed': resume, 'checkout': str(checkout), 'artifacts': str(folder),
+                   'checkpoint': str(checkpoint),
+                   'scoped_access': {'additional_directory': str(task), 'checkpoint_edit_rule': checkpoint_rule(checkpoint)},
                    'probe': preflight, 'requested_model': args.model, 'requested_effort': args.effort,
                    'limits': {k: getattr(args, k) for k in ('timeout', 'max_turns', 'max_rounds', 'max_budget_usd')},
                    'notes': ['Cost figures are CLI estimates, not a subscription bill.',
                              'Success means implementation returned; Codex must still review the actual diff.']}
         try:
-            process = execute(command(args, binary, state['session_id'], resume), checkout, folder, args.timeout)
+            process = execute(command(args, binary, state['session_id'], resume, task, checkpoint), checkout, folder, args.timeout)
             summary['process'] = process
             summary.update(evaluate(folder / 'stdout.jsonl', process, state['session_id'], checkout, args.permission_mode))
         except (OSError, ValueError, Refusal, subprocess.SubprocessError, KeyboardInterrupt) as error:
@@ -388,6 +436,8 @@ def parser():
     probe_parser.add_argument('--claude-bin')
     probe_parser.add_argument('--checkout', default='.')
     probe_parser.add_argument('--timeout', type=positive, default=30)
+    status_parser = commands.add_parser('status')
+    status_parser.add_argument('--task-dir', required=True)
     r = commands.add_parser('run')
     r.add_argument('--claude-bin')
     for name in ('checkout', 'task-dir', 'request-file', 'model', 'effort'):
@@ -415,6 +465,9 @@ def main():
         if args.action == 'probe':
             result = probe(executable(args.claude_bin), Path(args.checkout).resolve(), args.timeout)
             success = result['eligible']
+        elif args.action == 'status':
+            result = compact_status(args.task_dir)
+            success = True
         else:
             result = run(args)
             success = result['status'] == 'success'

@@ -53,14 +53,21 @@ batch. A bounded investigation can settle an unfamiliar integration first.
 Choose checkpoints by the rework they can avoid relative to coordination and
 repeated-context costs; do not assume extra review cycles improve every metric.
 
-Model selection belongs to the current client session. Follow the user's
-current preference and actual account availability; do not pin model IDs,
-effort, or tool permissions in this skill or the handoff template. Normally use
-the user's strongest available model, with ordinary reasoning for bounded
-Codex work and deeper reasoning for uncertain architecture, persistence,
-security, or broad integration decisions. Claude follows its own effort
-preference. Reconsider effort when the problem changes, not merely when the
-diff is large. Do not imply that prompt wording changed a client setting.
+Normally use the user's strongest available Codex model; the current Astra
+baseline is medium reasoning effort. The user's selection or expressed intent
+at session start or in the current prompt takes precedence over this default,
+including an explicitly chosen lower effort. Never downgrade the user's chosen
+model or reasoning effort on your own to save usage or because work seems easy.
+
+When a concrete quality need warrants deeper reasoning, increasing Codex's
+reasoning effort is allowed unless the user explicitly fixed or capped it.
+Explain the reason briefly and use a supported setting control if available;
+do not claim prompt wording changed a client setting. If no such control is
+available, state that limitation and request a user-side adjustment when needed.
+Do not automatically change the selected model or revert an increased effort;
+follow subsequent user direction. Claude retains its independently chosen model
+and effort preference; do not map Codex's setting onto Claude. Record settings
+only when observable or user-reported, including any actual effort change.
 
 ## Reduce coordinator usage
 
@@ -79,14 +86,23 @@ responsiveness requirements. Inspect compact status when needed; read detailed
 logs when a blocker, failed return, or review finding warrants it. Required user
 updates do not require a new full-log read or implementation review each time.
 A recoverable command error alone is not grounds to interrupt and take over.
+Use the longest host-permitted responsive wait, not short sleeps followed by
+repeated log parsing. An unchanged status needs no new investigation. Read
+Claude's checkpoint on a failed return, a material blocker, or resumption, not
+at every update; saving progress does not require a coordinator acknowledgement.
 
 Record available Codex usage-limit snapshots before preparation and after
 completion, with timestamps, window/reset identity, and known concurrent tasks.
-A dispatch-boundary snapshot is useful when cheaply available; do not poll
-limits throughout the run. Compare the same window only, and report percentage
-point changes as account-wide observations, not task-attributed consumption.
-If snapshots are unavailable, a reset intervened, or other work overlaps, state
-the limit of the evidence. Do not infer quota savings from delegated work or
+During initial workflow evaluation, also capture dispatch and Claude-return
+boundaries when cheaply available, before Codex starts corrections or takeover.
+Record preparation, waiting/review, and takeover scope separately. These are
+boundary observations, not continuous polling or a permanent acceptance gate;
+reconsider the extra measurements once the workflow is established. Compare the
+same window only and label percentage-point changes as account-wide measurements.
+If the user confirms no concurrent work, treat the observed increase as a
+reasonable approximation of this task's consumption, while retaining the
+account-level measurement label. If snapshots are unavailable, a reset
+intervened, or other work overlaps, state the limit of the evidence. Do not infer quota savings from delegated work or
 raw token totals. Assess savings against a comparable baseline when available;
 otherwise leave the efficiency conclusion open.
 
@@ -193,6 +209,21 @@ Claude; a shared skill does not supply Codex-only tools. Complete the ordered
 batch without waiting for Codex review after each item unless the brief names a
 necessary checkpoint or a material blocker arises. Track completed, partial, and
 blocked items separately; verify their combined behavior before returning.
+
+Keep a short checkpoint at the runner-provided private path, separate from the
+Codex-owned handoff. Update it after a coherent implementation milestone, a
+verification phase, or a material blocker; do not write per tool call or ask
+Codex to acknowledge it. Include the brief revision, completed behavior, checks
+and evidence paths, remaining work, and blockers. Replace the complete contents with the Write tool; the runner grants that
+specific file for the invocation. Do not require shell or rename permissions
+just to save progress. An interrupted write may leave incomplete content;
+verify it against the actual diff and evidence when resuming. It is partial self-report,
+not acceptance or proof that Claude stopped writing. Do not duplicate transcripts.
+
+Run inexpensive repository format/rule checks early enough to fix routine
+violations before final verification. For stateful changes, exercise relevant
+next actions after invalidation, failure, or cancellation against the brief's
+acceptance examples; avoid adding a universal exhaustive test checklist.
 
 Resolve ordinary code details and recoverable command, capture, and check
 failures independently within the agreed limits. Complete all requested

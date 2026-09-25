@@ -31,7 +31,13 @@ an older version on failure. Inspect `probe` before proceeding after an update.
 `--max-turns` is documented but may be absent from the CLI's visible help.
 
 Only a logged-in first-party `claude.ai` subscription is accepted. Alternate
-credential/provider environment variables stop execution. Authentication output
+credential/provider environment variables stop execution before any CLI probe.
+The exact value `https://api.anthropic.com` is accepted for
+`ANTHROPIC_BASE_URL` and `ANTHROPIC_API_URL`, including when inherited from
+Desktop. Other values (including URL suffixes) remain refused; an official URL
+does not exempt API keys, custom headers, or alternate-provider flags. Values
+are neither logged nor rewritten, and subscription authentication is still checked.
+Authentication output
 is restricted to login state, method, provider and subscription type. The helper
 does not read or copy credential stores. A successful login does not establish
 that the account has remaining model usage; quota errors are implementation
@@ -60,11 +66,22 @@ python3 <skill-root>/scripts/claude_runner.py run \
   --permission-mode auto
 ```
 
-Select the model and effort from the user's current preference and availability.
+The flags above select Claude only, using its independent user preference.
+They do not select or change the active Codex model or reasoning effort.
 No model is fixed in the helper. Inspect the actual model and permission mode in
 the result. If automatic permission review is unavailable, use the supported
 `manual` mode with the smallest task-scoped `--allow-tool` grants, resolving real
-approval needs through the coordinator's current controls. The default is
+approval needs through the coordinator's current controls. The runner supplies
+`--add-dir <task-dir>` for the private task records and an exact absolute-path
+`Edit` allow rule for this round's `checkpoint.md`. This covers the Write tool too;
+path-qualified `Write(...)` rules are not consulted by Claude Code.
+Directory access and tool approval are separate requirements; neither substitutes for the other. The
+checkpoint grant is invocation-local, not a blanket Write grant or a change to
+client settings. It does not authorize editing the handoff, logs, or runner state;
+existing broader user grants remain in effect. Deny/ask rules still take
+precedence. Paths containing permission-pattern metacharacters are refused
+rather than accidentally broadening the rule. Source changes and other task
+operations still need their own scoped grants or automatic approval. The default is
 `manual`; unresolved prompts are denied rather than hanging. Never enable a
 permission bypass or add permanent rules to make a run finish.
 
@@ -87,9 +104,27 @@ Failed attempted launches count too. There is no automatic retry.
 After dispatch, wait for completion or a material blocker using the host's
 bounded wait or notification mechanism. Observe responsiveness requirements
 without repeatedly loading stdout, screenshots, or partial diffs into Codex.
-A compact process status is sufficient for routine progress updates. Investigate
+Use the longest wait allowed by the host's responsiveness requirements. If a
+routine update needs metadata, use this command instead of reading the stream:
+
+```sh
+python3 <skill-root>/scripts/claude_runner.py status --task-dir <private-task-directory>
+```
+
+It reads only persisted runner metadata and checkpoint existence/mtime; it does
+not start Claude, load logs, or prove process liveness. Do not repeatedly poll it
+when the host already reports the process running. A recorded running state can
+be stale after a host crash. Verify ownership before any takeover. Investigate
 detailed output on failure or evidence of a stall, rather than treating every
 recoverable command error as a reason to interrupt Claude.
+
+Claude replaces `rounds/<round>/checkpoint.md` with the Write tool at meaningful
+milestones. No Bash or rename permission is required for this record.
+Codex continues waiting without reading or acknowledging each save.
+On interruption or resumption, read the latest available checkpoint with the Git
+evidence; it can be missing, incomplete, or stale and never replaces final review.
+This separate file preserves one writer per record. No checkpoint watcher, daemon,
+or background wake-up mechanism is introduced.
 
 Record available usage-limit snapshots in the private handoff as described in
 the skill. The runner's estimated cost and result token counts do not measure
@@ -133,4 +168,5 @@ an exhausted review limit by silently starting new task records.
 
 - [Programmatic execution](https://code.claude.com/docs/en/headless)
 - [CLI flags](https://code.claude.com/docs/en/cli-reference)
+- [Permission rules and working directories](https://code.claude.com/docs/en/permissions)
 - [Authentication](https://code.claude.com/docs/en/authentication)

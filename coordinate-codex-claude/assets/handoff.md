@@ -14,7 +14,8 @@
 - Execution route: <verified executable or adapter reference>
 - Implementation session: <explicit session ID; optional until started>
 - Run limits: <per-call time/usage and maximum calls; sized for the whole batch>
-- Session model / effort: <observed or user-reported; optional, not a selector>
+- Codex model / effort: <user-selected baseline; observed or user-reported; actual quality-driven increases and reasons, if any>
+- Claude model / effort: <observed or user-reported; optional, not a selector>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>
 
 ## Incoming review scope (omit for delegated implementation)
@@ -75,9 +76,10 @@ they affect. Default: return once the whole batch is implemented and checked.>
 
 ## Usage and coordination evidence
 
-- Codex limit snapshots: <before/after timestamps, used percentages, window and reset identity; unavailable if not exposed>
+- Codex limit snapshots: <start / dispatch / Claude return / finish during initial evaluation; timestamps, used percentages, window/reset; unavailable boundaries omitted>
 - Concurrent work / resets: <known overlap or reset; attribution limits>
-- Observed change: <percentage points in the same account-wide window, not task-specific consumption>
+- Observed change: <percentage points in the same account-wide window, account-wide; reasonable task approximation when no concurrent work is confirmed>
+- Measurement phase: <initial workflow evaluation; revisit extra boundaries once established>
 - Agent work: <actual Claude and Codex scope; correction rounds and takeover reasons>
 - Token evidence, if available: <provider definitions, cache/input/output breakdown, source and completeness>
 - Efficiency assessment: <comparable baseline and result, or not established; concrete adjustment if warranted>

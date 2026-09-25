@@ -25,7 +25,7 @@ def value(flag): return args[args.index(flag)+1]
 if args==['--version']:
     print('2.1.275 (Claude Code)');sys.exit(0)
 if args==['--help']:
-    print('--print --output-format --verbose --model --effort --max-budget-usd --permission-mode --permission-prompts --session-id --resume --allowedTools --tools --mcp-config --strict-mcp-config');sys.exit(0)
+    print('--print --output-format --verbose --model --effort --max-budget-usd --permission-mode --permission-prompts --session-id --resume --allowedTools --tools --mcp-config --strict-mcp-config --add-dir');sys.exit(0)
 if args==['auth','status','--json']:
     Path('auth-cwd.txt').write_text(os.getcwd())
     print(json.dumps(dict(loggedIn=True,authMethod='claude.ai',apiProvider='firstParty',subscriptionType='pro',email='must-not-appear@example.com',token='must-not-appear')));sys.exit(0)
@@ -106,6 +106,13 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(b['resumed'])
         calls = [json.loads(line) for line in (self.repo / 'invocations.jsonl').read_text().splitlines()]
         self.assertIn('--allowedTools', calls[0])
+        for number, call in enumerate(calls, 1):
+            self.assertEqual(call[call.index('--add-dir') + 1], str(self.task))
+            rule = runner.checkpoint_rule(self.task / f'rounds/{number:03d}/checkpoint.md')
+            self.assertIn(rule, call)
+            self.assertNotIn('Write', call)
+        self.assertNotEqual(calls[0][calls[0].index('--allowedTools') + 1],
+                            calls[1][calls[1].index('--allowedTools') + 1])
         self.assertIn('--session-id', calls[0])
         self.assertIn('--resume', calls[1])
         self.assertEqual((self.repo / 'auth-cwd.txt').read_text(), str(self.repo))
@@ -208,6 +215,37 @@ class RunnerTests(unittest.TestCase):
         self.assertNotEqual(p.returncode, 0)
         self.assertNotIn('must-not-appear-secret', p.stdout + p.stderr)
         self.assertFalse((self.repo / 'invocations.jsonl').exists())
+
+    def test_official_endpoints_keep_subscription_route(self):
+        for name in runner.ENDPOINT_ENV:
+            self.env[name] = runner.OFFICIAL_ENDPOINT
+        p, data = self.invoke()
+        self.assertEqual(p.returncode, 0, data)
+        self.env['ANTHROPIC_API_KEY'] = 'must-not-appear-secret'
+        p, data = self.invoke()
+        self.assertNotEqual(p.returncode, 0)
+        self.assertNotIn('must-not-appear-secret', p.stdout)
+
+    def test_endpoint_lookalikes_refused_before_probe(self):
+        for name in runner.ENDPOINT_ENV:
+            for value in ('https://api.anthropic.com/', 'http://api.anthropic.com',
+                          'https://api.anthropic.com.evil.invalid',
+                          'https://api.anthropic.com@evil.invalid',
+                          'https://api.anthropic.com?secret=must-not-appear'):
+                with self.subTest(name=name, value=value):
+                    environment = {name: value}
+                    with patch.dict(runner.os.environ, environment, clear=True), \
+                            patch.object(runner, 'capture', side_effect=AssertionError('must not launch')):
+                        result = runner.probe(str(self.fake), self.repo)
+                    self.assertFalse(result['eligible'])
+                    self.assertNotIn(value, json.dumps(result))
+
+    def test_checkpoint_permission_rejects_pattern_injection(self):
+        for part in ('bad*', 'bad?', 'bad[0]', 'bad,Write', 'bad)'):
+            with self.subTest(part=part), self.assertRaises(runner.Refusal):
+                runner.checkpoint_rule(self.root / part / 'checkpoint.md')
+        self.assertEqual(runner.checkpoint_rule(Path('/private/tmp/task space/checkpoint.md')),
+                         'Edit(//private/tmp/task space/checkpoint.md)')
 
     def test_invalid_limits_and_bypass_rejected(self):
         for flag, value in (('--timeout', 'nan'), ('--max-rounds', '0'),
