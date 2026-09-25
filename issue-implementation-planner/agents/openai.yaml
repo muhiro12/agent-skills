@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue Implementation Planner"
+  short_description: "Turn existing issues into grounded implementation plans"
+  default_prompt: "Use $issue-implementation-planner to turn the selected issues into concrete implementation plans grounded in the current repository."
