@@ -28,7 +28,7 @@ results in concise Japanese. Keep repository artifacts in the required language.
 
 | Need | Guidance |
 | --- | --- |
-| UI composition, navigation, accessibility, platform fit | `apple-hig-ui-guardian`; matching Xcode SwiftUI guidance |
+| UI composition, navigation, accessibility, resizing and platform fit | `apple-hig-ui-guardian`; matching Xcode SwiftUI guidance |
 | Swift API, concurrency, ownership, package boundaries | `swift-code-guardian` |
 | Local Swift formatting and naming | `mh-swift-style` |
 | Framework adoption, lifecycle, entitlements, unfamiliar data wiring | `apple-sample-code-advisor` when a relevant sample clarifies implementation |

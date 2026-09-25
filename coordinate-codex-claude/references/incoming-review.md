@@ -35,7 +35,7 @@ or invent historical usage snapshots.
 
 ## Review and route corrections
 
-Apply the skill's common behavior and development-practice review. This includes
+Apply [the common behavior and development-practice review](review-and-close.md). This includes
 commit wording and boundaries, relevant developer principles, verification,
 public artifacts, and the user's authorization, not just whether code compiles.
 

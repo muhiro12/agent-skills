@@ -1,6 +1,6 @@
 ---
 name: repo-and-app-footprint-inspector
-description: Diagnose repository and app footprint without modifying source code. Use this skill when you need practical conclusions from repository size, app codebase size, meaningful LOC, directory or module concentration, maintenance risk, test surface health, architectural hotspots, or structural health signals, especially for requests about project volume, codebase footprint, biggest modules, maintenance burden, or whether the current structure is healthy enough to keep extending.
+description: "Measure repository or app source footprint and diagnose concentration, maintenance burden, and test-surface signals. Use for size or structural-health questions; remains read-only and does not measure binaries by default."
 ---
 
 # Repo And App Footprint Inspector

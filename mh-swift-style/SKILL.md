@@ -1,6 +1,6 @@
 ---
 name: mh-swift-style
-description: Apply Hiromu/MH local Swift style preferences when creating, editing, refactoring, or reviewing Swift code in Hiromu's Apple-platform repositories. Use when Swift code generation or review should preserve MH-style preferences such as clear non-abbreviated names, `.init(...)` for explicit return types, multiline control-flow bodies, and existing repository source style, while still respecting official Swift guidance, compiler diagnostics, SwiftLint, and repository-specific rules.
+description: "Apply MH local Swift naming, initializer, and control-flow style in the owner's Apple repositories. Use for Swift edits and reviews while preserving compiler correctness, official guidance, and repository rules."
 ---
 
 # MH Swift Style

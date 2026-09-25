@@ -32,6 +32,14 @@ targets, and supported widths when the affected UI makes them relevant. Custom
 UI is valid when it serves a concrete product need within platform constraints.
 Do not replace product identity with a generic appearance.
 
+For resizing, foldable-device, or multi-window work, use matching current Xcode
+resizability guidance. Review state across size transitions as well as static
+endpoints: navigation, selection, drafts, and active presentations should retain
+their intended behavior. Check local available bounds and actual per-edge insets
+rather than assuming a device name determines layout. Verify device-specific API
+availability in the selected SDK; a Simulator gap is a coverage limit, not proof
+of physical-device behavior.
+
 For visual audits, inspect actual screenshots or rendered previews. Source and
 UI hierarchy support diagnosis but do not prove visible quality. Separate app UI,
 shared design-system, fixture/setup, and tool failures. A shared-looking issue

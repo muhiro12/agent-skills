@@ -1,6 +1,6 @@
 ---
 name: swiftdata-schema-auditor
-description: Inspect SwiftData schema definitions in the current repository and turn them into a human-readable Japanese review. Use this skill when you need to explain or audit `@Model` entities, persisted properties, defaults, optionality, `@Relationship`, inverse relationships, delete rules, `@Attribute`, `@Transient`, computed vs persisted fields, schema coupling, or SwiftData migration risk.
+description: "Inspect SwiftData entities, stored properties, relationships, and migration hotspots. Use for a read-only schema inventory or design explanation; use swiftdata-dev for implementation and persistence failures."
 ---
 
 # SwiftData Schema Auditor

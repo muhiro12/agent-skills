@@ -1,6 +1,6 @@
 ---
 name: string-catalog-maintainer
-description: Audit, clean up, and repair Xcode string catalogs (.xcstrings) across one or more Apple app targets. Use this skill when you need to remove stale localization keys, identify missing locale coverage, extract translation tasks, apply reviewed translation patches, seed missing locale entries, or update translations in Localizable.xcstrings, AppIntents.xcstrings, AppShortcuts.xcstrings, or other string catalog files.
+description: "Audit and repair Xcode string catalogs (.xcstrings). Use for stale-key cleanup, missing locale coverage, or validated translation patches; preserve placeholders and distinguish dynamic references before pruning."
 ---
 
 # String Catalog Maintainer

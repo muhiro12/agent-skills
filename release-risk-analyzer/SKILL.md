@@ -1,6 +1,6 @@
 ---
 name: release-risk-analyzer
-description: Assess scored release-blocking risk between the latest reachable release tag and the current commit, with emphasis on changes that can leave lasting product damage if released unnoticed. Use this skill when you need to decide whether a release should be blocked for manual review by quantifying risk across durable-state compatibility, irreversible or externally registered IDs and configuration values, permissions and capabilities, build/signing/dependency surfaces, persistent settings, API contracts, and other high-risk product surfaces. Platform-specific items such as SwiftData models or Bundle IDs are examples of these broader risk axes, not the scoring axes themselves. It can still summarize changes, but risk scoring and release judgment should come first.
+description: "Assess release-blocking risk in a Git range using durable-state, external-identity, permissions, build, and API signals. Use for pre-release risk review; heuristic scores do not establish release readiness."
 ---
 
 # Release Risk Analyzer

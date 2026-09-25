@@ -1,6 +1,6 @@
 ---
 name: sync-xcode-skills
-description: Export Xcode-provided agent Skills through `xcrun mcpbridge run-agent skills export`, normalize them into Codex-compatible skill folders, and install them into the local Codex skills root. Use when the user wants to discover, extract, sync, refresh, import, or periodically update built-in Xcode Skills so Codex can use the latest Xcode-provided Apple guidance.
+description: "Export Xcode-provided skills and install normalized, managed copies in the shared user skill root. Use to discover, import, refresh, or synchronize bundled Apple guidance."
 ---
 
 # Sync Xcode Skills

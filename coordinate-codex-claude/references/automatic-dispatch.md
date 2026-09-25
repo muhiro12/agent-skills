@@ -127,7 +127,7 @@ This separate file preserves one writer per record. No checkpoint watcher, daemo
 or background wake-up mechanism is introduced.
 
 Record available usage-limit snapshots in the private handoff as described in
-the skill. The runner's estimated cost and result token counts do not measure
+[usage and waiting](usage-and-waiting.md). The runner's estimated cost and result token counts do not measure
 Codex subscription-limit consumption. A missing final result after interruption
 must remain visible; partial streaming usage is not a finalized token total.
 

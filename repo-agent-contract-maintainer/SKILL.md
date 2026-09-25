@@ -1,6 +1,6 @@
 ---
 name: repo-agent-contract-maintainer
-description: Maintain clone-ready repository AGENTS.md contracts and their boundaries with global AGENTS.md, developer principles, personal principles, skills, and durable architecture documents. Use when creating a new repository AGENTS.md, auditing or updating existing AGENTS.md files, deciding whether policy belongs in global AGENTS.md, a repo AGENTS.md, a skill, developer principles, personal principles, Designs/ADRs, or issues, or aligning Apple repositories to capability-based Xcode-native verification while preserving repository-specific rules.
+description: "Create or maintain concise, clone-ready AGENTS.md contracts. Use to align repository instructions or place policy in the right layer: repository rules, architecture docs, skills, issues, or private principles."
 ---
 
 # Repo Agent Contract Maintainer

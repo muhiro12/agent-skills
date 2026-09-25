@@ -1,0 +1,44 @@
+# Sample cache operations
+
+Use a skill-owned, repo-external cache by default:
+
+`<active-skills-root>/apple-sample-code-advisor/cache`
+
+Resolve `<active-skills-root>` from the parent directory of this loaded skill. If its path is unavailable, use `~/.agents/skills`, the user skill location. Prefer the loaded skill path so worktrees and alternate installations do not accidentally read or mutate another installation's cache. `CODEX_HOME` controls Codex configuration and runtime state, not this shared user skill root.
+
+Never place downloaded sample projects inside the target product repository unless the user explicitly asks. Keep cached samples disposable and refreshable; they are local evidence, not vendored source.
+Treat legacy `~/.codex/cache/apple-sample-code` contents as a migration source only. Use the explicit migration workflow when needed; do not delete the legacy cache unless the user asks.
+
+Migration is an explicit maintenance operation, not an installation prerequisite.
+Use `python3 scripts/migrate_skill_data.py --only apple-sample-cache` from the
+skills repository root only when an existing legacy cache is known to matter or
+the user requests migration. Review its dry-run scope before an authorized
+`--apply`. It copies missing entries, preserves conflicts, and rebases cache
+metadata transactionally. Do not inspect old private/cache trees merely because
+a fresh installation has no cache.
+
+Do not pre-seed samples just because this skill exists. Fetch lazily when a concrete implementation, review, or architecture decision has a plausibly related Apple sample, or when the user explicitly asks to cache or refresh a named sample.
+
+Use `scripts/sample_cache.py` for cache operations:
+
+- `list`: show cached samples and staleness.
+- `inspect <slug>`: show metadata and a shallow project tree.
+- `fetch-archive`: download and extract a known archive URL.
+- `add-local`: register an already downloaded archive or directory.
+- `mark-checked`: record a completed official-source check without downloading unchanged source again.
+- `refresh-plan`: identify stale samples that should be rechecked.
+- `prune`: dry-run cache cleanup by default; require `--apply` to delete.
+
+Each cached sample lives under `samples/<slug>/source` with metadata recorded in both the cache manifest and `samples/<slug>/metadata.json`. `fetched_at` records when source was installed, while `checked_at` records the latest successful comparison with the official source. Existing metadata without `checked_at` remains valid and falls back to `fetched_at`.
+
+Cache mutations follow these safety rules:
+
+- Treat local paths as caller-owned input and never delete them. Remove only temporary downloads created by the cache script.
+- Validate and fully stage source before replacement. Reject unsafe ZIP members, keep the previous entry until staging succeeds, and roll it back if the manifest update fails.
+- Write manifest and per-sample metadata atomically, and serialize mutating operations with the cache lock.
+- Fail closed when `fetched_at` is missing or invalid. `refresh-plan` also fails closed when a present `checked_at` is invalid. `prune --apply` continues to use `fetched_at`, must not delete any entry when that value is invalid, and must verify each requested removal.
+
+Before fetching or replacing a cached sample, state the sample title, Apple documentation URL, source/download URL, cache path, and whether this is a refresh. A task may proceed with an on-demand fetch when the sample is clearly needed, but do not silently fetch large archives or replace cached source.
+
+
+Run script commands from the loaded skill directory or use its absolute script path.
