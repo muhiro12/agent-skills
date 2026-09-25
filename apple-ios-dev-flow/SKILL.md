@@ -1,6 +1,6 @@
 ---
 name: apple-ios-dev-flow
-description: Implement, fix, refactor, or debug Apple-platform apps and Swift packages. Select relevant Apple guidance and the smallest verification evidence for the changed boundary; use a more specific skill for a focused audit.
+description: "Implement, fix, refactor, or debug Apple-platform apps and Swift packages. Select relevant Apple guidance and the smallest verification evidence for the changed boundary; use a more specific skill for a focused audit."
 ---
 
 # Apple iOS Dev Flow
@@ -64,7 +64,7 @@ risk score. Report current-change failures separately from pre-existing failures
 
 A missing aggregate verify command does not prevent ordinary implementation.
 Derive proportionate checks from the real project/package/CI configuration and
-state the limits. Use `apple-repo-verify-bootstrapper` only when verification
+state the limits. Use `verify-contract-maintainer` only when verification
 setup is requested or necessary to unblock the task; do not add scaffolding as
 an unrelated prerequisite. `ci-verify-and-summarize` can summarize an existing
 shell or Xcode-native contract without creating another wrapper.

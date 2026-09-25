@@ -21,7 +21,6 @@ and should remain in their provider-managed locations.
 - `apple-hig-ui-guardian`: Audits and repairs Apple-platform UI work against Apple's Human Interface Guidelines.
 - `apple-intelligence-dev`: Builds and evaluates Apple Intelligence features with current Apple guidance, grounded generation, lifecycle safety, and platform-specific evidence.
 - `apple-ios-dev-flow`: Uses current-repository evidence first, Apple guidance second, and an optional local sibling reference repository as a fallback for Apple-platform implementation work.
-- `apple-repo-verify-bootstrapper`: Derives an initial Apple verification contract from actual Xcode and package surfaces, retaining scripts only for uncovered checks.
 - `apple-sample-code-advisor`: Finds and applies Apple Developer sample code as official implementation guidance for Apple-platform work.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and summarizes push readiness from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
@@ -44,7 +43,7 @@ and should remain in their provider-managed locations.
 - `sync-xcode-skills`: Exports Xcode-provided agent Skills and installs Codex-compatible local copies.
 - `track-developer-principles`: Maintains a personal cross-repository principle system; the private record files themselves are intentionally not tracked here.
 - `track-personal-principles`: Maintains private weighted personal operating principles while keeping the record files out of git.
-- `verify-contract-maintainer`: Maintains a minimal verification contract across Xcode-native evidence capabilities and retained repository-rule scripts.
+- `verify-contract-maintainer`: Creates, audits, and maintains minimal verification contracts, with Apple bootstrap guidance and compatible existing-entrypoint maintenance.
 - `xcode-preview-auditor`: Audits SwiftUI `#Preview` coverage and capture results screen-by-screen, with audit-first reporting.
 - `xcode-ui-smoke-auditor`: Runs safe Simulator UI smoke audits for Apple-platform apps and reports visual or interaction risks without auto-fixing by default.
 
