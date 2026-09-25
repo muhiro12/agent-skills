@@ -71,7 +71,9 @@ The baseline analyzes definitions and lists conventional test paths. It does
 not execute those tests, arbitrary skill scripts, or runtime capability probes.
 `static-aligned` means only its static checks passed; runtime fit and execution
 remain unverified. Heuristic scores and recommendations need human/agent judgment.
-Do not add boilerplate merely to silence a keyword-based finding.
+Do not add boilerplate merely to silence a keyword-based finding. Output-language
+preferences belong to the active conversation unless the deliverable requires a
+specific language; their omission is not definition drift.
 
 ## Review What Changes Decisions
 

@@ -1370,8 +1370,6 @@ def score_skill_dimensions(
         clarity_of_invocation += 1
     if interface_fields.get("default_prompt") and f"${skill.name}" in interface_fields["default_prompt"]:
         clarity_of_invocation += 1
-    if re.search(r"japanese|日本語", skill.skill_text, re.IGNORECASE) or "## response contract" in lower_instructions:
-        clarity_of_invocation += 1
     if 40 <= len(skill.description.strip()) <= 200:
         clarity_of_invocation += 1
     if "## workflow" in lower_instructions:
@@ -1748,16 +1746,6 @@ def analyze_skill(skill: SkillRecord, ground_truth: dict[str, Any]) -> dict[str,
         ]
     )
     lower_text = combined_text.lower()
-
-    has_japanese_output_rule = bool(re.search(r"japanese|日本語", skill.skill_text, re.IGNORECASE))
-    if not has_japanese_output_rule:
-        add_issue(
-            issues,
-            code="missing_japanese_output_rule",
-            severity="drift",
-            summary_ja="出力言語の既定が日本語で明示されていません。",
-            fix_ja="出力は日本語で簡潔・丁寧に返す規則を明記してください。",
-        )
 
     if not skill.openai_text.strip():
         if skill.visibility != "internal":
@@ -2266,9 +2254,6 @@ def build_alignment_lines(
     lines: list[str] = []
     artifact_root = ground_truth.get("artifact_root", "").strip()
     artifact_root_directory = artifact_root.replace("<RUN_ID>/", "").rstrip("/")
-
-    if "missing_japanese_output_rule" in issue_codes:
-        lines.append("- Return output in concise, polite Japanese.")
 
     if "ci_entrypoint_not_aligned" in issue_codes or "ci_policy_not_dynamic" in issue_codes:
         canonical_entrypoint = ground_truth.get("canonical_entrypoint", "")

@@ -15,6 +15,27 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 class AuditSkillsBatchCLITests(unittest.TestCase):
     maxDiff = None
 
+    def test_output_language_does_not_change_definition_health(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = root / "repo"
+            repo.mkdir()
+            skills = root / "skills"
+            skill = self._write_minimal_skill(skills, "language-neutral")
+            before = self._find_report_item(
+                self._run_json_with_roots(repo, skills), "language-neutral"
+            )
+            definition = skill / "SKILL.md"
+            definition.write_text(definition.read_text().replace(
+                "Return output in concise, polite Japanese.\n", ""
+            ))
+            after = self._find_report_item(
+                self._run_json_with_roots(repo, skills), "language-neutral"
+            )
+        self.assertEqual(before["issue_codes"], after["issue_codes"])
+        self.assertEqual(before["scores"], after["scores"])
+        self.assertEqual(before["recommended_action"], after["recommended_action"])
+
     def test_documented_verify_outside_ci_scripts_takes_precedence(self) -> None:
         module = self._load_script_module()
         selected = module.choose_canonical_entrypoint(
