@@ -440,8 +440,10 @@ def parser():
     status_parser.add_argument('--task-dir', required=True)
     r = commands.add_parser('run')
     r.add_argument('--claude-bin')
-    for name in ('checkout', 'task-dir', 'request-file', 'model', 'effort'):
+    for name in ('checkout', 'task-dir', 'request-file', 'effort'):
         r.add_argument('--' + name, required=True)
+    r.add_argument('--model', default='opus',
+                   help='Claude model alias (default: opus); pin a version only when explicitly requested')
     r.add_argument('--permission-mode', choices=('manual', 'auto'), default='manual')
     r.add_argument('--allow-tool', action='append', default=[])
     r.add_argument('--tools')

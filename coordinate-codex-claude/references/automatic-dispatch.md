@@ -62,15 +62,28 @@ result and Git evidence. Claude works in the specified checkout.
 python3 <skill-root>/scripts/claude_runner.py run \
   --checkout <checkout> --task-dir <private-task-directory> \
   --request-file <private-request-file> \
-  --model <currently-selected-model> --effort <selected-effort> \
+  --model opus --effort <selected-effort> \
   --permission-mode auto
 ```
 
-The flags above select Claude only, using its independent user preference.
+The flags above select Claude only; replace the example model with any existing
+independent user preference.
 They do not select or change the active Codex model or reasoning effort.
-No model is fixed in the helper. Inspect the actual model and permission mode in
-the result. If automatic permission review is unavailable, use the supported
-`manual` mode with the smallest task-scoped `--allow-tool` grants, resolving real
+The helper defaults to the rolling
+[`opus` alias](https://code.claude.com/docs/en/model-config#model-aliases)
+when `--model` is omitted.
+This is a helper fallback, not automatic discovery of the user's Claude settings.
+Pass an existing user-selected or configured model explicitly, including on
+resume; omission does not preserve a previous non-Opus selection. When no such
+selection exists, use `opus` to follow the current Opus release. Preserve an
+intentional version pin, but do not infer one from observed runtime metadata.
+Keep the requested alias and returned model ID distinct: the returned ID is evidence, not a replacement for the alias on the
+next invocation or resume. Pass Claude's selected effort explicitly (including
+`xhigh` when selected); do not derive it from Codex. Verify the resolved model
+in the session and result metadata, and distinguish requested effort from an
+effective effort value when the CLI does not return one. Inspect the actual
+permission mode in the result. If automatic permission review is unavailable,
+use the supported `manual` mode with the smallest task-scoped `--allow-tool` grants, resolving real
 approval needs through the coordinator's current controls. The runner supplies
 `--add-dir <task-dir>` for the private task records and an exact absolute-path
 `Edit` allow rule for this round's `checkpoint.md`. This covers the Write tool too;

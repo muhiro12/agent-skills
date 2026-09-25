@@ -121,6 +121,21 @@ class RunnerTests(unittest.TestCase):
         before = json.loads((self.task / 'rounds/001/git-before.json').read_text())
         self.assertIn('sha256', before['unstaged'])
 
+    def test_default_alias_and_explicit_model_reach_cli(self):
+        args = self.args('--effort', 'xhigh')
+        index = args.index('--model')
+        del args[index:index + 2]
+        for extra, expected in (([], 'opus'), (['--model', 'pinned-test-model'], 'pinned-test-model')):
+            process = subprocess.run(args + extra, cwd=self.root, env=self.env,
+                                     capture_output=True, text=True, timeout=30)
+            summary = json.loads(process.stdout)
+            self.assertEqual(process.returncode, 0, summary)
+            call = json.loads((self.repo / 'invocations.jsonl').read_text().splitlines()[-1])
+            self.assertEqual(call[call.index('--model') + 1], expected)
+            self.assertEqual(call[call.index('--effort') + 1], 'xhigh')
+            self.assertEqual(summary['requested_model'], expected)
+            self.assertEqual(summary['session']['model'], 'test-model')
+
     def test_zero_exit_is_not_enough(self):
         for scenario in ('missing', 'malformed', 'duplicate', 'error', 'denied',
                          'result-denied', 'bad-mcp', 'wrong-session', 'wrong-mode'):

@@ -30,8 +30,13 @@ do not claim prompt wording changed a client setting. If no such control is
 available, state that limitation and request a user-side adjustment when needed.
 Do not automatically change the selected model or revert an increased effort;
 follow subsequent user direction. Claude retains its independently chosen model
-and effort preference; do not map Codex's setting onto Claude. Record settings
-only when observable or user-reported, including any actual effort change.
+and effort preference; do not map Codex's setting onto Claude. For delegated
+Claude runs, default to the rolling `opus` alias rather than a version-specific
+ID when there is no existing user-selected or configured model. Pass an existing
+selection explicitly to the runner, including on resume, and preserve intentional
+version pins. Do not turn a resolved model ID observed in an app, previous run,
+or result into an implicit pin. Record settings only when observable or
+user-reported, including any actual effort change.
 
 ## Codex: prepare implementation
 
