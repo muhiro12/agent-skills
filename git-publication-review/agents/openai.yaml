@@ -1,4 +1,4 @@
 interface:
-  display_name: "Git Publication Review"
-  short_description: "Review outgoing Git history for public exposure"
-  default_prompt: "Use $git-publication-review to check whether these changes are suitable for the intended public repository, including destination visibility and outgoing history."
+  display_name: "Git Publication Review and Push"
+  short_description: "Audit outgoing history and push when checks pass"
+  default_prompt: "Use $git-publication-review to audit the intended destination and outgoing history, then push the reviewed commits if no blockers remain and verify the remote result."
