@@ -28,8 +28,9 @@ preserve existing tracked and untracked changes; do not stash, commit, or discar
 work merely to pass a gate. A request for proposals alone remains read-only.
 
 Read the repository `AGENTS.md` and selected skills' full `SKILL.md` before
-judging or editing them. Consult only relevant developer-principle domains when
-user-specific tradeoffs matter. Current instructions override older preferences.
+judging or editing them. Use user-specific constraints supplied by the request or
+applicable contracts when they affect portfolio decisions. Current instructions
+override older preferences.
 
 ## Ownership
 

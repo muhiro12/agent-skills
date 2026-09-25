@@ -2,8 +2,7 @@
 
 These are historical routing clues, not permanent limitations or instructions
 to patch dependencies. Recheck linked Issues and the installed executable.
-Last checked: 2026-09-19; Issues 15 and 16 are closed, and published 1.3.0
-completed verified screenshot replacement in an adopter.
+Last checked: 2026-09-19; Issues 15 and 16 are closed.
 
 ## Asset Upload Response and Delayed Read-Back
 
