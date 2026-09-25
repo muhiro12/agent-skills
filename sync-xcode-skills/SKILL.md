@@ -26,14 +26,27 @@ Then run the Python installer from this skill directory:
 python3 scripts/sync_xcode_skills.py --install-only --export-dir /tmp/xcode-exported-skills
 ```
 
-In this Codex environment, `xcrun mcpbridge ...` must be executed as its own top-level command. Do not wrap it in Python, `bash -c`, command chaining such as `cd ... && xcrun ...`, or `MCP_XCODE_PID=...`; those forms can fail to connect to the running Xcode. Let `mcpbridge` use its own Xcode auto-detection.
+Prefer a standalone export command in Codex; nested Python or shell wrappers have
+failed to connect in some environments. Use automatic selection for the selected
+Xcode. When a specific different Xcode is requested or multiple versions run,
+inspect the installed bridge's help and identify the intended application's live
+process before using its supported per-command `MCP_XCODE_PID` selector. A bridge
+binary's path alone does not establish which running Xcode answered. Do not retain
+a PID or change global selection as a convenience.
 
 ## Workflow
 
-1. Confirm the selected Xcode with `xcode-select -p` and `xcodebuild -version` when the user cares which Xcode is used.
+1. Confirm the selected Xcode with `xcode-select -p` and `xcodebuild -version`.
+   If the requested export source differs, verify its app version and live process
+   and use the bridge's supported selection mechanism for that invocation.
 2. Run `xcrun mcpbridge run-agent skills export --output-dir /tmp/xcode-exported-skills --replace-existing` as a standalone command.
 - If export cannot find a running Xcode while the native integration can list its workspaces, distinguish the shell access boundary from an application failure. Use the current approval mechanism for the same standalone export when additional access is required; do not invent wrappers or persistent permission exceptions. Do not install from an incomplete or failed export.
 3. Run `python3 scripts/sync_xcode_skills.py --install-only --export-dir /tmp/xcode-exported-skills` from the `sync-xcode-skills` directory.
+   The installer records the version returned by `xcodebuild`; for a deliberately
+   selected alternate Xcode, use a per-command `DEVELOPER_DIR` pointing to that
+   verified app's `Contents/Developer` and confirm its version before installation.
+   Do not label an alternate export with the default CLI's version. If provenance
+   cannot be established, keep the export for inspection without installing it.
 4. Report the exported and installed skill names, then mention the catalog path when surrounding Apple skills may need to route to the generated Xcode-provided skills.
 
 The script exports with `xcrun mcpbridge run-agent skills export --replace-existing`, then installs Codex-compatible copies into the skills root. By default, installed skill names are prefixed with `xcode-skill-` to avoid collisions with local custom skills.
@@ -57,7 +70,9 @@ Apple-platform orchestrator skills should consult this catalog instead of hardco
 ## Important Behavior
 
 - Prefer direct `xcrun mcpbridge run-agent skills export`. The older `xcrun agent skills export` wrapper can fail from Codex's embedded shell by trying to launch Xcode instead of connecting to the running instance.
-- Run `xcrun mcpbridge ...` as a standalone top-level command in Codex. Python subprocesses, `bash -c`, shell chaining, and explicit `MCP_XCODE_PID` can fail to connect to the running Xcode.
+- Prefer standalone export in Codex. Treat connection failures as evidence about
+  that invocation, not a universal ban on selectors documented by the installed
+  bridge. Verify the requested application and version before retrying.
 - Xcode-exported frontmatter can contain fields Codex does not need, such as `when_to_use` or `effort`. The script rewrites installed `SKILL.md` frontmatter to `name` and `description`, folding `when_to_use` into the description when present.
 - Exported `name` values and `--name-prefix` must be filesystem-safe slugs. The installer rejects traversal-like values, duplicate installed names (including case-only duplicates), symbolic links in exported trees or install targets, and any resolved install target outside the skills root before changing managed skills.
 - The script writes `agents/openai.yaml` and `.xcode-skill-sync.json` into each installed managed skill.
