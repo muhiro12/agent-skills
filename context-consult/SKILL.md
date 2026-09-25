@@ -1,6 +1,6 @@
 ---
 name: context-consult
-description: Search and read local context archives to produce cited context packs from prior near-raw evidence and derived notes. Use only when the user explicitly invokes $context-consult; do not invoke implicitly for natural-language archive searches, saving new evidence, summarizing newly pasted material, or browsing external source systems.
+description: "Search and read local context archives to produce cited context packs from prior near-raw evidence and derived notes. Use only when the user explicitly invokes $context-consult; do not invoke implicitly for natural-language archive searches, saving new evidence, summarizing newly pasted material, or browsing external source systems."
 ---
 
 # Context Consult
@@ -32,8 +32,11 @@ This skill is read-only even when triggered.
 - For evaluations of people, responsibilities, intent, or performance, separate the archive observer view from neutral caveats. Use memory-aware interpretation only when the user explicitly asks for it.
 - Default roots are the sibling `context-capture` skill's `archives/private`, `archives/work`, and `archives/shared-safe` directories, but search only the scope the user requested or clearly authorized.
 - Treat legacy `~/context-archives/<scope>` roots as migration or explicitly requested fallback sources only.
-- If the skill-owned archive is missing or appears empty, run `python3 scripts/migrate_skill_data.py --only context-archives` from the skills root as a dry-run check. Because this skill is read-only, do not apply the migration unless the user asked to migrate or the current task already authorizes updating local archive files.
-- When dry-run finds legacy files and no migration is applied, report that legacy evidence exists and either search the authorized legacy scope read-only or ask before crossing the migration boundary.
+- If the archive is missing or empty, report the searched scope as empty. Do not
+  inspect legacy roots or run a migration merely to discover possible evidence.
+  Search a legacy location only when the user has authorized that source. Archive
+  migration is a separate explicit maintenance operation and remains outside
+  this read-only workflow.
 - Do not search `private` and `work` together unless the user explicitly asks for both and the boundary is appropriate.
 - Ask a concise clarification when the root or scope cannot be inferred safely.
 

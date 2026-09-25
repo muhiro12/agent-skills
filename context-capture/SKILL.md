@@ -1,6 +1,6 @@
 ---
 name: context-capture
-description: Save user-provided conversations, copied threads, transcripts, decisions, or manual notes as near-raw Markdown evidence in a local context archive. Use only when the user explicitly invokes $context-capture; do not invoke implicitly for natural-language archive requests, ordinary summarization, general note taking, or searching an existing archive.
+description: "Save user-provided conversations, copied threads, transcripts, decisions, or manual notes as near-raw Markdown evidence in a local context archive. Use only when the user explicitly invokes $context-capture; do not invoke implicitly for natural-language archive requests, ordinary summarization, general note taking, or searching an existing archive."
 ---
 
 # Context Capture
@@ -26,7 +26,7 @@ Writing archive records requires both explicit skill invocation and capture inte
 - Use `assets/raw-capture.md` for raw evidence files.
 - Use `assets/derived-summary.md` as the starting template for derived records; change `record_type`, filename suffix, and body sections to match the derived purpose.
 - Run `scripts/validate_frontmatter.py <markdown-file>` after writing a raw or derived Markdown record.
-- Run `python3 scripts/backfill_archive_metadata.py` from the `context-capture` skill directory after updating this skill on a machine with existing archive files; review the dry-run and use `--apply` only when the metadata additions are acceptable.
+- For explicitly requested metadata maintenance, run `python3 scripts/backfill_archive_metadata.py` from this skill directory; inspect the dry-run before an authorized `--apply`. Skill updates alone do not authorize archive maintenance.
 
 ## Workflow
 
@@ -40,10 +40,14 @@ Writing archive records requires both explicit skill invocation and capture inte
 - Resolve those paths relative to the `context-capture` skill directory, not the current repository.
 - Use another archive root only when the user or current repository clearly specifies one.
 - Treat legacy `~/context-archives/<scope>` roots as read-only migration sources unless the user explicitly asks to keep writing there.
-- After this skill is installed or updated from GitHub, run `python3 scripts/migrate_skill_data.py --only context-archives` from the skills root before the first write if `archives/` is missing or empty.
-- If the dry-run reports legacy archive files, run `python3 scripts/migrate_skill_data.py --only context-archives --apply` before writing new captures, unless the volume, scope, or sensitivity requires confirmation.
-- The migration copies only missing targets and never overwrites conflicting files. Resolve conflicts manually before writing into the same scope.
-- If existing archive Markdown files predate `observer_perspective`, `coverage_limitations`, or `use_policies`, run `python3 scripts/backfill_archive_metadata.py` in this skill directory and apply it only after reviewing the planned metadata-only edits.
+- An empty archive is valid for a fresh installation. Do not inspect legacy private
+  roots or migrate/backfill records merely because this skill was updated.
+- When the user requests migration, run `python3 scripts/migrate_skill_data.py
+  --only context-archives` from the skills root as a dry-run first. Apply only
+  the authorized scope; it copies missing files and preserves conflicts.
+- When explicitly maintaining legacy metadata, preview
+  `scripts/backfill_archive_metadata.py` before applying changes. Resolve conflicts
+  before writing into the same scope.
 - The backfill inspects regular Markdown files only, skips symbolic links, and replaces each accepted file atomically without following links outside the selected archive root.
 - Never mix `private` and `work` in the same physical root.
 - If scope, sensitivity, destination path, or masking policy is ambiguous, ask before writing.
