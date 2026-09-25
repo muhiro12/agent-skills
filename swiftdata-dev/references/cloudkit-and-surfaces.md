@@ -88,7 +88,7 @@ exported keys, migration of existing data, fresh cloud imports, and supported
 old/new clients before changing the conclusion. Successful local migration or
 successful export alone does not prove the field identity was preserved.
 
-See the [scoped export observation](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename).
+See the [cloud-field diagnostic scenario](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename).
 Distinguish a scalar attribute from a relationship when evaluating community
 reports; `@Relationship(originalName:)` is the relationship migration API.
 

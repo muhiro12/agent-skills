@@ -38,7 +38,7 @@ arbitrary Codable payloads queryable on every deployment target.
 
 If the failure involves an implicit model ID or a predicate over a
 protocol-constrained model type, compare the separate
-[historical predicate cases](known-issues.md). Their mitigations are diagnostic
+[predicate diagnostic scenarios](known-issues.md). Their proposed comparisons are diagnostic
 candidates, not blanket prohibitions on `id` fields or generic code.
 
 Fetch the subset needed by the consumer. Specify meaningful sort descriptors
@@ -96,17 +96,13 @@ require the application to implement a custom synchronization protocol.
 
 ## Retained selections after deletion
 
-In a scoped iOS 27.0 / Xcode 27.0 CloudKit development test on 2026-09-19,
-local deletion and imported deletion correctly removed records, but navigation
-retained the selected model and displayed stale relationship counts and totals.
-Re-querying the selected persistent identifier and clearing selection when it
-left the query results corrected the observed presentation. Parent selection
-also needed invalidation when its record disappeared.
+When deleted records remain visible, compare query membership with retained
+selection and relationship-derived presentation. A retained model reference does
+not establish that it still belongs to the current results. Evaluate clearing
+or refreshing selection when the selected record disappears, including deletion
+of its parent while sibling records remain.
 
-For a similar symptom, verify query membership as well as model-property
-observation; a retained reference alone does not establish that a record still
-belongs to the current results. Exercise deletion while detail is visible,
-both when its parent disappears and when sibling records keep the parent alive.
-Compare database contents and visible totals separately, without navigating back
-to hide stale state. This is a tested application-state correction, not a claim
-that SwiftData model references are generally unsafe or every runtime is affected.
+Exercise local and imported deletions when relevant. Compare database contents
+and visible totals without navigating away to hide stale state. Verify the
+specific application's observation path rather than treating model references
+as generally unsafe or assuming a framework defect.

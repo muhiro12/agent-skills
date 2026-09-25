@@ -1,193 +1,74 @@
-# Development Cases
+# Diagnostic Scenarios
 
-These are independent observations from Incomes and Cookle development, not
-Apple-confirmed bugs or designs every app must copy. Dates and environments
-scope the evidence; later model/OS versions require another check. Examples
-below describe input shapes without publishing private source pages or logs.
-A successful application workaround is distinct from fixing model behavior.
+These are evaluation designs and candidate remedies, not reports of completed
+experiments or Apple-confirmed bugs. Use synthetic inputs representing the
+feature's requirements, record the actual configuration and result, and avoid
+turning one application's product choices into universal requirements.
 
 ## Source omissions and rewritten fields
 
-**Conditions:** Cookle recipe extraction with `SystemLanguageModel.default`,
-guided Swift output, and greedy sampling on macOS 27, reviewed 2026-09-16.
-Inputs included structured metadata and dynamically rendered recipe text.
+For source-faithful extraction, include ordered instructions, warnings, paired
+labels/values, and ambiguous quantities. Compare acquired text, raw generated
+fields, and post-processing separately. A fact missing from acquisition cannot
+be recovered reliably by changing generation instructions.
 
-**Observed:** Generated output summarized ordered steps and lost machine
-operations or warnings. Ingredient preparation wording could move into the amount
-field. Numeric yield or a serving range could become a misleading serving count.
-Some required notes were absent from the acquired text; others were lost during
-generation. These are separate acquisition and interpretation failures.
-
-**Attempt and result:** Explicit extraction instructions and greedy sampling did
-not eliminate the observed field errors. The application retained recognized
-source instructions, ingredient pairs, and supplemental facts alongside model
-input, then used those facts to correct the corresponding generated fields.
-The correction applied only while the imported text still matched its source
-snapshot. Visible serving labels qualified otherwise ambiguous metadata.
-
-The bounded real-model reruns retained the previously omitted equipment operations
-and warnings. Synthetic regression tests exercised deliberately summarized model
-output. A subsequent deterministic replay corrected the affected ingredient
-splits; that replay did not demonstrate better raw model output. Evidence and
-limits were recorded in [Cookle #115](https://github.com/muhiro12/Cookle/issues/115).
-
-**Limits and applicability:** This is a workaround for source-faithful extraction
-where the application can recognize the original fields. It does not cover
-arbitrary HTML, facts absent from the source, or edited input that no longer
-matches it. It does not establish that the source's own advice is correct. If a
-feature requires exact reproduction, the tested prompt alone did not satisfy
-that requirement. Source validation is a candidate to evaluate, not a requirement
-for creative generation or every Foundation Models app.
+If exact fields are required, compare prompt/schema changes with deterministic
+extraction or validation against recognized source fields. Bind any correction
+to the source revision; edited input may invalidate the match. A validator test
+proves correction behavior, not improved raw model output. This method does not
+validate the truth of the source or apply automatically to creative generation.
+See [generation guidance](generation-and-state.md#prompts-and-guided-generation).
 
 ## Missing values and a lost one-period boundary
 
-**Conditions:** An Incomes extraction experiment on macOS 27 using Apple's `fm`
-CLI, the system model, structured JSON output, fresh sessions, and greedy
-sampling, observed 2026-09-13. The prompt supplied a fixed reference date/time
-zone, explicit unknown representations, and the meaning of a one-month change.
-The synthetic input set included omitted targets/dates and a change for only
-the next month.
+Build cases with absent targets/dates, ambiguous references, and a change limited
+to one period. Specify reference time, time zone, unknown representations, and
+start/end semantics. Score unsupported additions and missing boundaries even
+when output satisfies the schema. Compare repeated runs and unseen examples.
 
-**Observed:** Structurally valid output sometimes supplied an unstated target or
-start month, or omitted the explicit end month. The prompt already addressed
-these cases; providing that instruction was insufficient in the recorded runs.
-This was a CLI experiment, not proof about the shipping app's Swift adapter.
-
-**Attempt and result:** Repeated evaluation exposed the remaining extraction
-errors. A separately selected target/date/amount and deterministic comparison
-allowed the app experiment to proceed without depending on those outputs. That
-was a product-level bypass, not a repair to the model or a demonstrated prompt
-workaround. No successful correction for these model failures was established
-in that experiment. Evidence came from the retained synthetic harness and local
-probe results reviewed on 2026-09-16; those raw results are not published here.
-[Incomes #366](https://github.com/muhiro12/Incomes/issues/366) tracks the
-investigation, not a successful model fix.
-
-**Limits and applicability:** Use missing-field and bounded-date cases when
-qualifying a similar extractor. Other prompts, schemas, models, or validation
-may perform differently; they were not ruled out. The result does not justify
-requiring manual selection or confirmation in unrelated apps. It does mean that
-accepting every schema-valid result would not meet this experiment's extraction
-requirements without further work.
+A product can obtain a value through another input path when that fits its
+requirements, but this bypass is not a model fix. Do not require manual selection
+or confirmation in unrelated features. See [semantic evaluation](evaluation-and-debugging.md#semantic-evaluation).
 
 ## PCC availability without execution entitlement
 
-**Conditions:** An Incomes investigation using a temporary Swift command-line
-probe on macOS 27, observed 2026-09-13. The capability probe reported PCC as
-available.
+Compare SDK availability, reported runtime capability, signed entitlements,
+provisioning, and actual execution in the intended target. A command-line probe
+may have different authorization from the app. Diagnose the first failing layer
+without claiming that a capability result proves execution access, or that a
+probe failure establishes unavailability in every target.
 
-**Observed:** Execution terminated with a fatal missing-entitlement diagnostic
-for `com.apple.developer.private-cloud-compute`. Availability and execution access
-were different in this probe. The recorded process terminated rather than
-returning a recoverable request error.
-
-**Attempt and result:** The diagnostic identified an entitlement boundary. No
-successful PCC execution or entitlement workaround was demonstrated by this
-probe. Checking Apple's managed-access requirements and testing a correctly
-provisioned supported target are next steps, not recorded successes.
-
-**Limits and applicability:** Do not conclude that PCC is unusable in the app,
-Simulator, or all development environments from this command-line failure. Do
-not assume adding an entitlement string grants access. Consult the current
-[Apple access requirements](https://developer.apple.com/private-cloud-compute/)
-and test the actual signed target. The observation supports checking execution
-access independently; it does not require switching the product to another model.
+Follow [PCC access guidance](models-and-availability.md#private-cloud-compute).
+Adding an entitlement string is not evidence of a grant. Do not manufacture
+ungranted access or change the product's model merely to make a probe pass.
 
 ## Model errors hidden by a fallback parser
 
-**Conditions:** Cookle's existing Foundation Models adapter, inspected and changed
-in September 2026. A broad error handler led into deterministic fallback parsing.
-
-**Observed:** The code path could return a simplified parsed result after a thrown
-model error, making it difficult for the caller to distinguish recovery from
-successful inference. This was an adapter behavior found by code inspection,
-not evidence that every framework error had been reproduced at runtime.
-
-**Attempt and result:** The adapter propagated cancellation and mapped generation
-errors separately rather than returning fallback success from that catch path.
-The separate model-unavailable fallback remained. The
-[adapter correction](https://github.com/muhiro12/Cookle/commit/0a822d27)
-passed native build and repository checks. This establishes the code-path
-correction, not recovery from every live model service or guardrail error.
-
-**Limits and applicability:** If a fallback is part of another feature, it can
-remain. Preserve enough outcome information to diagnose the original failure
-and evaluate fallback quality independently. This case does not prescribe error
-copy, a manual workflow, or a ban on automatic fallback.
+Inspect broad catch paths that return parsed or cached output after generation
+fails. If a fallback is intended, preserve enough outcome information to tell
+fallback recovery from model success. Exercise cancellation, unavailable-model,
+and request-error paths separately. Verify that late results do not overwrite
+newer input. A synthetic error tests the adapter path, not every live service
+failure. See [session lifetime](generation-and-state.md#session-lifetime-and-cancellation).
 
 ## Whole-page input and context overflow
 
-**Historical evidence:** A June 14, 2025 Cookle prototype appended the complete
-GET HTML response to a guided-generation prompt and retained one session across
-requests. The developer recalls errors. The implementation confirms those input
-and session conditions; the original failing page/error was not recovered, so
-context overflow remains an explanation consistent with the evidence rather
-than a proven diagnosis of that exact incident. No historical input-reduction
-workaround or result was recovered.
+Use a synthetic document with relevant content plus increasing irrelevant text.
+Compare source token counts, full request budget, and fresh versus accumulated
+sessions. Reduce irrelevant material or partition meaningful sections, then
+verify retained relationships and output fidelity. Do not claim this experiment
+has succeeded until it runs in the target configuration.
 
-**Apple guidance and timing:** [WWDC25's deep dive](https://developer.apple.com/videos/play/wwdc2025/301/)
-already explained that long input, output, or accumulated history can exceed the
-context limit, and demonstrated carrying selected history into a new session.
-Current [context recovery guidance](context-and-language.md#reduce-or-partition-the-actual-source)
-also covers oversized individual sources. A fresh session cannot fit a source
-that is too large by itself. TN3193's revision history dates its first publication
-to October 6, 2025; its current detail should not be attributed to June 2025.
-
-**Current check:** On 2026-09-16, Xcode 27/macOS 27, the system model reported an
-8,192-token context. Apple's `fm` counted a synthetic HTML page with 1,000
-navigation rows at 17,817 tokens; a fresh greedy request failed with a context-size
-error. Its relevant text alone counted 24 tokens and generated a response. Those
-counts cover source text, not every request token. This demonstrates a reduction
-remedy for this synthetic input, not universal HTML extraction quality.
-
-**Classification and limits:** A finite context is documented behavior, not by
-itself a framework defect. The earlier 4,096 figure is not the current value for
-this tested model. No historical false-positive bug or its fix was established.
-Count the full session and distinguish a source that is individually too large
-from accumulated history; their recovery differs. See
-[context limits](context-and-language.md#context-limits) for official evidence.
+Use the model's current capacity instead of a fixed token constant. A fresh
+session cannot solve an individually oversized source. See [context recovery](context-and-language.md#reduce-or-partition-the-actual-source).
 
 ## Locale-based output language
 
-**Historical symptom and remedy:** The developer reports difficulty obtaining
-user-facing output in the intended language during early Foundation Models
-integration. Cookle's [June 17, 2025 change](https://github.com/muhiro12/Cookle/commit/2589635f145c102843bcad6020d3af9cab1409d3)
-read the locale's language and interpolated a requested response language into
-the prompt. Incomes also uses locale/language information in inference prompts.
+Evaluate input language, explicit output-language instructions, app locale, and
+structured output independently. Include a requested language different from the
+device language and mixed-language input. Keep source identifiers unchanged
+when the feature requires fidelity rather than translation.
 
-**Reported result:** The developer confirms that this resolved the language
-problem at the time. The commit verifies the technique and date; historical
-before/after outputs and a success-rate evaluation were not recovered. Record
-this as a reported successful workaround, not an untested idea or an independently
-reproduced guarantee.
-
-**Apple guidance and timing:** Current [language guidance](context-and-language.md#output-language)
-provides locale context and explicit output-language instructions. Use that guide
-for new work rather than freezing the old prompt wording. A participant-published
-[WWDC25 Group Lab transcript](https://gist.github.com/samhenrigold/3aad01b762ccc87e34e6115055daac2f)
-already described obtaining a language code with Foundation's locale API and
-including it in instructions. The June 12, 2025 UTC initial revision contains
-that passage, before the Cookle change. This is a contemporaneous participant
-transcription, not an Apple-published verbatim record; its accompanying AI summary
-is not the evidence. The technique aligns with that account; the record does not
-establish that the developer followed the advice or preceded its publication.
-The initial publication date of the current language guide was not established.
-
-**External reports:** A [July 21, 2025 developer experiment](https://qiita.com/mjnfhbuvwebwfiejcnw/items/937f4e3bc924e4f80b1d)
-reported unexpected response languages and compared English and Japanese
-generated-type names. That corroborates similar developer difficulties, not an
-Apple-confirmed defect or a requirement to rename Swift types or tools.
-
-**Current check:** On 2026-09-16, macOS 27 with the system model, separate fresh,
-greedy CLI requests produced English for an English control, Japanese with
-Japanese locale context, Japanese with an explicit language instruction, and
-French when explicitly requested despite Japanese locale context. A separate
-Swift `@Generable` probe with English type/property/guide text returned Japanese
-under explicit Japanese instructions.
-
-**Classification and limits:** Locale/language prompting agrees with current
-Apple guidance. Neither this small sample nor general instruction-following
-improvements establishes that all earlier failures were fixed. No need to
-translate Swift identifiers was demonstrated. Do not impose device language on
-a feature with a different output-language requirement, and do not treat language
-support checks as output configuration or guaranteed language compliance.
+Measure the actual output; language support and a small successful sample do
+not guarantee instruction following. No blanket translation of Swift identifiers
+is required. See [language guidance](context-and-language.md#output-language).

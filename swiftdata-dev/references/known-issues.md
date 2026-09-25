@@ -1,40 +1,17 @@
-# Recorded SwiftData incidents and workarounds
+# Diagnostic Scenarios and Community Reports
 
-These cases combine public application history and first-person reports reviewed
-on 2026-09-16 with a separately labeled synthetic CloudKit observation from
-2026-09-19. They are diagnostic leads, not Apple specifications or bugs in every
-SDK. The historical application failures were not newly reproduced for this
-reference. See [compatibility.md](compatibility.md#synthetic-checks-on-the-review-environment)
-for separate local probes. Public source links provide provenance; no checkout
-of the linked apps, particular account, or machine-specific path is required.
-
-| Symptom | Evidence strength | Candidate to investigate |
-| --- | --- | --- |
-| Renamed attribute exports under a new CloudKit key | Scoped iOS 27 simulator observation, consistent with Apple's field mapping | Preserve the stored name for an API-only rename; verify exported keys and fresh imports |
-| Existing data appears absent after adopting SwiftData | First-person sample investigation and reported recovery | Compare resolved store URLs before blaming schema migration |
-| CloudKit initialization prevents migration | Historical community reports, including a later failed workaround | Separate local migration from cloud initialization; reproduce before changing startup |
-| Crash in rollback while replacing a related graph | Historical before/after reproduction and environment recorded | Explicitly delete owned children before parents in that replacement path |
-| Crash in a predicate using the implicit model `id` | Historical fix report and source diff; runtime details missing | Compare `persistentModelID` for store-local identifier lookup |
-| Tag preview predicate failures through a protocol-constrained type | Fix commit and regression test source; diagnostic/result log missing | Construct the predicate with the concrete model type at the fetch boundary |
+Use the methods below to investigate a matching symptom. Proposed checks are
+not completed reproductions or universal workarounds. The separately attributed
+community report retains its historical limits. Follow linked Apple guidance
+and verify the actual schema, store, SDK, and runtime.
 
 ## Store selection during Core Data adoption
 
-**Observed problem.** A [2023-08-28 first-person article](https://zenn.dev/muhiro12/articles/swift-coredata-to-swiftdata)
-reports that records appeared missing when converting Apple's Trips sample to
-SwiftData. Inspection found that Core Data used `Trips.sqlite` while the new
-SwiftData configuration used `default.store`.
-
-**Attempt and reported result.** Passing the existing store URL to
-`ModelConfiguration(url:)` made the original records available. The article
-does not specify the precise SDK/runtime or demonstrate every migration shape.
-
-**Transferable lesson.** Verify which store was opened before diagnosing data
-loss or a migration-engine bug. Keep URL correction separate from schema
-compatibility and data transformation. An explicit URL is appropriate only after
-identifying the intended store; this case does not justify hard-coded paths or
-assuming any Core Data store can be opened unchanged by SwiftData. Follow
-[Apple's adoption guidance](https://developer.apple.com/videos/play/wwdc2023/10189/)
-and verify actual historical data with the target schema.
+When records appear absent, compare the old and new resolved store URLs before
+assuming migration lost data. Confirm the intended store and schema compatibility;
+do not hard-code another application's filename. Test with a preserved historical
+store and verify values and relationships after opening it. See [Apple's adoption
+guidance](https://developer.apple.com/videos/play/wwdc2023/10189/).
 
 ## CloudKit startup during migration
 
@@ -60,138 +37,62 @@ into a view task merely because a forum workaround did so.
 
 ## Rollback snapshot crash during graph replacement
 
-**Observed problem and conditions.** A disk-backed backup replacement deleted
-existing parent records before fetching and deleting their owned children.
-An injected save failure reached `context.rollback()` and crashed with
-`Unexpected backing data for snapshot creation`; the diagnostic identified
-`_FullFutureBackingData` for a child model. The fixture contained a related
-graph and a 1 MiB externally stored photo, with CloudKit and autosave disabled.
-The recorded environment was Xcode 27.0 build `27A5252f`, iOS 27 Simulator.
+Reproduce the failing sequence with a disposable disk-backed related graph,
+including external binary payloads if relevant. Record deletion rules, explicit
+deletions, autosave, and the exact failure/rollback boundary. Compare the graph
+before and after rollback and after reopening the store.
 
-**Attempt and result.** The fix changed only deletion order: owned diary,
-photo, and ingredient rows were explicitly deleted before their parent rows.
-The accompanying report records an isolated failure before the change and
-passing library tests afterward. The added regression verifies the original
-content after rollback and after opening a fresh container, as well as two
-successful restore paths. No schema or public API change was needed.
-See the [fix and tests](https://github.com/muhiro12/Cookle/commit/ac5b2f2f25fe435cbdad14ca13f0c2c97fb10f5c)
-and the [recorded result](https://github.com/muhiro12/Cookle/blob/ac5b2f2f25fe435cbdad14ca13f0c2c97fb10f5c/Designs/Plans/september-release-readiness.md#september-9-restore-rollback-fix).
-
-**When to try it.** Match a rollback snapshot failure involving cascades and
-explicit deletion of both parents and children. Preserve the graph and failing
-sequence in a regression, then compare child-first deletion within the same
-pending transaction. If a known affected runtime must be supported and the
-parent-first path still reproduces, avoid that path until a tested alternative
-is available.
-
-**Limits.** The code comment attributes the problem to cascades invalidating
-rollback snapshots; this is an application diagnosis, not an Apple-confirmed
-root cause. It does not show that cascade deletion is generally broken, that
-every relationship graph needs manual child deletion, or that the issue persists
-in later SDKs. The test injects an error before committing; actual disk failures
-and CloudKit recovery were not established. Explicit deletion can also load
-more models, so check cost before extending it to larger graphs.
+If both parents and owned children are explicitly deleted, compare deletion
+orders as a controlled diagnostic experiment. Do not assume child-first deletion
+is a confirmed framework fix or replace every cascade with manual deletion.
+Preserve unrelated pending changes and measure the cost of loading larger graphs.
+An injected pre-save error does not reproduce every disk or CloudKit failure.
+See [failure injection](verification.md#failure-injection-and-reopen-checks).
 
 ## Implicit identifier predicate crash
 
-**Recorded problem.** A 2025-05-26 commit reports a crash in SwiftData filters
-using the model's implicit `id`. The affected model had no explicitly stored
-`id` field; the filter parameters were `PersistentIdentifier` values.
+For a failing identifier predicate, establish whether the parameter represents
+an application-owned ID or a store-local `PersistentIdentifier`. Reduce the
+expression and compare an explicit `persistentModelID` lookup when store-local
+identity is intended. Execute matching and nonmatching fetches against the actual
+store; account for temporary identifiers before the first save.
 
-**Attempt and available result.** The equality predicate changed from
-`model.id == identifier` to `model.persistentModelID == identifier`; membership
-changed from `identifiers.contains(model.id)` to the corresponding
-`persistentModelID` expression. The [commit](https://github.com/muhiro12/Incomes/commit/b670882db58023042f087d6c232043da36ed410c)
-describes this as a crash fix. It does not retain a before/after execution log,
-exact error, OS version, or SDK version. Treat the outcome as a historical fix
-report, not a newly verified framework limitation.
-
-**When to try it.** If the same implicit-ID predicate fails, compare the narrow
-substitution using the same store and identifier values. Confirm matching and
-nonmatching lookups; account for an inserted model's temporary identifier before
-its first save. Preserve an explicitly stored application `id` if that is what
-the query is meant to compare.
-
-**Limits.** This is not evidence that all `.id` expressions crash or that
-application-owned identifiers should be replaced. It concerns store-local
-lookup; it does not make `PersistentIdentifier` a cross-device or archive ID.
-If the current runtime accepts the original query, do not add a compatibility
-workaround solely because this historical commit exists.
+This is a diagnostic comparison, not a claim that `.id` generally crashes.
+Preserve application-owned identifiers where that is the query's meaning; do not
+use a store-local identifier as a cross-device or archive ID. See [identity](modeling.md).
 
 ## Protocol-constrained predicate construction
 
-**Recorded problem and shape.** A 2026-03-08 commit identifies tag preview
-predicates as needing correction. Fetch descriptors for two concrete models
-used a generic `TagPredicate<T: Tag>.value`, whose macro body accessed the
-protocol requirement `value` through `T`. The retained commit does not include
-the original diagnostic or the exact SDK/runtime.
+A [Swift Forums discussion](https://forums.swift.org/t/swiftdata-predicate-does-not-handle-protocol-witness/68256)
+reports key-path failures with protocol-constrained model predicates and proposes
+concrete-model expressions. These are community reports, not an Apple-confirmed
+root cause or a guarantee for the current SDK.
 
-**Attempt and available result.** The changed fetch-descriptor helpers use
-`Predicate<Ingredient>` and `Predicate<Category>` constructed in constrained
-extensions. The generic selection abstraction remains; only the expressions
-used for fetching are specialized. Regression tests were added for actual
-fetches, exact and kana-variant matching, and preview-style repeated creation.
-See the [patch and tests](https://github.com/muhiro12/Cookle/commit/6b387e145c88a607f00170b3ae9e2a125aff25f9).
-The source records the intended coverage but does not include a test-run result.
-It therefore supports a candidate mitigation, not a confirmed version range
-or guaranteed fix for every generic predicate.
-
-**Related public reports.** A [Swift Forums thread](https://forums.swift.org/t/swiftdata-predicate-does-not-handle-protocol-witness/68256)
-contains a November 2023 preview failure resolving a protocol-derived key path,
-a February 2024 concrete-descriptor workaround, and a December 2024 report of
-Release-only failure. These are first-person reports, not an Apple-confirmed
-root cause for the recorded application incident. They support comparing concrete
-expressions and testing the affected execution mode, without banning generic
-abstractions.
-
-**When to try it.** For a similar failure involving a protocol-constrained
-model key path, compare the generic expression with a concrete-model expression
-in a minimal fetch. Keep filtering semantics unchanged and check the actual
-descriptor used by the caller, not only in-memory predicate evaluation.
-Include the failing Preview, Debug, or Release mode when it matters; a small
-successful generic equality fetch on a newer runtime does not prove every
-historical query shape has been repaired.
-
-**Limits.** The cause is not established as a general Swift generics defect.
-Do not remove all generic code or split every query by model. A different
-failure may involve unsupported predicate translation or another cause entirely.
-
-## Adding or strengthening a case
-
-Keep the symptom, conditions, environment, attempted change, observed outcome,
-remaining failures, and retrievable evidence together. Mark missing evidence
-as unknown. Source inspection and a regression's existence do not prove it ran.
-Describe an unavoidable limitation only when the applicable official restriction
-or unsuccessful alternatives are actually demonstrated; a revert alone does
-not establish that a design cannot work.
-
-Publish only relevant technical details and public or synthetic evidence.
-Exclude private logs, user records, account/container identifiers, personal
-paths, and unrelated release or product decisions.
+If the symptom matches, compare the generic expression with a concrete-model
+expression at the fetch boundary. Preserve filtering semantics and execute the
+actual descriptor, including the failing Preview, Debug, or Release mode.
+A successful in-memory predicate evaluation does not establish store translation.
+Do not remove generic abstractions unrelated to the reproduced failure.
 
 ## CloudKit field name after a local attribute rename
 
-**Observation and conditions.** A 2026-09-19 synthetic-record check used Xcode
-27.0 build `27A266a`, an iOS 27.0 simulator, and the CloudKit development
-environment. A stored `Date` was renamed from `date` to `utcDate` using
-`@Attribute(originalName: "date")` and a lightweight versioned migration.
-Local disk migration tests retained the values. A subsequent cloud export
-succeeded, but the exported record's local encoded cache contained `CD_utcDate`,
-not `CD_date`. Export success was therefore insufficient evidence of field-name
-compatibility.
+Compare local schema migration and cloud field compatibility separately. Follow
+Apple's [attribute-to-field mapping](https://developer.apple.com/documentation/coredata/reading-cloudkit-records-for-core-data)
+and [migration guidance](https://developer.apple.com/videos/play/wwdc2022/10120/).
+A successful local migration or export alone does not establish that older
+clients and fresh imports see compatible field names and values.
 
-**Alternative and result.** Keeping stored `date` and exposing computed
-`utcDate` produced `CD_date`. A fresh local store imported the synthetic item
-and retained its date, scalar values, identifier attribute, and related tags.
-The observation did not test production, old/new devices together, or an entire
-supported OS range. It establishes this configuration's behavior, not a
-framework regression or a universal failure of `originalName`.
+In an isolated development setup, compare a renamed stored property using
+`originalName` with retaining the stored name and exposing a computed API name.
+Inspect exported fields and fresh imports, then exercise supported old/new
+clients. Record the actual result without claiming a universal framework defect.
+See [rename decisions](cloudkit-and-surfaces.md#renaming-a-synced-property).
 
-**Decision and provenance.** This matches Apple's documented
-[attribute-to-field mapping](https://developer.apple.com/documentation/coredata/reading-cloudkit-records-for-core-data)
-and [local/cloud migration distinction](https://developer.apple.com/videos/play/wwdc2022/10120/).
-A [2024 developer discussion](https://iosdev.space/@alpennec/112192155491169146)
-also distinguishes the two, but is community interpretation rather than an
-Apple guarantee. The [rename decision](cloudkit-and-surfaces.md#renaming-a-synced-property)
-records the alternatives and their limits. Raw account metadata and local
-artifacts are intentionally not required to use this guidance.
+## Adding evidence
+
+Retain only task-relevant technical evidence with public, retrievable provenance
+or a self-contained synthetic reproduction. Record conditions, attempted change,
+observed result, and limits. Do not introduce owner-specific application histories,
+private logs, account identifiers, local paths, or unrelated product decisions.
+Do not anonymize an unverified personal report into an apparently established
+framework fact. Omit claims whose supporting evidence cannot be retained.

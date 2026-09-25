@@ -48,7 +48,7 @@ recognition are alternatives whose value depends on the task.
 For web or OCR intake, inspect acquired content before diagnosing a model error.
 If necessary facts never reached the prompt, changing generation options cannot
 restore their source wording. See the source-omission
-[development case](development-cases.md#source-omissions-and-rewritten-fields).
+[extraction scenario](development-cases.md#source-omissions-and-rewritten-fields).
 
 ## Siri, App Intents, and app search
 

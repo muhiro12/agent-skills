@@ -6,8 +6,8 @@ description: Design, implement, and debug SwiftData using Apple guidance and evi
 # SwiftData Development
 
 Implement and troubleshoot SwiftData using current Apple documentation and WWDC
-guidance. Separately recorded application incidents provide diagnostic leads
-and scoped workarounds. This is a community-authored skill, not an Apple skill.
+guidance. Diagnostic scenarios and attributed community reports provide investigation
+methods and candidate workarounds. This is a community-authored skill, not an Apple skill.
 
 ## Start with the affected boundary
 
@@ -38,7 +38,7 @@ entrypoints, availability landmarks, and provenance.
 | Predicates, fetch performance, SwiftUI observation, persistent history | [queries-and-history.md](references/queries-and-history.md) |
 | CloudKit, App Groups, widgets, App Intents, other processes | [cloudkit-and-surfaces.md](references/cloudkit-and-surfaces.md) |
 | Disk durability, rollback, external resources, persistence tests | [verification.md](references/verification.md) |
-| Missing data after adoption, rollback crashes, or predicate failures resembling recorded incidents | [known-issues.md](references/known-issues.md) |
+| Investigating missing data, rollback, predicates, or cloud-field compatibility | [known-issues.md](references/known-issues.md) |
 
 Read only the references needed for the task. For example, a rename affecting a
 synced model needs modeling, migrations, and CloudKit guidance; a bounded fetch

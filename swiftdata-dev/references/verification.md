@@ -51,10 +51,9 @@ cloud behavior itself is under test. Test the original and changed operation
 against equivalent fixtures. A successful run of the changed code alone does
 not establish that the old code failed, or why it failed.
 
-The [graph replacement rollback case](known-issues.md#rollback-snapshot-crash-during-graph-replacement)
-illustrates why a simple graph or an in-memory-only test can miss a failure
-found with a populated disk-backed graph. Its record includes a before/after
-result; the other cases have weaker evidence and are labeled accordingly.
+The [graph replacement scenario](known-issues.md#rollback-snapshot-crash-during-graph-replacement)
+provides a comparison method for populated disk-backed graphs. Run both paths
+before claiming a before/after result.
 
 ## Failure injection and reopen checks
 
@@ -88,39 +87,19 @@ failures. A successful preview, fresh empty store, or build cannot substitute
 for the failing persistence path.
 
 
-## Scoped cloud-backed upgrade and relocation observation
+## Cloud-backed upgrade and relocation checks
 
-On 2026-09-19, a signed iOS 27.0 simulator with Xcode 27.0 (`27A266a`)
-exercised a two-record synthetic CloudKit development store. The previous
-release's unmodified source was built with that toolchain, imported the records,
-and edited/exported a value. Installing the candidate over its existing store
-adopted an explicit versioned schema while retaining stored attribute names.
-Values, shared many-to-many tags, store UUID, and cloud record names survived;
-cloud setup, import, and export completed successfully.
+If these paths changed, separately exercise upgrading an existing synced store,
+relocating the store with its required files, and importing into a fresh store.
+Preserve synthetic values, shared relationships, store identity, and cloud record
+identity where the contract requires them. Use an older synchronized client as
+well as a fresh import when compatibility with existing sync history matters.
 
-The same synced store was then placed at the application's legacy location.
-Its relocation path copied SQLite sidecars, validated locally with CloudKit
-disabled, and reopened with sync enabled. A subsequent decimal-value edit was
-exported and matched both a resumed older synchronized snapshot and a fresh
-cloud import. No duplicate records or broken shared-tag membership were found.
-The resumed snapshot check exercised later imports using existing sync history,
-which a fresh-store check alone could not cover.
+Record whether the older executable is an original release or rebuilt source.
+Test external payload relocation when used; an empty support directory cannot
+prove blob handling. Development-environment evidence does not establish
+production or multi-device conflict behavior.
 
-Some overlapping automatic export requests were cancelled with Cocoa `134417`
-because another export was pending; subsequent operations succeeded and pending
-record flags cleared. Diagnose the eventual operation and data state rather
-than treating every cancellation as corruption or ignoring all sync errors.
-
-This supports those specific unchanged-field upgrade and relocation paths; it
-is not blanket CloudKit compatibility. It did not exercise production, original
-release binaries/toolchains, older runtimes, simultaneous device conflicts, or
-external blob relocation. The store's support/cache directories were empty.
-Private account identifiers and raw logs are not needed to reuse this method.
-
-
-Cloud metadata pending flags are diagnostic details, not a public convergence
-contract. In the same scoped test, a local deletion left zero pending flags
-before its export was observed; a subsequent app restart exported the deletion.
-Require completed operations and an independent import/value comparison before
-claiming delivery. Record any restart needed, and inspect orphan relationships
-separately from financial-record loss or duplication.
+Observe completed operations and independent imported values before claiming
+convergence. Internal pending flags alone are insufficient. Record any restart
+needed and distinguish a retried/cancelled operation from eventual data loss.

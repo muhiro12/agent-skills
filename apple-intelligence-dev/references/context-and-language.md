@@ -1,8 +1,7 @@
 # Context and Language
 
-Reviewed 2026-09-16 against Apple guidance, Xcode 27 public declarations, historical
-implementation evidence, and bounded macOS 27 probes. Historical reports help
-identify hypotheses; they do not establish the cause or current status of a bug.
+Reviewed 2026-09-16 against Apple guidance and Xcode 27 public declarations.
+Recheck version-sensitive details against the selected SDK and model.
 
 ## Context limits
 
@@ -40,9 +39,9 @@ user error without the actual session contents and error.
   Check the selected SDK rather than copying a dated error handler.
 
 The [Foundation Models updates](https://developer.apple.com/documentation/updates/foundationmodels)
-record the 26.4 measurement APIs and later model changes. The current synthetic
-[case](development-cases.md#whole-page-input-and-context-overflow) observed 8,192
-tokens on one macOS 27 configuration; it is not a replacement universal constant.
+record the 26.4 measurement APIs and later model changes. Use the
+[context scenario](development-cases.md#whole-page-input-and-context-overflow)
+to measure the target configuration rather than assuming a universal constant.
 If capability measurements fail or return unusable values, diagnose that process's
 model-service access before drawing conclusions about capacity.
 
@@ -89,7 +88,6 @@ For extraction, distinguish text to translate from source fields or machine
 identifiers the feature intends to preserve.
 
 Evaluate mixed-language input, app/device language differences, and structured
-output for the actual feature. The [current probe](development-cases.md#locale-based-output-language)
-is a small successful sample, not proof that historical language-following
-failures are all fixed. Model instruction-following improvements in 26.4 and 27
+output for the actual feature using the [language scenario](development-cases.md#locale-based-output-language).
+A small successful sample does not prove language-following failures are all fixed. Model instruction-following improvements in 26.4 and 27
 justify retesting rather than retaining or removing a workaround by assumption.

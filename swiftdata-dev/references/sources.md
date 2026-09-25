@@ -5,8 +5,8 @@ the Xcode 27.0 SDK. This date records the research baseline, not a promise that
 APIs or documentation remain unchanged. Recheck exact declarations and platform
 availability in the SDK used by the target project.
 
-CloudKit rename guidance was additionally reviewed on 2026-09-19; its scoped
-runtime evidence is recorded in the [incident reference](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename).
+Use the [cloud rename scenario](known-issues.md#cloudkit-field-name-after-a-local-attribute-rename)
+to check the relevant compatibility boundary in the target environment.
 
 ## Availability landmarks
 
@@ -88,8 +88,8 @@ This skill does not redistribute those skills, Apple transcripts, or sample code
 The topic references summarize linked Apple APIs and their immediate implications
 for implementation and diagnosis, with explicitly labeled first-person reports
 where they add diagnostic evidence. The separate [incident reference](known-issues.md)
-records public application failures and attempted mitigations, with per-case
-evidence and limits. It does not promote application architecture choices to
+provides diagnostic scenarios and attributed community reports, with their
+evidence limits. It does not promote application architecture choices to
 SwiftData requirements. Historical reports are not current runtime verification.
 
 The skill requires no particular domain model, use-case layer, draft system,

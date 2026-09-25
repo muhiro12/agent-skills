@@ -22,8 +22,8 @@ Greedy sampling is a useful comparison setting for extraction experiments, not
 a factuality guarantee. Evaluate schema, instructions, examples, and sampling
 changes against the same inputs. When exact extraction still fails, compare
 source-based validation or direct field extraction with further prompt tuning.
-The [development cases](development-cases.md) distinguish a successful source
-workaround from unresolved model errors. For multilingual prompts and generated
+The [diagnostic scenarios](development-cases.md) separate source-based correction
+checks from model-quality evaluation. For multilingual prompts and generated
 text, use [context and language](context-and-language.md#output-language).
 
 ## Session lifetime and cancellation

@@ -49,8 +49,8 @@ entitlement, the signed app's provisioning, and user availability are independen
 checks. Adding an entitlement key locally is not evidence of a grant. A command
 line probe can have different authorization from the signed app; test the actual
 supported app/distribution path before declaring PCC unusable. The
-[development case](development-cases.md#pcc-availability-without-execution-entitlement)
-records a failed probe, not a successful entitlement workaround.
+[availability scenario](development-cases.md#pcc-availability-without-execution-entitlement)
+helps distinguish those layers without assuming a successful entitlement workaround.
 
 Keep developer API cost, user daily limits, and third-party provider billing
 separate. Query supported quota information and handle exhaustion under the

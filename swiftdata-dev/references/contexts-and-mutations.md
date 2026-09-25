@@ -48,7 +48,7 @@ and [rollback()](https://developer.apple.com/documentation/swiftdata/modelcontex
 Preserve the original fetch/save error during diagnosis. Distinguish registered,
 inserted, deleted, and discarded models before dereferencing them after recovery.
 For an error inside `rollback()` rather than the preceding save, compare the
-[recorded cascade/snapshot failure](known-issues.md#rollback-snapshot-crash-during-graph-replacement).
+[rollback diagnostic scenario](known-issues.md#rollback-snapshot-crash-during-graph-replacement).
 The API's intended rollback semantics do not establish that a particular
 framework version handles every graph correctly. See
 [verification.md](verification.md) for testing the exact failure path.

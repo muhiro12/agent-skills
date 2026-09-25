@@ -11,11 +11,10 @@ Platform references were reviewed on 2026-09-16; recheck version-sensitive detai
 
 ## Scope and evidence
 
-The references combine linked Apple API guidance with independent integration
-checks. Local observations are collected separately as
-[development cases](references/development-cases.md): conditions, symptoms,
-attempted remedies, observed results, and limits. They are neither Apple-confirmed
-framework defects nor universal architecture requirements.
+The references combine linked Apple API guidance with task-specific evaluation
+methods. [Diagnostic scenarios](references/development-cases.md) provide synthetic
+input designs and candidate investigations, not completed experiments or
+Apple-confirmed framework defects.
 
 Determine whether the requested task is extraction, creative generation,
 conversation, retrieval, or action execution. Apply the relevant API contracts
@@ -37,7 +36,7 @@ signatures. No sibling skill or particular tool server is required.
 | Prompts, guided generation, sessions, tools, streaming, or cancellation | [Generation and application state](references/generation-and-state.md) |
 | Model quality, Simulator support, latency, or generation failures | [Evaluation and debugging](references/evaluation-and-debugging.md) |
 | Image Playground, Writing Tools, OCR, Siri, or app search | [System integrations](references/system-integrations.md) |
-| Similar symptoms in a prior implementation or probe | [Development cases](references/development-cases.md) |
+| Designing extraction, availability, fallback, context, or language checks | [Diagnostic scenarios](references/development-cases.md) |
 
 ## Use failures to choose the next check
 
@@ -50,12 +49,12 @@ differences. Report compilation, model availability, successful generation,
 semantic quality, and device performance separately. A workaround that changes
 which component produces a field may fix the app without improving the model.
 
-For a development case, retain the input shape and separate the symptom, confirmed
+When investigating a failure, retain the input shape and separate the symptom, confirmed
 cause, attempted remedy, and outcome. Distinguish a developer's report of
 resolution from independently reproduced results. Link applicable current Apple guidance and state which part
 of the failure it addresses. General guidance is not a confirmed fix for a
-specific incident. When it leaves the problem unresolved, evaluate the recorded
-workaround under its original conditions and current requirements. Recheck after
+specific incident. When it leaves the problem unresolved, evaluate a candidate
+workaround against the reproduced conditions and current requirements. Recheck after
 model/OS changes; historical success alone does not make it the preferred method.
 Recommend avoiding a design only for the requirements the evidence fails to meet.
 

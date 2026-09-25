@@ -75,20 +75,17 @@ that path fails, consider supported explicit indexing via
 after checking the app's requirement; it is a candidate alternative, not a
 demonstrated repair of `.spotlight`.
 
-## Synthetic checks on the review environment
+## Designing synthetic checks
 
-These narrow checks ran on macOS 27.0 build `26A5388g` with Xcode 27.0 build
-`27A266a`. Runtime probes used disposable disk stores, synthetic records, and
-`cloudKitDatabase: .none`. They did not reproduce the original application incidents.
+Use disposable disk stores, synthetic records, and `cloudKitDatabase: .none`
+unless cloud behavior is the question. Useful comparisons include:
 
-| Check | Observed result | Limit |
-| --- | --- | --- |
-| Seed an unversioned `Record(title: String)` in one executable; in another, wrap the unchanged model as V1 and migrate to V2 adding `note: String?` | Lightweight migration preserved the record and values; reopening in another process succeeded | One simple local schema; no custom-stage, relationship, old-OS, or cloud coverage |
-| Compile the two relationship declarations above, then remove the child annotation | Reciprocal annotations failed; the single-inverse version passed type checking | Compiler evidence only |
-| Execute `#Predicate<T> { $0.title == title }` with `T: Named`, `Named: PersistentModel`, and a concrete conforming model | Generic and concrete descriptors each returned exactly one matching record under `-Onone` and `-O` | No Preview, substring, complex captures, or original application query coverage |
+- Seed an unversioned store with one executable, then migrate the unchanged
+  model as V1 to a V2 with an optional field; reopen in a separate process.
+- Compile reciprocal inverse declarations and the single-inverse alternative.
+- Execute equivalent generic and concrete predicate descriptors under the
+  affected optimization modes, preserving the failing query shape.
 
-The successful probes establish feasibility for those exact shapes in the
-recorded environment. They do not establish when historical bugs were fixed,
-that every related configuration now works, or that earlier reports resulted
-from implementation mistakes. Reproduce the application's actual failure before
-adding or removing a compatibility workaround.
+These are proposed experiments, not asserted outcomes. Record the SDK, runtime,
+configuration, actual results, and gaps. A passing small fixture cannot establish
+that every related configuration works or that an earlier failure was user error.

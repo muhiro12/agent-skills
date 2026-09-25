@@ -51,8 +51,8 @@ smoke sample is not a population accuracy estimate.
 Measure omissions, unsupported additions, correction burden, and latency
 separately. Apple's [Evaluations introduction](https://developer.apple.com/videos/play/wwdc2026/298/)
 and [agentic evaluations](https://developer.apple.com/videos/play/wwdc2026/299/)
-cover datasets, metrics, subjects, and tool traces. Prior bounded extraction
-failures and their remedies are in [development cases](development-cases.md).
+cover datasets, metrics, subjects, and tool traces. [Diagnostic scenarios](development-cases.md)
+supply input designs and candidate checks; they are not prior successful results.
 
 ## Latency, cancellation, and errors
 
