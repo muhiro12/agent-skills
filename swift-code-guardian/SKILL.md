@@ -33,8 +33,9 @@ annotations. Check the actual toolchain before adopting version-specific idioms.
 
 Prefer standard library constructs and clear types over unnecessary helper
 layers. Documentation should clarify behavior, preconditions, errors, or
-concurrency, not restate the declaration. Apply `mh-swift-style` when local source
-style matters, subject to language correctness and repository rules.
+concurrency, not restate the declaration. Apply the target repository's source
+style and explicit task constraints, subject to language correctness. Do not
+select an owner-specific style profile from this general Swift workflow.
 
 Distinguish confirmed bugs, official-guidance conflicts, local style choices,
 and uncertainty. Tie findings to concrete files, diagnostics, or inspected UI.

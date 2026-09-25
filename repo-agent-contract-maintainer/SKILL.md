@@ -8,8 +8,7 @@ description: "Create or maintain concise, clone-ready AGENTS.md contracts. Use t
 ## Overview
 
 Use this skill to keep repository agent instructions portable, minimal, and
-safe to act on from a fresh clone while still fitting Hiromu's local Codex
-environment.
+safe to act on from a fresh clone in the intended agent environment.
 
 This skill is a routing and judgment workflow, not a universal AGENTS.md
 template. Prefer small, evidence-backed edits over broad rewrites, and do not
@@ -17,11 +16,11 @@ copy this skill's meta-rationale into every repository.
 
 ## Core Rule
 
-Keep each GitHub-facing repository's `AGENTS.md` clone-ready and
+Keep each shared repository's `AGENTS.md` clone-ready and
 action-focused. Do not remove an actionable repository-local instruction only
 because it repeats global policy, but also do not add repeated explanations
-about why duplication is acceptable. Put that rationale in this skill or the
-developer-principle archive.
+about why duplication is acceptable. Keep rationale in the appropriate
+maintained policy source.
 
 Move information to the narrowest durable layer that can carry it forward:
 
@@ -50,8 +49,9 @@ Move information to the narrowest durable layer that can carry it forward:
 - Read the global Codex `AGENTS.md` under the active Codex home
   (`$CODEX_HOME/AGENTS.md`, or `~/.codex/AGENTS.md` when `CODEX_HOME` is unset)
   when changing local environment routing or cross-repository boundaries.
-- Consult `$track-developer-principles` when the decision depends on durable
-  development judgment.
+- Use development constraints explicitly supplied by the task or applicable
+  contracts. Do not discover personal archives or select an owner-specific
+  policy profile as part of this general workflow.
 
 2. Classify each policy before editing.
 - Ask whether the item must be available to an agent from a fresh clone.
@@ -60,7 +60,7 @@ Move information to the narrowest durable layer that can carry it forward:
 - Keep repository-specific commands and verification facts in the repository
   even when the same broad policy appears globally.
 - Keep private personal context and raw context archives out of product
-  repositories unless Hiromu explicitly asks otherwise.
+  repositories unless the user explicitly asks otherwise.
 
 3. Preserve or add clone-ready repository content.
 - Keep repository `AGENTS.md` concise, self-contained, and practical.
@@ -82,7 +82,8 @@ Move information to the narrowest durable layer that can carry it forward:
   unless the explanation changes how an agent should work in that repository.
 
 4. Route specialist work instead of duplicating it.
-- For Apple implementation flow, route to `$apple-ios-dev-flow`.
+- For implementation work, use a suitable available specialist within the
+  requested scope; do not impose a personal orchestration skill.
 - For verification contract naming, retained rule checks, or MCP-vs-shell
   verification alignment, route to `$verify-contract-maintainer`.
 - For HIG, Swift language, sample-code, preview, UI smoke, release-risk, or
@@ -91,14 +92,11 @@ Move information to the narrowest durable layer that can carry it forward:
 - Keep `AGENTS.md` focused on entrypoints and durable rules, not exhaustive
   operational playbooks.
 
-5. Apply repository family judgment.
-- Treat Incomes as the frontier app reference for Hiromu's Apple app
-  architecture and workflow.
-- For Cookle, Liet, Fluel, and Stally, align where practical with Incomes while
-  preserving stronger current-repository evidence and real repository-specific
-  targets, schemes, surfaces, and architecture boundaries.
-- For MHPlatform and MHUI, preserve package/foundation boundary rules more
-  strongly than app-repository symmetry.
+5. Preserve the target repository's role.
+- Derive app, package, and shared-foundation boundaries from current contracts
+  and code. Do not infer a preferred reference repository from its name.
+- Use an explicitly supplied architectural comparison only for the relevant
+  decision, preserving stronger target-repository evidence.
 
 6. Verify the contract.
 - Confirm documented commands or schemes exist when practical.

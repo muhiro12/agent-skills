@@ -20,8 +20,9 @@ intentional conventions. A missing preferred filename is not a defect.
   redesign an existing workflow merely because another repository differs.
 
 Read `AGENTS.md`, project/package manifests, CI configuration, documented commands,
-and relevant hooks. Consult stored workflow principles only when a decision
-needs them. Ordinary feature work does not require creating a verification system.
+and relevant hooks. Apply workflow constraints supplied by the request and
+applicable contracts; do not require a personal principle archive. Ordinary
+feature work does not require creating a verification system.
 
 ## Define the evidence contract
 

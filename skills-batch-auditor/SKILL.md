@@ -75,6 +75,25 @@ Do not add boilerplate merely to silence a keyword-based finding. Output-languag
 preferences belong to the active conversation unless the deliverable requires a
 specific language; their omission is not definition drift.
 
+## Dependency Direction and Reuse
+
+Classify intended roles before proposing generalization. A personal profile or
+orchestrator may depend on general specialists; a general specialist must not
+select a particular owner's profile, archives, reference apps, or orchestration.
+Receive applicable constraints from the current request and repository contract.
+Keep tool/platform prerequisites distinct from owner-specific policy.
+
+If removing personal policy would remove the skill's intended behavior, identify
+it as a portable personal workflow rather than labeling it general. Preserve
+that role and resolve machine-dependent paths from explicit inputs or discovery.
+Do not create duplicate general/personal editions without a concrete consumer.
+
+Review supporting references and UI prompts as well as entrypoints. Remove
+unnecessary personal application histories from general guidance; retain useful
+technical methods with appropriate evidence, never anonymize an unsupported
+personal observation into a framework fact. Keep user-response language in the
+active host/user configuration, preserving genuine locale-specific artifacts.
+
 ## Review What Changes Decisions
 
 Compare each relevant skill against:

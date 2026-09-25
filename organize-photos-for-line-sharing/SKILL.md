@@ -1,9 +1,14 @@
 ---
 name: organize-photos-for-line-sharing
-description: "Organize Apple Photos into outbound LINE-sharing monthly albums. Use for source classification, source-aware date and orientation correction, exact album verification, and visual reporting without deleting media."
+description: "Apply the owner's monthly Apple Photos workflow for outbound LINE sharing, including source-specific date and orientation policies, exact album verification, and visual reporting without deleting media."
 ---
 
 # Organize Photos for LINE Sharing
+
+This is a personal workflow profile, including its 23:50 date band and
+source-specific landscape preference. These are selected operating policies,
+not general Photos or LINE requirements. Reuse it in another environment only
+when that same profile is intended; resolve the target library and range anew.
 
 Treat the Photos library as the irreplaceable source. Build outbound sharing albums; do not treat inbound LINE downloads as photos to send back.
 

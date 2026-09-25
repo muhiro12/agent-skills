@@ -10,7 +10,7 @@ description: "Audit structural, architectural, workflow, and documentation consi
 Use this skill as a repository gardener for one repository at a time.
 Default to report-only, return concise polite Japanese, and always cite concrete file paths.
 Never modify files outside the current repository.
-When a consistency judgment depends on durable cross-repository preferences rather than repo-local convention alone, consult a local principle archive skill when available (for example `$track-developer-principles`) before finalizing the report.
+Use cross-repository constraints only when supplied by the request or applicable contracts; do not discover personal archives or owner-specific profiles.
 
 ## Workflow
 
@@ -19,9 +19,9 @@ When a consistency judgment depends on durable cross-repository preferences rath
 - Treat sibling repositories, external worktrees, and referenced shared packages as out of scope for edits.
 - Read `AGENTS.md` first when present and use it as a repository-specific convention baseline.
 
-2. Consult a local principle archive skill when the evaluation is judgment-heavy.
-- Use it for questions about preferred architectural direction, workflow philosophy, naming discipline, maintainability tradeoffs, or documentation expectations that may intentionally repeat across repositories.
-- Treat explicit repository-local conventions and clear task instructions as higher priority than older archived principles when they conflict.
+2. Identify the governing constraints.
+- Use current repository conventions and explicit task requirements for architectural direction, naming, maintainability, and documentation expectations.
+- Distinguish supplied preferences from requirements established by code or the repository contract.
 
 3. Build a small consistency map before judging details.
 - Inspect top-level layout and entry points first.
@@ -35,7 +35,7 @@ When a consistency judgment depends on durable cross-repository preferences rath
 - Use `references/consistency-lenses.md` as the checklist for structural, architectural, workflow, and documentation signals.
 - Compare similar areas against each other instead of judging files in isolation.
 - Look for drift that raises cognitive load: similar patterns implemented differently, inconsistent naming, mixed ownership of the same responsibility, and docs that no longer match the codebase.
-- Distinguish harmful inconsistency from intentional divergence that matches a relevant stored principle from the local principle archive.
+- Distinguish harmful inconsistency from intentional divergence that matches an explicitly supplied architectural or workflow constraint.
 
 5. Classify findings carefully.
 - Put each finding into exactly one primary category: structural, architectural, workflow, or documentation.
@@ -46,7 +46,7 @@ When a consistency judgment depends on durable cross-repository preferences rath
 - Prioritize changes that make the repository more predictable for the next contributor.
 - Prefer convention alignment, naming cleanup, documentation correction, script consolidation, or boundary clarification over broad refactors.
 - State likely blast radius when a recommendation would touch many files or public APIs.
-- Say explicitly when a recommendation is driven by a relevant stored principle from the local principle archive.
+- Say explicitly when a recommendation is driven by an explicitly supplied architectural or workflow constraint.
 
 7. Edit only on explicit request.
 - Stay report-only by default.
@@ -108,7 +108,7 @@ For `推奨改善策（優先順）`:
 ## Verification
 
 - Confirm the inspected repository scope is explicit.
-- Confirm any use of a local principle archive skill is stated only when it materially affected the judgment.
+- Identify any supplied preference that materially affected the judgment.
 - Confirm every finding is assigned to exactly one primary category.
 - Confirm the report cites concrete file paths for material findings.
 - Confirm recommendations stay inside the current repository.

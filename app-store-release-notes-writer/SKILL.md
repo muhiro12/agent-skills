@@ -9,7 +9,7 @@ description: Write iOS App Store "What's New" text for each supported app langua
 
 Use this skill to generate App Store Connect-ready release notes from git history and localization settings.
 Agent-side explanation should be concise, polite Japanese by default, while release-note bodies must be written in each target locale language.
-When localizing release notes, consult a local principle archive skill when available for durable localization rules such as preserving proper nouns, app feature names, and official platform feature names.
+Apply localization requirements supplied by the task and repository, including established product terminology and official localized feature names.
 
 ## Trigger Conditions
 
@@ -44,7 +44,7 @@ Use this skill when the user asks to:
 
 5. Localize per locale.
 - Emit one locale block per supported App Store language.
-- Before finalizing translations, consult stored localization principles when available, especially rules for proper nouns, product names, app feature names, and official platform feature names.
+- Before finalizing translations, check the supplied terminology requirements, existing translations, and official localized feature names.
 - For uncertain translations, keep explicit placeholders and mark them as review-needed.
 
 6. Final quality checks.

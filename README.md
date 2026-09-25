@@ -20,7 +20,7 @@ and should remain in their provider-managed locations.
 - `app-store-release-preparer`: Prepares versions, localized release notes, descriptions, and screenshots through Apogee with read-back verification and resumable deferred work.
 - `apple-hig-ui-guardian`: Audits and repairs Apple-platform UI work against Apple's Human Interface Guidelines.
 - `apple-intelligence-dev`: Builds and evaluates Apple Intelligence features with current Apple guidance, grounded generation, lifecycle safety, and platform-specific evidence.
-- `apple-ios-dev-flow`: Uses current-repository evidence first, Apple guidance second, and an optional local sibling reference repository as a fallback for Apple-platform implementation work.
+- `apple-ios-dev-flow`: Orchestrates the owner's Apple development workflow using personal principles, MH Swift style, reference architecture, and reusable platform specialists.
 - `apple-sample-code-advisor`: Finds and applies Apple Developer sample code as official implementation guidance for Apple-platform work.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and summarizes push readiness from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
@@ -29,7 +29,7 @@ and should remain in their provider-managed locations.
 - `git-publication-review`: Checks destination visibility and outgoing Git history for public disclosure risks, with an evidence-scoped publication assessment.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.
-- `organize-photos-for-line-sharing`: Safely builds outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
+- `organize-photos-for-line-sharing`: Applies the owner's source-aware monthly Photos workflow to build outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
 - `product-overview-syncer`: Conservatively syncs an existing product or architecture overview Markdown document with the current codebase reality.
 - `release-risk-analyzer`: Assesses whether the range from the latest release tag to `HEAD` contains release-blocking changes on durable-risk surfaces.
 - `repo-agent-contract-maintainer`: Maintains concise, clone-ready repository `AGENTS.md` contracts and routes longer guidance to the correct durable layer.
@@ -48,6 +48,20 @@ and should remain in their provider-managed locations.
 - `verify-contract-maintainer`: Creates, audits, and maintains minimal verification contracts, with Apple bootstrap guidance and compatible existing-entrypoint maintenance.
 - `xcode-preview-auditor`: Audits SwiftUI `#Preview` coverage and capture results screen-by-screen, with audit-first reporting.
 - `xcode-ui-smoke-auditor`: Runs safe Simulator UI smoke audits for Apple-platform apps and reports visual or interaction risks without auto-fixing by default.
+
+## Reuse and Personal Profiles
+
+Platform or tool requirements such as Xcode, SwiftData, or Apogee define the
+intended audience; they do not imply dependence on one owner's environment.
+General specialists receive constraints from the current task and repository.
+They must not select a particular owner's personal profile or private records.
+
+`mh-swift-style`, `respect-incomes-architecture`, `apple-ios-dev-flow`, and
+`organize-photos-for-line-sharing` intentionally encode personal choices. These
+profiles can travel with their user and depend on reusable specialists; the
+reverse dependency is avoided. Private records are separate from the reusable
+procedures that maintain them. Installing a profile never supplies its private
+data, reference checkouts, tool access, or authorization.
 
 ## Layout
 

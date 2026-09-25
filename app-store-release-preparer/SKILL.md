@@ -63,7 +63,7 @@ Store short-lived plans, captures, and recovery material outside public files.
 If a specialist skill is unavailable, perform its bounded task using repository
 conventions and current official guidance. Do not require a broad app audit,
 source refactor, or full release qualification merely to edit Store resources.
-Route necessary source fixes through `apple-ios-dev-flow` when available and
+Use relevant available platform specialists for necessary source fixes when
 already authorized; otherwise preserve the finding and finish independent work.
 
 ## Apply and Verify

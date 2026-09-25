@@ -1,9 +1,16 @@
 ---
 name: apple-ios-dev-flow
-description: "Implement, fix, refactor, or debug Apple-platform apps and Swift packages. Select relevant Apple guidance and the smallest verification evidence for the changed boundary; use a more specific skill for a focused audit."
+description: "Orchestrate Apple app and Swift package work using the owner's development principles, MH Swift style, and selected reference architecture. Use for implementation in that personal workflow; use a general specialist for an independent focused audit."
 ---
 
 # Apple iOS Dev Flow
+
+This is an owner-specific orchestration skill. It combines personal development
+judgment with reusable platform specialists; general specialists must not depend
+on it. Carry this workflow to another environment by installing its selected
+skills and providing the relevant personal records and reference checkouts.
+Resolve them from the active skill inventory and explicit paths, not this
+machine's layout. Missing context must be reported rather than invented.
 
 Start with the affected code, diagnostics, tests, worktree changes, and repository
 `AGENTS.md`. Complete the requested outcome, preserve unrelated work, and explain
@@ -41,8 +48,9 @@ Check dependencies for the selected workflow, rather than rejecting an entire
 plugin because one unrelated namespace is absent. Never invent unavailable
 APIs or install extra tooling merely because a skill mentions it.
 
-Use Incomes or another relevant sibling as a read-only reference when current
-repository evidence and official guidance do not settle a concrete comparison.
+Use `respect-incomes-architecture` to resolve and compare Incomes as a read-only
+reference when relevant; use another explicitly selected reference when requested.
+Perform that comparison only when current repository evidence and official guidance do not settle a concrete comparison.
 Do not turn app-local product behavior into a shared dependency merely to align
 repositories. Weigh change cost, tests, release coupling, and demonstrated reuse.
 

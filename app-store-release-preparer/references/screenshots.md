@@ -48,7 +48,8 @@ share its data and state definitions across capture methods when useful:
 Keep fixtures and screenshot composition in the repository, not duplicated in
 this skill. Reuse existing injection points and sample data before introducing
 a framework. When preparation requires source changes, route scoped, authorized
-changes through `apple-ios-dev-flow`; otherwise hand off concrete gaps. Do not
+changes through suitable available platform specialists; otherwise hand off
+concrete gaps. Do not
 silently broaden capture work into app architecture or shared-package changes.
 
 ## Select and Qualify a Capture Method

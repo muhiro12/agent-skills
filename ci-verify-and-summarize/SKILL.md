@@ -20,8 +20,8 @@ repository's current contract uses another coherent workflow.
 For Xcode-native contracts, resolve the actual capabilities and required evidence
 from the runtime inventory. Follow the repository's project/scheme/destination/
 test-plan contract; preserve and restore changed Xcode selection. Use
-`apple-ios-dev-flow` when Apple evidence selection needs guidance. A retained
-static-rule script is only one part of a mixed contract.
+available platform guidance when Apple evidence selection needs clarification.
+A retained static-rule script is only one part of a mixed contract.
 
 For a supported shell contract, run the bundled helper from the target repository:
 

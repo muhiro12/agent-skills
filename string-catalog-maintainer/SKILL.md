@@ -10,7 +10,7 @@ description: "Audit and repair Xcode string catalogs (.xcstrings). Use for stale
 Use this skill to keep `.xcstrings` catalogs aligned with the current source tree.
 Default operating mode is catalog-only maintenance: audit catalogs, extract translation tasks, apply safe reviewed `.xcstrings` fixes during the skill run, and leave source-code fixes for a separate follow-up unless the user explicitly expands scope.
 Default explanation language is concise, polite Japanese.
-When translating user-facing strings, consult a local principle archive skill when available for durable localization rules such as preserving proper nouns or official platform feature names.
+Apply localization requirements supplied by the task and repository, including established product terminology and official localized feature names.
 
 ## Xcode Skill Catalog
 
@@ -60,7 +60,7 @@ Use this skill when the user asks to:
 6. Repair missing or untranslated locales.
 - Do not stop after `--seed-missing-locales`; seeding only copies source-locale structure and marks entries as `new`.
 - Use `translation_tasks` as the required worklist for missing locales, `state != translated`, empty values, and source-copy translated values.
-- Before generating translation patches, consult stored localization principles when available, especially rules for proper nouns, product names, and official platform feature names.
+- Before finalizing translations, check the supplied terminology requirements, existing translations, and official localized feature names.
 - Treat source-copy tasks for intentional proper nouns, product names, symbols, and acronyms as review-only and report them as intentionally unchanged when appropriate.
 - Create a translation patch JSON with a top-level `translations` list. Each entry must include `catalog`, `key`, `locale`, `path`, and either `value` for `stringUnit` or `values` for `stringSet`.
 - Validate first with `--translation-patch <patch.json>` and no `--apply-translations`.

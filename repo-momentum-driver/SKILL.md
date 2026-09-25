@@ -34,9 +34,9 @@ and reassess against the user's objective. One task is a useful default when
 scope is otherwise undefined, not a mandatory stopping point for a request to
 complete several items or finish a release.
 
-Use `apple-ios-dev-flow` for Apple implementation when available; do not repeat
-its specialist routing here. Consult relevant principles only when their
-tradeoffs matter. A missing principle or aggregate verify script is not by
+Use suitable available specialists for the chosen implementation task; do not
+select an owner-specific orchestrator. Apply constraints supplied by the current
+request and repository contract. A missing aggregate verify script is not by
 itself a reason to stop: use repository evidence and appropriate native checks.
 Ask only for a material decision that cannot be inferred responsibly.
 
