@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -185,6 +186,29 @@ def normalize_description(metadata: dict[str, str]) -> str:
     return " ".join(description.split())
 
 
+def discovery_description(metadata: dict[str, str], original_name: str) -> str:
+    """Use a reviewed summary only for the exact upstream metadata it describes."""
+    source = {key: metadata.get(key, "") for key in ("description", "when_to_use")}
+    digest = hashlib.sha256(
+        json.dumps(source, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    summaries_path = Path(__file__).resolve().parents[1] / "references" / "discovery-summaries.json"
+    summaries = json.loads(summaries_path.read_text(encoding="utf-8"))
+    entry = summaries.get(original_name)
+    if entry is not None and entry["source_sha256"] == digest:
+        summary = entry["summary"].strip()
+        if not summary:
+            raise SyncError(f"Empty discovery summary for {original_name}")
+        return summary
+    if entry is not None:
+        print(
+            f"warning: Upstream metadata changed for {original_name}; "
+            "preserving its full description until the summary is reviewed.",
+            file=sys.stderr,
+        )
+    return normalize_description(metadata)
+
+
 def yaml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -204,11 +228,16 @@ def title_from_name(name: str) -> str:
 
 def normalize_skill(skill_dir: Path, installed_name: str, original_name: str) -> str:
     metadata, body = parse_frontmatter(skill_dir / "SKILL.md")
-    description = normalize_description(metadata)
+    description = discovery_description(metadata, original_name)
     if not description:
         description = f"Xcode-provided skill originally named {original_name}."
-    if original_name != installed_name and original_name not in description:
-        description = f"{description} Original Xcode skill name: {original_name}."
+    # Keep upstream triggers available after selection, without altering its body.
+    if description != normalize_description(metadata):
+        upstream = "## Upstream Selection Guidance\n\n"
+        for key, label in (("description", "Description"), ("when_to_use", "When to use")):
+            if metadata.get(key, "").strip():
+                upstream += f"### {label}\n\n{metadata[key]}\n\n"
+        body = upstream + body
     normalized = (
         "---\n"
         f"name: {installed_name}\n"

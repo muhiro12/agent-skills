@@ -1,0 +1,34 @@
+{
+  "adopt-c-bounds-safety": {
+    "source_sha256": "b9c00a3245c016fe202abbe1f565cbcadddd83578152e63ae0fdb5bcc432f287",
+    "summary": "Apple guidance for adopting, reviewing, and debugging C -fbounds-safety, pointer bounds annotations, ptrcheck.h, compiler modes, and bounds violations."
+  },
+  "app-intents-specialist": {
+    "source_sha256": "72f6ab449f7ad6c632de9c8522a3cca4ba56609035c2adc4e745e76688479fb6",
+    "summary": "Apple App Intents best practices for implementation and correctness review: execution, entities and queries, enums, parameters, dependencies, results, donation, localization, shortcut phrases, URLs, and configuration intents. Use the version-specific skill for new iOS 26/27 APIs."
+  },
+  "app-intents-whats-new-27": {
+    "source_sha256": "79ee0138a6fe12f8910deb55975c9ab9030cfe628f84617eecdd311fb49c49d8",
+    "summary": "Adopt or migrate App Intents APIs introduced in iOS 26/27 and aligned platforms: execution modes, undo/cancellation, long-running intents, interactive snippets, Visual Intelligence, Spotlight, cross-device entities, computed properties, system shortcuts, unions, Apple Intelligence schemas, and testing. Use the specialist for evergreen best practices."
+  },
+  "app-resizability": {
+    "source_sha256": "ce180e290a151999e7d2f49ff4aec52544e23fe11ead740eb39f0dc27c8f6a75",
+    "summary": "Adapt app layouts to resizing and multiple windows, including foldable iPhone, split-screen, and Stage Manager. Replace legacy screen, orientation, idiom, lifecycle, and safe-area assumptions with window- and scene-specific APIs."
+  },
+  "audit-xcode-security-settings": {
+    "source_sha256": "31cea4adaa7ed160a4808683b1f3148b8bdd52e750a9d3c422b0c50c718fe9ac",
+    "summary": "Audit or enable Xcode compiler warnings, static analysis, and Enhanced Security build settings for C, C++, Objective-C, or Swift. Excludes network security, code signing, and privacy APIs."
+  },
+  "building-document-based-swiftui-applications": {
+    "source_sha256": "1d5fe4102908b03848c9e702f44157836ee64e4fd52e20047e91e0a0999f2d34",
+    "summary": "Build or migrate SwiftUI document apps using the iOS 27 Document protocol: DocumentGroup, readers/writers, FileWrapper packages, file URLs, open/save/export, progress, undo, autosave, and UTType. Covers migration from FileDocument and ReferenceFileDocument."
+  },
+  "swiftui-specialist": {
+    "source_sha256": "c0493b503161ee63a9e2bd59b0f40a0895206db5024167ae530f6e7f682ace20",
+    "summary": "Apple SwiftUI implementation and review guidance for animation, Environment and @Entry, Observation invalidation, ForEach/List identity and performance, localization, and soft-deprecated APIs. Consult matching references for affected code."
+  },
+  "swiftui-whats-new-27": {
+    "source_sha256": "4ef5107ba7acceb2e39ffb3d8e18f042c99604dc54cf7c4843403f72580fe98e",
+    "summary": "Adopt or migrate SwiftUI 27 APIs: @State macro and ViewBuilder type-check changes, drag-to-reorder containers, AsyncImage caching, swipe actions outside List, toolbar overflow/pinning, and item-based confirmation dialogs or alerts. Use for version-specific changes or new API questions."
+  }
+}

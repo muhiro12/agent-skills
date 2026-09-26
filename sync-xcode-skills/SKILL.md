@@ -56,7 +56,9 @@ Treat the `xcode-skill-*` namespace as reserved for this sync output.
 
 Use the `xcode-skill-` prefix as a low-risk namespace boundary, not as a lower authority level. Xcode-provided guidance remains the preferred Apple/Xcode guidance when it matches the task.
 
-The generated copies need Codex-compatible frontmatter, so the script rewrites installed `SKILL.md` metadata to the prefixed `name` and a Codex-readable `description`; the body and bundled references remain Xcode-provided content. The original Xcode skill name is preserved in each managed skill marker and in the central catalog.
+The generated copies need Codex-compatible frontmatter, so the script rewrites installed `SKILL.md` metadata to the prefixed `name` and a Codex-readable `description`; the upstream body and bundled references remain unchanged. Reviewed discovery
+summaries are keyed to the exact upstream metadata; the full original selection
+guidance is retained in the installed body whenever a summary is used. The original Xcode skill name is preserved in each managed skill marker and in the central catalog.
 
 After every install, the script writes a generated catalog under `state/` beside this skill:
 
@@ -65,7 +67,9 @@ state/catalog.md
 state/catalog.json
 ```
 
-Apple-platform orchestrator skills should consult this catalog instead of hardcoding specific Xcode-provided skill names. If the catalog lists a relevant Xcode-provided skill, prefer that guidance before applying local custom-skill heuristics.
+Apple-platform workflows should select matching Xcode guidance from the active
+skill inventory. Use the catalog when discovery remains unresolved, and reuse a
+current selection rather than reopening the catalog through every specialist.
 
 ## Important Behavior
 
@@ -73,7 +77,8 @@ Apple-platform orchestrator skills should consult this catalog instead of hardco
 - Prefer standalone export in Codex. Treat connection failures as evidence about
   that invocation, not a universal ban on selectors documented by the installed
   bridge. Verify the requested application and version before retrying.
-- Xcode-exported frontmatter can contain fields Codex does not need, such as `when_to_use` or `effort`. The script rewrites installed `SKILL.md` frontmatter to `name` and `description`, folding `when_to_use` into the description when present.
+- Xcode-exported frontmatter can contain fields Codex does not need, such as `when_to_use` or `effort`. The script rewrites installed `SKILL.md` frontmatter to `name` and `description`, preserving `when_to_use` in the full selection guidance.
+- [Discovery summaries](references/discovery-summaries.json) contain concise, reviewed triggers and source metadata fingerprints. Update an entry only after reviewing the current exported description and triggers. Changed or unknown upstream metadata falls back to its full description, without mechanical truncation; changed reviewed entries emit a warning. Original names remain in the marker and catalog.
 - Exported `name` values and `--name-prefix` must be filesystem-safe slugs. The installer rejects traversal-like values, duplicate installed names (including case-only duplicates), symbolic links in exported trees or install targets, and any resolved install target outside the skills root before changing managed skills.
 - The script writes `agents/openai.yaml` and `.xcode-skill-sync.json` into each installed managed skill.
 - Every exported skill is copied, normalized, and validated in a same-filesystem staging directory under the skills root before any existing managed skill is moved. Existing skills are moved to a transaction backup before staged copies are swapped into place; any staging, swap, prune, or catalog failure rolls the managed set back.

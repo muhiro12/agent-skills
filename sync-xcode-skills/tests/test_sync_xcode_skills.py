@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import io
 from pathlib import Path
 import sys
 import tempfile
@@ -95,6 +97,58 @@ class SyncXcodeSkillsTests(unittest.TestCase):
             if path.name.startswith((".sync-xcode-skills-", ".catalog-transaction-"))
         ]
         self.assertEqual(leftovers, [])
+
+    def test_reviewed_summary_preserves_complete_upstream_guidance_and_body(self) -> None:
+        description = "Guidance for a specialized workflow. " + "Detailed trigger. " * 100
+        trigger = "Use for a rare capability that must not be lost."
+        body = "# Original Body\n\nKeep the linked reference: [Details](references/details.md).\n"
+        source = self.write_exported_skill("alpha", skill_name="alpha")
+        (source / "SKILL.md").write_text(
+            "---\nname: alpha\ndescription: " + description
+            + "\nwhen_to_use: " + trigger + "\n---\n" + body,
+            encoding="utf-8",
+        )
+        original = (source / "SKILL.md").read_text()
+        metadata, _ = sync_xcode_skills.parse_frontmatter(source / "SKILL.md")
+        digest = hashlib.sha256(json.dumps(
+            {key: metadata.get(key, "") for key in ("description", "when_to_use")},
+            sort_keys=True, ensure_ascii=False,
+        ).encode()).hexdigest()
+        # Exercise the real summary lookup while isolating its reviewed data.
+        summary_data = json.dumps({"alpha": {"source_sha256": digest, "summary": "Use for the specialized workflow and rare capability."}})
+        read_text = Path.read_text
+        def read_with_summary(path, *args, **kwargs):
+            if path.name == "discovery-summaries.json":
+                return summary_data
+            return read_text(path, *args, **kwargs)
+        with mock.patch.object(Path, "read_text", read_with_summary):
+            installed, _, _ = self.synchronize()
+        target = self.skills_root / "xcode-skill-alpha" / "SKILL.md"
+        result_metadata, result_body = sync_xcode_skills.parse_frontmatter(target)
+        self.assertLess(len(result_metadata["description"]), 100)
+        self.assertIn(description.strip(), result_body)
+        self.assertIn(trigger, result_body)
+        self.assertTrue(result_body.endswith(body))
+        self.assertEqual((source / "SKILL.md").read_text(), original)
+        self.assertEqual(installed[0]["description"], result_metadata["description"])
+
+    def test_changed_upstream_metadata_does_not_reuse_stale_summary(self) -> None:
+        metadata = {"description": "New upstream behavior", "when_to_use": "New important trigger"}
+        warning = io.StringIO()
+        with mock.patch.object(Path, "read_text", return_value=json.dumps({
+            "alpha": {"source_sha256": "obsolete", "summary": "Old behavior"}
+        })), mock.patch("sys.stderr", warning):
+            result = sync_xcode_skills.discovery_description(metadata, "alpha")
+        self.assertIn(metadata["description"], result)
+        self.assertIn(metadata["when_to_use"], result)
+        self.assertNotIn("Old behavior", result)
+        self.assertIn("alpha", warning.getvalue())
+
+    def test_unknown_skill_keeps_all_discovery_triggers(self) -> None:
+        metadata = {"description": "A new skill. " * 100, "when_to_use": "Important trailing trigger"}
+        result = sync_xcode_skills.discovery_description(metadata, "unreviewed-new-skill")
+        self.assertIn(metadata["description"].strip(), result)
+        self.assertIn(metadata["when_to_use"], result)
 
     def test_rejects_unsafe_exported_skill_name(self) -> None:
         self.write_exported_skill("unsafe", skill_name="../../outside")
