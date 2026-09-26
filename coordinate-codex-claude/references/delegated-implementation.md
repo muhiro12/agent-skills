@@ -5,7 +5,10 @@
 Treat one coherent user request as the default handoff unit, including multiple
 Issues in a specified order. Normally Codex prepares the whole batch once,
 Claude implements and verifies its items sequentially, and Codex reviews the
-combined result and finishes it. Issue, test, and commit boundaries do not
+combined result and finishes it, including bounded final adjustments. Normally this needs one
+implementation dispatch and return; substantial rework may justify one grouped
+follow-up. More exchanges need a concrete remaining blocker and a revised plan,
+not an automatic review loop. Issue, test, and commit boundaries do not
 require agent handoffs. Preserve useful per-item checks and semantic commits
 when committing is authorized.
 
@@ -47,7 +50,9 @@ Inspect the current code and applicable contracts, then write:
   decisions already documented elsewhere.
 - Included work, excluded work, and implementation choices Claude can make.
 - Relevant development contracts, principle sources, and commit conventions
-  from [the common review](review-and-close.md); Claude must receive these before implementation.
+  from [the common review](review-and-close.md). Name the required files and
+  sections with a reason; distinguish initial reading from conditional references.
+  Do not ask Claude to recursively read every linked skill or reference.
 - For a batch, the ordered items, dependencies, acceptance per item, and any
   necessary decision checkpoint. Keep them in the same task record.
 - The smallest verification that proves per-item and combined acceptance,
@@ -55,6 +60,13 @@ Inspect the current code and applicable contracts, then write:
 - Questions that would change the design and should return to Codex.
 - Any final operation reserved for Codex because of tool access or authority;
   Claude should still complete its reviewable prerequisites.
+
+Keep the initial brief focused on decisions, acceptance, and affected boundaries.
+Reuse already-known API changes and evidence paths rather than copying a full
+release diff or asking Codex to duplicate all implementation discovery. Claude
+can start from a changed-file/symbol inventory and expand only relevant hunks.
+Include enough exact source evidence for safe implementation; a summary does not
+replace checking the code that will actually change.
 
 Keep open product choices distinct from implementation details. Resolve
 material uncertainty before authorizing dependent implementation, while
@@ -78,7 +90,7 @@ carry over to an externally started process. Keep machine-specific routing
 outside this portable skill, and preserve shared asset sources.
 
 Bind each task to an explicit implementation session ID and checkout. Resume
-that session for corrections; do not select an unrelated "most recent" session.
+that session for justified grouped rework; do not select an unrelated "most recent" session.
 Set proportional time, usage, and invocation limits for the whole batch, rather
 than assuming each Issue needs a separate call. Continuation after an execution
 limit remains the same batch, not a mandatory per-Issue review. Return
@@ -101,8 +113,9 @@ Use this route after its preflight succeeds; do not substitute a manual handoff.
 
 ## Claude: implement and return
 
-Read the current brief revision, repository contracts, and linked development
-principles. Apply the common review criteria to your own work, including commit
+Read the current brief revision, applicable repository contracts, and the
+specified relevant principle sections. Follow conditional references when their
+trigger applies; a link is not a requirement to read its entire reference tree. Apply the common review criteria to your own work, including commit
 messages and boundaries when committing is authorized. Confirm the checkout
 and baseline, then implement the agreed behavior using the relevant shared
 domain skills when available. Runtime tool availability must be checked in
@@ -120,6 +133,14 @@ specific file for the invocation. Do not require shell or rename permissions
 just to save progress. An interrupted write may leave incomplete content;
 verify it against the actual diff and evidence when resuming. It is partial self-report,
 not acceptance or proof that Claude stopped writing. Do not duplicate transcripts.
+
+Keep large command outputs in local artifacts. Return counts, relevant failures,
+and evidence paths; inspect selected ranges when more detail is needed. A tool
+truncating output or saving it to a file is not a reason to read that whole file
+back. For broad diffs, start with names/statistics, then affected APIs and hunks.
+Batch independent reads and searches when supported, but keep dependent edits,
+stateful Xcode operations, and verification in their required order. Do not trade
+away evidence, approval boundaries, or meaningful source context for fewer calls.
 
 Run inexpensive repository format/rule checks early enough to fix routine
 violations before final verification. For stateful changes, exercise relevant

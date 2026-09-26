@@ -13,7 +13,7 @@
 - Dispatch: not needed | automated
 - Execution route: <verified executable or adapter reference>
 - Implementation session: <explicit session ID; optional until started>
-- Run limits: <per-call time/usage and maximum calls; sized for the whole batch>
+- Run limits: <effective time/turn/budget limits and maximum calls; sized for the whole batch; inspect plan before resume>
 - Codex model / effort: <user-selected baseline; observed or user-reported; actual quality-driven increases and reasons, if any>
 - Claude model / effort: <observed or user-reported; optional, not a selector>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>
@@ -41,7 +41,9 @@
 ### Design and discretion
 
 <Important decisions and rationale; choices Claude may make independently.>
-<Link applicable repository contracts, relevant current principles, and commit conventions.>
+<Name required contract/principle files and sections with their relevance.>
+<Separate conditional references and their triggers; do not require recursive reading.>
+<For broad release changes, list affected APIs/files and exact diff references.>
 
 ### Verification
 
@@ -80,6 +82,6 @@ they affect. Default: return once the whole batch is implemented and checked.>
 - Concurrent work / resets: <known overlap or reset; attribution limits>
 - Observed change: <percentage points in the same account-wide window, account-wide; reasonable task approximation when no concurrent work is confirmed>
 - Measurement phase: <initial workflow evaluation; revisit extra boundaries once established>
-- Agent work: <actual Claude and Codex scope; correction rounds and takeover reasons>
+- Agent work: <actual Claude/Codex scope; launches/resumes, correction exchanges and reasons; distinguish internal tool turns from coordinator waits>
 - Token evidence, if available: <provider definitions, cache/input/output breakdown, source and completeness>
 - Efficiency assessment: <comparable baseline and result, or not established; concrete adjustment if warranted>

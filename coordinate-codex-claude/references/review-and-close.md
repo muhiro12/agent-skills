@@ -43,24 +43,26 @@ credible checks for the same revision; rerun checks when code, environment,
 or unresolved concerns justify it. Separate package tests, surface builds,
 runtime/UI evidence, and release gates when those boundaries apply.
 
-For findings, name the behavior or development-contract violation, code or
-commit location, impact, governing source, and expected correction. For delegated
-implementation, group implementation and verification fixes into one request
-and resume the same Claude session within the agreed limits. For incoming work,
-use its review entry's routing: Codex handles bounded adjustments and Claude
-handles substantial rework. Carry changed requirements and relevant evidence,
-then review the correction. Codex owns final acceptance in both entries.
+For findings, name the behavior or contract violation, code/commit location,
+impact, governing source, and expected correction. In both entries, Codex handles
+bounded final adjustments and their relevant verification after confirming the
+prior writer has stopped. A new implementation exchange is not required for
+small corrections, metadata, or a check Codex can complete directly.
 
-In delegated implementation, Codex may make a small bounded correction when
-another handoff would cost more than the fix and its verification, perform an
-explicitly reserved final action,
-or take over when Claude is unavailable, cannot resolve a demonstrated blocker,
-or has exhausted agreed limits. Record the concrete reason and remaining scope;
-an isolated command error or the start of review is not enough. In either entry,
-stop the prior writer before taking ownership and preserve approval and
-verification gates. Review authority alone does not authorize commits or history
-rewrites; follow the incoming-review history safeguards whenever rewriting.
-Do not extend limits or reduce review quality merely to claim usage savings.
+For substantial rework or a change best handled with the implementer's detailed
+context, group findings into one scoped follow-up using the same Claude session
+within agreed limits. Carry changed requirements and evidence, then review the
+returned correction. The normal target is one implementation exchange, with one
+additional correction exchange if necessary. If another is needed, identify why
+the prior cycle did not settle it and revise the remaining plan; do not silently
+repeat a review loop or stop with required work unfinished.
+
+Codex owns final acceptance and can take over when Claude is unavailable or has
+exhausted agreed limits. State the remaining scope and reason. Preserve one
+writer per checkout and all approval and verification gates. Review authority
+does not authorize commits or history rewrites; follow the incoming-review
+history safeguards whenever rewriting. Do not extend caps or weaken review
+quality merely to claim usage savings.
 
 Record the final revision and outcome in the handoff; a later diff invalidates
 that review until assessed. Set `Stage: done` only when acceptance is met,

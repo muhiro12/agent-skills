@@ -1,11 +1,13 @@
 # Coordination usage and waiting
 
-## Reduce coordinator usage
+## Complete the work across both accounts
 
 Apply delegation guidance when Claude is actually assigned work; an incoming
 review does not need a delegation cycle solely to use this skill.
 
-Keep Codex work focused on decisions and independent acceptance. Delegate a
+Keep Codex work focused on decisions, independent acceptance, and bounded final
+adjustments. Evaluate total coordination and completion across both accounts;
+moving unnecessary work to Claude is not an efficiency gain. Delegate a
 complete deliverable, including required captures or artifacts, checks, and
 routine recovery. Inspect enough to define the outcome and constraints; leave
 implementation discovery to Claude. During implementation, avoid duplicate
@@ -19,14 +21,16 @@ updates do not require a new full-log read or implementation review each time.
 A recoverable command error alone is not grounds to interrupt and take over.
 Use 30-60 second waits for ongoing work where host/tool limits permit, or a
 completion notification. After an empty or unchanged return, keep a long bounded
-wait instead of entering a 1-second polling loop. Do not add artificial delays
-to ready actions. An unchanged status needs no new investigation. Read Claude's
+wait instead of entering a 1-second polling loop. These waits are a fallback when the host requires bounded calls, not a timer
+for inspecting progress. Prefer a completion notification that avoids returning
+unchanged state to the model. Do not add artificial delays to ready actions. An unchanged status needs no new investigation. Read Claude's
 checkpoint on a failed return, a material blocker, or resumption, not at every
 update; saving progress does not require a coordinator acknowledgement.
 
 Agree on a complete deliverable before dispatch. During execution, send new
 constraints or decisions when needed; do not request repeated status reports.
-Collect routine corrections into one actionable follow-up. Preserve design
+Complete bounded final adjustments in Codex; group substantial rework into one
+actionable follow-up. Preserve design
 rationale and unresolved decisions in the task record so a long collaboration
 can continue without rediscovering them or copying full logs into each message.
 
@@ -51,3 +55,24 @@ IDs when reconstructing logs and label incomplete runs. Token totals and CLI
 cost estimates are not subscription-limit consumption or a subscription bill.
 Keep measurements in the private task record; do not copy account identifiers
 or invent a fixed savings target.
+
+## Distinguish exchanges from implementation turns
+
+Count actual Claude launches/resumptions separately from Codex host waits,
+metadata status checks, and Claude's internal model/tool turns. A metadata status
+check does not start Claude. Internal process polling without a model call does
+not reread model context; a wait that returns control to Codex can create another
+Codex inference, even with no useful output. Neither is automatically another
+Codex-to-Claude conversation.
+
+Aim for one implementation exchange and one independent Codex review with bounded
+final adjustments. Use a grouped correction exchange for substantial rework, not
+for every finding. Do not acknowledge each checkpoint or periodically inspect
+diffs while Claude owns the work. With no notification support, use the longest
+host-permitted responsive wait without adding a status/log query afterward.
+
+Limit initial reference loading to applicable contracts and named sections.
+Keep large diffs/logs local and inspect relevant parts. Reduce unnecessary tool
+turns by grouping independent work, while retaining verification and important
+design context. A low exchange count alone does not establish efficient use if
+each implementation turn carries a very large accumulated context.

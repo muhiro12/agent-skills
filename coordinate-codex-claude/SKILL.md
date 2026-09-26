@@ -7,8 +7,10 @@ description: "Explicitly coordinate Codex-to-Claude implementation or review exi
 
 Use one task record for delegated implementation or incoming work review.
 Codex owns significant decisions, design, independent review, and final
-acceptance. Claude owns implementation, implementation-level choices, routine
-corrections, and verification through a complete reviewable deliverable. The
+acceptance. Claude owns implementation, implementation-level choices, and verification
+through a complete reviewable deliverable. After return, Codex reviews, makes
+bounded final adjustments, and closes the task. Delegate substantial rework only
+when a grouped follow-up is justified. The
 task record is shared state, not a requirement for the user to relay messages.
 
 ## Choose the entry
@@ -17,8 +19,9 @@ Activate only on explicit request for this skill. Choose the entry from the
 user's intent and current artifacts:
 
 - **Delegated implementation:** Codex prepares, Claude implements and verifies,
-  and Codex reviews. Use automatic dispatch and result collection; grouped
-  implementation corrections return to the same Claude session by default.
+  and Codex reviews and finishes. The normal path is one implementation dispatch
+  and one return, with at most one grouped correction exchange when needed.
+  This is a planning expectation, not permission to omit unfinished work.
 - **Incoming work review:** The user already has unpushed work from Claude or
   manual edits and wants Codex to assess and finish it. Start at review without
   a Claude launch or an invented prior Codex brief. Follow
@@ -83,8 +86,9 @@ Keep authorization and review scope tied to the actual revision. A successful
 runner return is evidence to inspect, not acceptance. Publishing, history rewrites,
 and irreversible actions need the applicable user authority.
 
-Keep routine implementation corrections with the implementer for delegated work;
-incoming reviews allow bounded Codex adjustments under their reference. Preserve
+Codex handles bounded final corrections in both entries after the implementer
+releases ownership. Return substantial rework as one grouped request; explain
+the cause before adding further exchanges instead of looping by default. Preserve
 user-selected models and reasoning preferences; the delegated reference carries
 the existing setting policy. Do not start another agent merely to review a small
 incoming change.
