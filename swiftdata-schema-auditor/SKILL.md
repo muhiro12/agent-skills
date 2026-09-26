@@ -5,167 +5,46 @@ description: "Inspect SwiftData entities, stored properties, relationships, and 
 
 # SwiftData Schema Auditor
 
-## Overview
+Inspect SwiftData model code read-only. Use the requested repository and scope;
+implementation or runtime persistence debugging belongs to `swiftdata-dev`.
+Prefer matching guidance from the active skill inventory; use the generated
+Xcode catalog only for unresolved discovery and reuse current prior selections.
 
-Use this skill for read-only inspection and design review of SwiftData model code.
-Keep code identifiers, type names, attributes, and file names in English.
+## Inventory or Explain
 
-## Xcode Skill Catalog
+Search source declarations for `@Model`, `@Relationship`, `@Attribute`,
+`@Transient`, `VersionedSchema`, migration plans, `ModelContainer`, and
+`ModelConfiguration`. Exclude generated trees, build artifacts, dependency
+checkouts, and caches unless requested.
 
-When `sync-xcode-skills/state/catalog.md` exists under the active Codex skills root, scan it for task-relevant Xcode-provided `xcode-skill-*` guidance before applying this skill's local SwiftData schema heuristics. Do not hardcode individual Xcode-provided skill names. If the catalog is missing or no listed skill matches, continue with this skill normally.
+For the requested entities, record source paths, stored properties and types,
+optionality, visible defaults, relationships, inverse declarations, delete rules,
+collection shape, and identity hints. Include computed/helpers only when useful
+to distinguish them from persistent state. Identify versioned schema and migration
+entrypoints when present without expanding an inventory into a migration audit.
 
-## Trigger Conditions
+- Treat stored properties as persisted candidates unless source evidence such
+  as `@Transient`, computed accessors, or `static` indicates otherwise.
+- Label initializer-only defaults as constructor defaults, not declaration defaults.
+- Distinguish explicit declarations from inferred cardinality or macro behavior.
+  A relationship visible from one side alone is incomplete evidence.
+- Do not claim database column names, deployed schema, or actual store behavior
+  from source declarations alone. Mark hidden or unresolved storage as ambiguous.
+- If no models are found, report the searched scope and signals.
 
-Use this skill when the user asks to:
+## Design or Migration Review
 
-- visualize or explain a SwiftData schema
-- list entities, stored properties, defaults, optionality, or relationships
-- review `Relationship` design, inverse consistency, or delete rules
-- find migration hotspots or persistence-modeling risk
-- explain how SwiftData models align with the current app architecture
+When the request includes relationship correctness, design quality, or migration
+risk, read [design review](references/design-review.md) and apply only the relevant
+lenses. Prioritize existing-store compatibility and destructive graph changes.
+An inventory request does not require a broad architecture review, generated
+improvement list, or a mandatory migration finding. Report a concrete material
+risk encountered during inspection even if a broader audit was not requested.
 
-## Workflow
+## Evidence and Output
 
-1. Resolve scope.
-- Use the user-provided repository path when present.
-- Otherwise, inspect the current workspace root.
-- Stay read-only unless the user explicitly asks for code changes.
-
-2. Discover SwiftData-related sources.
-- Search for schema surfaces first:
-
-```bash
-rg -n '@Model|@Relationship|@Attribute|@Transient|VersionedSchema|SchemaMigrationPlan|MigrationPlan|ModelContainer|ModelConfiguration|Schema\\(' /path/to/repo
-```
-
-- Then narrow to relevant Swift files:
-
-```bash
-rg --files /path/to/repo | rg '\.swift$'
-```
-
-- Ignore build artifacts, generated directories, dependency checkouts, and package caches unless the user explicitly asks to include them.
-
-3. Identify entity candidates and persistence hints.
-- Treat each type annotated with `@Model` as an entity candidate.
-- Inspect stored properties that appear persisted by source code.
-- Inspect `@Attribute`, `@Relationship`, `@Transient`, raw-value enums used by stored properties, custom initializers, and versioned schema declarations when present.
-- Distinguish source facts from inference. If macro expansion is not visible, describe the result as source-based inference rather than guaranteed storage truth.
-
-4. Build the entity summary.
-- For each entity, capture:
-  - entity name
-  - file path
-  - persisted properties
-  - property type
-  - optional vs non-optional
-  - inline default value when visible
-  - initializer-only default when visible and clearly constructor-scoped
-  - computed / derived / helper / static properties that appear non-persistent
-  - relationships, inverse relationships, delete rules, and collection shape when identifiable
-  - identity hints such as `id`, `UUID`, `@Attribute(.unique)`, or natural-key assumptions
-
-5. Review relationship design.
-- Infer one-to-one, one-to-many, and many-to-many style patterns from scalar vs collection properties and the matching side when present.
-- Check whether inverse relationships appear symmetric and intentional.
-- Call out collection relationships that may rely on array ordering or unstable graph mutation semantics.
-- Flag delete rules that look dangerous for long-lived data, especially wide `cascade`, ambiguous `nullify`, or missing inverse on tightly coupled graphs.
-- Call out cyclic references or dense relationship clusters that may complicate maintenance and migration.
-
-6. Review schema quality from an architecture perspective.
-- Check naming clarity and whether model names map cleanly to app concepts.
-- Check optionality consistency and whether defaults appear to hide invalid states.
-- Check for mixed responsibilities inside one model.
-- Check for over-denormalization, under-modeling, or business logic leaking into persistence structure.
-- Check uniqueness and identity assumptions, including whether duplicates are possible by accident.
-- Check migration hotspots such as:
-  - non-optional property additions without obvious defaults
-  - enum/raw-value persistence that may be brittle if cases evolve
-  - relationship cardinality changes
-  - delete-rule changes
-  - renames that lack versioned schema or migration structure
-- If widgets, intents, watch targets, or extensions are present, mention tight coupling that may make cross-target reuse harder.
-
-7. State uncertainty explicitly.
-- If an inverse relationship cannot be confirmed from available code, say so.
-- If a value is likely persisted but hidden behind helper abstractions, say "ambiguous" rather than inventing details.
-- If no SwiftData models are found, report that clearly and list the searched signals.
-
-## Interpretation Rules
-
-### Persisted vs Non-Persistent
-
-- Treat obvious stored properties inside `@Model` types as persisted candidates unless `@Transient`, computed accessors, `static`, or other source evidence suggests otherwise.
-- Treat computed properties, helper methods, and formatting/state helpers as non-persistent unless there is explicit evidence otherwise.
-- When defaults are only visible in initializers, label them as constructor defaults, not declaration defaults.
-
-### Relationship Review
-
-- Use scalar reference plus matching scalar reference as a likely one-to-one pattern.
-- Use scalar reference plus collection reference as a likely one-to-many pattern.
-- Use collection on both sides as a likely many-to-many pattern.
-- If only one side is visible, describe the intended cardinality as inferred and incomplete.
-
-### Migration Risk
-
-- Prioritize risks that can break existing stores or force destructive migration.
-- Treat persisted enum/raw-value changes, uniqueness changes, and required-field additions as high-signal migration hotspots.
-- Treat relationship graph churn as a practical risk even when the code still compiles.
-
-## Safety / Guardrails
-
-- Do not edit code unless the user explicitly asks for modifications.
-- Do not invent schema facts that cannot be inferred from source.
-- Prefer file-path-based evidence over generalized SwiftData advice.
-- Do not claim actual database column names when only source-level declarations are visible.
-- Keep the report practical; focus on the current repository rather than generic theory.
-
-## Output Contract
-
-Report using these sections in the conversation's language:
-
-1. `Schema overview`
-2. `Entity inventory`
-3. `Relationship review`
-4. `Design review`
-5. `Findings`
-6. `Improvement candidates`
-
-Use this content contract:
-
-- `Schema overview`
-  - inspected scope or repository path
-  - discovered entity count
-  - main entities or aggregate roots if inferable
-  - whether versioned schema / migration definitions were found
-- `Entity inventory`
-  - summarize each entity with entity name and file path
-  - list persisted properties with type, optionality, and default visibility
-  - list computed / derived / non-persistent properties when relevant
-  - list relationships, inverse, delete rule, and collection shape when identifiable
-- `Relationship review`
-  - summarize one-to-one / one-to-many / many-to-many patterns
-  - note inverse consistency, delete-rule risk, cycles, and collection semantics
-- `Design review`
-  - review naming, optionality, defaults, responsibility split, modeling balance, identity assumptions, migration posture, and architecture fit
-- `Findings`
-  - list concrete risks, ambiguities, or suspicious patterns with file-path-based evidence
-- `Improvement candidates`
-  - list actionable improvements in priority order
-  - keep recommendations bounded and tied to observed code
-
-## Response Style
-
-- Use the conversation's language for explanations.
-- Use English for identifiers, type names, attributes, and file names.
-- Prefer bullet-style structured summaries over long prose.
-- Keep findings concrete and evidence-based.
-- If there are no clear issues, say so explicitly and still note residual ambiguity.
-
-## Verification
-
-- Confirm every entity listed is backed by a source file path.
-- Confirm persisted vs non-persistent distinctions are marked as inference when necessary.
-- Confirm relationship conclusions distinguish confirmed facts from one-sided inference.
-- Confirm the report includes at least one migration-focused observation when persistence exists.
-- Confirm default mode stayed read-only.
+Use a compact inventory, diagram, or explanation appropriate to the request.
+Every entity and material finding needs a source path. Separate source facts,
+inferences, and unresolved questions; describe code-level patterns rather than
+generic SwiftData advice. For reviews, prioritize actionable observed risks and
+state when no issue was found. Keep the default workflow read-only.

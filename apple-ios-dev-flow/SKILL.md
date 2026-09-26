@@ -57,7 +57,8 @@ repositories. Weigh change cost, tests, release coupling, and demonstrated reuse
 ## Implement and Verify
 
 Choose the smallest complete change and verify it against the repository contract.
-Run a documented formatter/autofix before the final non-destructive checks.
+When editing code covered by a documented formatter/autofix, run it before
+the final non-destructive checks.
 
 | Changed boundary | Evidence |
 | --- | --- |
@@ -79,28 +80,10 @@ shell or Xcode-native contract without creating another wrapper.
 
 ## Xcode Execution
 
-1. Resolve needed capabilities by narrowly filtered tool names, then inspect only
-   their schemas. Reuse confirmed schemas within the task; rediscover after a
-   relevant failure or runtime change. Match the workspace to the repository.
-   For Simulator runtime work, follow [device-session ownership](../xcode-ui-smoke-auditor/references/device-session-ownership.md).
-2. Before switching, capture the original scheme, destination, and active test
-   plan when relevant. Use discovered eligible values. A scheme switch may
-   change the destination; recheck before proceeding.
-3. Keep stateful Xcode operations serial for the shared workspace and Simulator.
-   Independent source analysis can run alongside them. Do not interrupt another
-   task's build or session to obtain your own evidence.
-4. Follow the active integration's lifecycle and generated device guidance.
-   Inspect current screenshots, hierarchy, and logs for runtime claims. End
-   interaction sessions and stop runs started only for verification.
-5. Restore the scheme, its test plan if changed, then destination, and confirm
-   restoration. Do not overwrite a later user selection; report any unresolved
-   final state.
-
-When a capability is absent or fails, record the observed gap and use a relevant
-repository fallback or official Apple tool that covers the same evidence within
-the user's authorization. Do not invent adapters, weaken approval controls, or
-claim equivalent coverage from an unrelated screenshot. Request input only when
-an actual missing decision or permission prevents the next necessary action.
+For builds, runs, or runtime verification, read
+[the Xcode execution procedure](references/xcode-execution.md). Source-only work
+needs no runtime setup. Keep Xcode MCP first; use an official-tool fallback only
+for a demonstrated capability gap.
 
 ## Report
 

@@ -31,8 +31,8 @@ Use cross-repository constraints only when supplied by the request or applicable
 - Never scan older runs under `.build/ci/runs`; one newest contract-owned run is the maximum evidence scope for a single consistency audit.
 - Use Git metadata when available to confirm tracked structure or recent drift, but keep the audit focused on consistency, not feature review.
 
-4. Evaluate the repository with four consistency lenses.
-- Use `references/consistency-lenses.md` as the checklist for structural, architectural, workflow, and documentation signals.
+4. Evaluate only the consistency lenses relevant to the requested scope.
+- Consult `references/consistency-lenses.md` for the relevant structural, architectural, workflow, or documentation signals; a focused request does not require all four.
 - Compare similar areas against each other instead of judging files in isolation.
 - Look for drift that raises cognitive load: similar patterns implemented differently, inconsistent naming, mixed ownership of the same responsibility, and docs that no longer match the codebase.
 - Distinguish harmful inconsistency from intentional divergence that matches an explicitly supplied architectural or workflow constraint.
@@ -54,56 +54,16 @@ Use cross-repository constraints only when supplied by the request or applicable
 - Safe examples include small documentation corrections, internal naming normalization, lightweight script/help-text cleanup, or folder/readme alignment.
 - Do not perform large moves, module splits, public API renames, or cross-repository edits automatically.
 
-## Evaluation Rules
+## Report
 
-### Structural
+Lead with the conclusion and highest-signal findings, supported by concrete paths
+and the maintenance impact. Group by structural, architectural, workflow, or
+documentation category when useful; omit empty categories. A focused request needs
+no full-repository report. Distinguish confirmed drift, uncertainty, and intentional
+differences worth preserving.
 
-- Compare directory organization, module boundaries, file placement, test placement, and naming conventions.
-- Flag cases where similar modules use different folder shapes or filename suffixes without a clear framework-driven reason.
-- Treat duplicated concepts split across multiple locations as a structural smell when ownership is unclear.
-
-### Architectural
-
-- Check whether domain logic leaks into UI, persistence leaks into views/controllers, or service and adapter roles are mixed differently across similar features.
-- Compare routing, dependency wiring, shared-library usage, and data-access boundaries between equivalent surfaces.
-- Treat concept drift as architectural inconsistency even when both implementations appear functional.
-
-### Workflow
-
-- Inspect `ci_scripts/`, `.github/workflows/`, `verify.sh`, hook configs, shallow `.build/` conventions, and contributor instructions.
-- Flag duplicated verification entry points, stale script names, inconsistent artifact locations, or repository rules documented in `AGENTS.md` that the codebase no longer follows.
-- Flag heavy verification attached to commit-time hooks when the repository already has a better direct-shell or push-time path.
-- Prefer maintainability and predictability concerns over one-off local quirks.
-
-### Documentation
-
-- Compare `README`, overview docs, architecture notes, ADRs, and contributor guides against the current code layout and actual commands.
-- Flag missing documentation only when the absence materially hurts predictability, onboarding, or safe changes.
-- Distinguish stale docs from intentionally high-level docs.
-
-## Output Contract
-
-Report concisely using these sections in the conversation's language:
-
-1. `Consistency summary`
-2. `Structural inconsistencies`
-3. `Architectural inconsistencies`
-4. `Workflow inconsistencies`
-5. `Documentation inconsistencies`
-6. `Prioritized improvements`
-
-For each inconsistency section:
-
-- Write `No findings` when no meaningful inconsistency is found.
-- Otherwise, list only the highest-signal findings first.
-- Explain why each mismatch increases maintenance cost, confusion, or unpredictability.
-- Include concrete repository-relative file paths.
-
-For `Prioritized improvements`:
-
-- Order items by maintenance leverage first and implementation risk second.
-- Mark each item as `low`, `medium`, or `high` risk.
-- Distinguish clearly between report-only recommendations and changes that are safe to implement now.
+Prioritize improvements by maintenance benefit and implementation risk. Identify
+broad API or file impacts and distinguish recommendations from completed edits.
 
 ## Verification
 
