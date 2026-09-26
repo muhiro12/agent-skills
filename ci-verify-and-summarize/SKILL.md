@@ -22,6 +22,11 @@ test-plan contract; preserve and restore changed Xcode selection. Use
 available platform guidance when Apple evidence selection needs clarification.
 A retained static-rule script is only one part of a mixed contract.
 
+For long-running checks, prefer completion notifications or 30-60 second waits
+within host/tool limits. Do not poll unchanged status every second or repeatedly
+read full logs. Keep raw output local and inspect failed-check excerpts and final
+results; widen the excerpt when the diagnosis needs more context.
+
 For a supported shell contract, run the bundled helper from the target repository:
 
 ```bash

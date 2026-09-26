@@ -17,10 +17,18 @@ responsiveness requirements. Inspect compact status when needed; read detailed
 logs when a blocker, failed return, or review finding warrants it. Required user
 updates do not require a new full-log read or implementation review each time.
 A recoverable command error alone is not grounds to interrupt and take over.
-Use the longest host-permitted responsive wait, not short sleeps followed by
-repeated log parsing. An unchanged status needs no new investigation. Read
-Claude's checkpoint on a failed return, a material blocker, or resumption, not
-at every update; saving progress does not require a coordinator acknowledgement.
+Use 30-60 second waits for ongoing work where host/tool limits permit, or a
+completion notification. After an empty or unchanged return, keep a long bounded
+wait instead of entering a 1-second polling loop. Do not add artificial delays
+to ready actions. An unchanged status needs no new investigation. Read Claude's
+checkpoint on a failed return, a material blocker, or resumption, not at every
+update; saving progress does not require a coordinator acknowledgement.
+
+Agree on a complete deliverable before dispatch. During execution, send new
+constraints or decisions when needed; do not request repeated status reports.
+Collect routine corrections into one actionable follow-up. Preserve design
+rationale and unresolved decisions in the task record so a long collaboration
+can continue without rediscovering them or copying full logs into each message.
 
 Record available Codex usage-limit snapshots before preparation and after
 completion, with timestamps, window/reset identity, and known concurrent tasks.
