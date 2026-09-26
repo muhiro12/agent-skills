@@ -4,9 +4,8 @@ Use `scripts/claude_runner.py` when an explicitly invoked workflow actually
 needs Claude implementation or substantial incoming-review corrections. An
 incoming review with bounded Codex fixes does not require runner preflight.
 The active Codex task is the coordinator: it runs Claude, inspects the returned
-code, returns grouped implementation findings to the same Claude session, and
-accepts the final result. Correction ownership follows the selected entry in
-the skill; incoming reviews permit bounded Codex adjustments. The helper makes
+code, makes bounded final adjustments, and accepts the result. Substantial
+rework can return as one grouped request to the same Claude session. The helper makes
 one bounded implementation call; it neither calls a second Codex model nor
 provides a daemon, scheduler, or a wake-up mechanism after Codex finishes.
 
@@ -53,7 +52,7 @@ also skips subscription login. Do not run two editors on the same checkout.
 
 Write the whole batch brief into one `handoff.md` and the current bounded request
 into a file in the task directory. Include ordered Issues, their acceptance and
-necessary dependencies; do not create a task directory or invocation per Issue.
+necessary dependencies, and named must-read sections versus conditional references; do not create a task directory or invocation per Issue.
 The helper includes the current shared skill text in the request; no automatic skill discovery or user message relay is necessary.
 Codex owns the task record and updates it from the automatically collected
 result and Git evidence. Claude works in the specified checkout.
@@ -103,14 +102,36 @@ with `--strict-mcp-config` can select only relevant MCP connections. These are
 per-invocation choices. A disconnected MCP server or a permission denial is a
 failed return, even when the CLI otherwise exits zero.
 
-Defaults are 600 seconds, 20 agent turns and a CLI-estimated 3 USD ceiling per
-invocation, with at most four invocations per task. These are protective defaults,
+For a new task, protective defaults are 600 seconds, 20 agent turns and a
+CLI-estimated 3 USD ceiling per invocation, with at most four invocations per task. These are protective defaults,
 not a target number of review cycles or a mapping from Issues to calls. Size the
 first call for the whole batch using `--timeout`, `--max-turns`,
 `--max-budget-usd` and `--max-rounds`; keep any user-set caps. Costs are
-CLI estimates, not a subscription bill or a guarantee about billing. The maximum
-round count is fixed at first invocation; repeat the same value when resuming.
-Failed attempted launches count too. There is no automatic retry.
+CLI estimates, not a subscription bill or a guarantee about billing. On resume, omitted time, turn, and budget flags inherit the previous invocation's
+recorded effective limits; explicit flags override them. The maximum round count
+is fixed at first invocation and can be omitted on resume. Older task records
+inherit from the previous round summary. Missing or invalid saved limits cause a
+refusal instead of silently reverting to smoke-test defaults. Failed attempted
+launches count too. There is no automatic retry.
+
+Before dispatch or resume, inspect the read-only execution plan with the intended
+limit overrides (if any):
+
+```sh
+python3 <skill-root>/scripts/claude_runner.py plan \
+  --checkout <checkout> --task-dir <private-task-directory>
+```
+
+`plan` does not probe or run Claude, read its stream, or create a task/round.
+It reports effective limits and their source, the previous result subtype and
+process status, finish/idle time when recorded, and checkpoint metadata. Repeat
+selected overrides on `run`; the plan does not save them. Result subtype alone
+is not acceptance or proof that quota is available. Check the actual return on
+failure, even when a provider labels it successful. Checkpoint age/size cannot
+prove it reflects current progress; compare it with the actual Git evidence on
+resumption. Legacy finish times can be unavailable. Do not infer a cache-expiry
+threshold or subscription balance from these fields, and do not enlarge caps
+automatically. Record initial limits for the complete intended deliverable.
 
 ## Wait without duplicating implementation
 
@@ -154,10 +175,9 @@ Keep these private. The helper writes no product-repository process documents.
 
 Read `summary.json`, the final result and actual Git diff. Successful transport
 means implementation returned; it does not mean Codex accepted the behavior.
-Codex reviews every item and their integration. Group implementation findings
-into one scoped correction request and call `run` with the same task directory
-and checkout within the existing limits. Direct Codex fixes or takeover require
-the bounded exception described in the skill. Include the current brief revision, changes since the
+Codex reviews every item and their integration. Complete bounded final adjustments in Codex. For substantial rework, group
+findings into one correction request and call `run` with the same task directory
+and checkout within the existing limits. Include the current brief revision, changes since the
 last return, and any Codex edits; link evidence rather than repeating transcripts.
 The helper uses the saved session ID with `--resume`; it never uses the ambiguous
 `--continue` option. If execution limits interrupt a batch, inspect the partial

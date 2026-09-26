@@ -20,6 +20,7 @@ import time
 import uuid
 
 SKILL = Path(__file__).resolve().parents[1] / 'SKILL.md'
+DEFAULT_LIMITS = {'timeout': 600, 'max_turns': 20, 'max_budget_usd': 3, 'max_rounds': 4}
 VISIBLE_FLAGS = ('--print', '--output-format', '--verbose', '--model', '--effort',
                  '--max-budget-usd', '--permission-mode', '--permission-prompts',
                  '--session-id', '--resume', '--allowedTools', '--add-dir')
@@ -350,6 +351,99 @@ def command(args, binary, session, resume, task, checkpoint):
     return result
 
 
+def checkpoint_metadata(path, now=None):
+    """Metadata supports resumption review, never proof of meaningful progress."""
+    checked(path)
+    if not path.exists():
+        return {'path': str(path), 'exists': False, 'progress_verified': False}
+    if not path.is_file():
+        raise Refusal('checkpoint must be a regular file')
+    stat = path.stat()
+    return {'path': str(path), 'exists': True, 'bytes': stat.st_size,
+            'modified_at': stat.st_mtime,
+            'age_seconds': max(0, (time.time() if now is None else now) - stat.st_mtime),
+            'progress_verified': False}
+
+
+def validate_limits(limits):
+    if not isinstance(limits, dict):
+        raise Refusal('saved limits must be an object')
+    for name in DEFAULT_LIMITS:
+        value = limits.get(name)
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0
+                or (name in ('max_turns', 'max_rounds') and not isinstance(value, int))):
+            raise Refusal('invalid or missing saved limit: ' + name)
+
+
+def execution_plan(args, checkout, task):
+    """Resolve limits without probing or starting Claude or writing task files."""
+    state_path = checked(task / 'runner-state.json')
+    state = json.loads(state_path.read_text()) if state_path.exists() else None
+    if state_path.exists() and not isinstance(state, dict):
+        raise Refusal('state must be a JSON object')
+    previous = None
+    inherited = None
+    if state is not None:
+        if state.get('version') != 1 or state.get('checkout') != str(checkout) or state.get('task_dir') != str(task):
+            raise Refusal('state version, checkout or task directory mismatch')
+        uuid.UUID(state['session_id'])
+        number, maximum = state.get('round_count'), state.get('max_rounds')
+        if (type(number) is not int or type(maximum) is not int
+                or number < 1 or number >= maximum):
+            raise Refusal('invalid or exhausted task round count')
+        folder = checked(checked(task / 'rounds') / f'{number:03d}')
+        if not folder.is_dir():
+            raise Refusal('recorded task round is unavailable')
+        summary_path = checked(folder / 'summary.json')
+        summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+        if not isinstance(summary, dict):
+            raise Refusal('previous summary must be an object')
+        if summary and (summary.get('session_id') != state['session_id']
+                        or summary.get('round') != number or summary.get('checkout') != str(checkout)):
+            raise Refusal('previous summary identity mismatch')
+        # Older runner states kept limits only in each round summary.
+        inherited = state.get('limits', summary.get('limits'))
+        validate_limits(inherited)
+        if inherited['max_rounds'] != maximum:
+            raise Refusal('saved maximum rounds mismatch')
+        if args.max_rounds is not None and args.max_rounds != maximum:
+            raise Refusal('the task maximum rounds is fixed at its first invocation')
+        result, process = summary.get('result', {}), summary.get('process', {})
+        if not isinstance(result, dict) or not isinstance(process, dict):
+            raise Refusal('invalid previous result metadata')
+        ended = summary.get('finished_at')
+        if ended is not None and (isinstance(ended, bool) or not isinstance(ended, (int, float))
+                                  or not math.isfinite(ended)):
+            raise Refusal('invalid previous finish time')
+        previous = {'round': number, 'recorded_status': state.get('status'),
+                    'stop_reason': result.get('subtype') or process.get('status') or 'unknown',
+                    'process_status': process.get('status'), 'limits': inherited,
+                    'finished_at': ended,
+                    'idle_seconds': max(0, time.time() - ended) if ended is not None else None,
+                    'checkpoint': checkpoint_metadata(folder / 'checkpoint.md')}
+    baseline = inherited if inherited is not None else DEFAULT_LIMITS
+    limits = {name: getattr(args, name) if getattr(args, name) is not None else baseline[name]
+              for name in DEFAULT_LIMITS}
+    validate_limits(limits)
+    report = {'resumed': state is not None, 'session_id': state.get('session_id') if state else None,
+              'next_round': state['round_count'] + 1 if state else 1, 'limits': limits,
+              'limit_sources': {name: 'explicit' if getattr(args, name) is not None
+                                else ('previous_round' if state else 'protective_default')
+                                for name in DEFAULT_LIMITS},
+              'previous': previous,
+              'note': 'CLI cost is not subscription quota; checkpoint metadata does not prove progress or write ownership.'}
+    return state, report
+
+
+def plan(args):
+    checkout = Path(args.checkout).expanduser().resolve(strict=True)
+    task = checked(Path(args.task_dir).expanduser().absolute()).resolve()
+    if task == checkout or checkout in task.parents:
+        raise Refusal('--task-dir must be outside the checkout')
+    return execution_plan(args, checkout, task)[1]
+
+
 def run(args):
     checkout = Path(args.checkout).expanduser().resolve(strict=True)
     if Path(git(checkout, 'rev-parse', '--show-toplevel').decode().strip()).resolve() != checkout:
@@ -368,21 +462,13 @@ def run(args):
         if not preflight['eligible']:
             raise Refusal('; '.join(preflight['problems']))
         state_path = checked(task / 'runner-state.json')
-        state = json.loads(state_path.read_text()) if state_path.exists() else None
+        state, planned = execution_plan(args, checkout, task)
+        for name, value in planned['limits'].items():
+            setattr(args, name, value)
         resume = state is not None
-        if resume and not isinstance(state, dict):
-            raise Refusal('state must be a JSON object')
-        if resume:
-            if state.get('version') != 1 or state.get('checkout') != str(checkout) or state.get('task_dir') != str(task):
-                raise Refusal('state version, checkout or task directory mismatch')
-            uuid.UUID(state['session_id'])
-            if args.max_rounds != state['max_rounds']:
-                raise Refusal('the task maximum rounds is fixed at its first invocation')
-        else:
+        if state is None:
             state = {'version': 1, 'checkout': str(checkout), 'task_dir': str(task),
                      'session_id': str(uuid.uuid4()), 'round_count': 0, 'max_rounds': args.max_rounds}
-        if not isinstance(state['round_count'], int) or state['round_count'] < 0 or state['round_count'] >= state['max_rounds']:
-            raise Refusal('invalid or exhausted task round count')
         request = Path(args.request_file).read_text()
         if len(request.encode()) > 512 * 1024:
             raise Refusal('request exceeds 512 KiB')
@@ -401,9 +487,11 @@ def run(args):
                   + SKILL.read_text() + '\n\n# Current task request\n' + request)
         new_file(folder / 'prompt.md', prompt.encode())
         snapshot(checkout, folder, 'before')
-        state.update(round_count=state['round_count'] + 1, status='running')
+        started_at = time.time()
+        state.update(round_count=state['round_count'] + 1, status='running', limits=planned['limits'])
         atomic_json(state_path, state)  # Persist identity and count before spawning.
         summary = {'status': 'failure', 'round': state['round_count'], 'session_id': state['session_id'],
+                   'started_at': started_at, 'execution_plan': planned,
                    'resumed': resume, 'checkout': str(checkout), 'artifacts': str(folder),
                    'checkpoint': str(checkpoint),
                    'scoped_access': {'additional_directory': str(task), 'checkpoint_edit_rule': checkpoint_rule(checkpoint)},
@@ -423,6 +511,12 @@ def run(args):
             except (OSError, Refusal, subprocess.SubprocessError) as error:
                 summary['status'] = 'failure'
                 summary.setdefault('problems', []).append('Git snapshot failed: ' + str(error))
+            summary['finished_at'] = time.time()
+            try:
+                summary['checkpoint_metadata'] = checkpoint_metadata(checkpoint, summary['finished_at'])
+            except (OSError, Refusal) as error:
+                summary['status'] = 'failure'
+                summary.setdefault('problems', []).append('Checkpoint metadata failed: ' + str(error))
             atomic_json(folder / 'summary.json', summary)
             state.update(status=summary['status'], last_summary=str(folder / 'summary.json'))
             atomic_json(state_path, state)
@@ -449,10 +543,14 @@ def parser():
     r.add_argument('--tools')
     r.add_argument('--mcp-config', action='append', default=[])
     r.add_argument('--strict-mcp-config', action='store_true')
-    r.add_argument('--timeout', type=positive, default=600)
-    r.add_argument('--max-turns', type=count, default=20)
-    r.add_argument('--max-budget-usd', type=positive, default=3)
-    r.add_argument('--max-rounds', type=count, default=4)
+    planning = commands.add_parser('plan', help='show effective limits and previous-round metadata without running Claude')
+    planning.add_argument('--checkout', required=True)
+    planning.add_argument('--task-dir', required=True)
+    for target in (r, planning):
+        for name in DEFAULT_LIMITS:
+            target.add_argument('--' + name.replace('_', '-'),
+                                type=count if name in ('max_turns', 'max_rounds') else positive,
+                                default=None, help='inherit on resume; use protective defaults only for a new task')
     return p
 
 
@@ -467,6 +565,9 @@ def main():
         if args.action == 'probe':
             result = probe(executable(args.claude_bin), Path(args.checkout).resolve(), args.timeout)
             success = result['eligible']
+        elif args.action == 'plan':
+            result = plan(args)
+            success = True
         elif args.action == 'status':
             result = compact_status(args.task_dir)
             success = True

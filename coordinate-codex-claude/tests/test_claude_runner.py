@@ -136,6 +136,98 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(summary['requested_model'], expected)
             self.assertEqual(summary['session']['model'], 'test-model')
 
+    def test_resume_inherits_limits_and_honors_explicit_overrides(self):
+        first, a = self.invoke('ok', '--timeout', '123', '--max-turns', '75',
+                               '--max-budget-usd', '12', '--max-rounds', '3')
+        self.assertEqual(first.returncode, 0, a)
+        args = self.args()
+        index = args.index('--timeout')
+        del args[index:index + 2]
+        second = subprocess.run(args, env=self.env, capture_output=True, text=True, timeout=30)
+        b = json.loads(second.stdout)
+        self.assertEqual(second.returncode, 0, b)
+        self.assertEqual(b['limits'], a['limits'])
+        self.assertEqual(set(b['execution_plan']['limit_sources'].values()), {'previous_round'})
+        self.assertEqual(b['execution_plan']['previous']['stop_reason'], 'success')
+        self.assertIsNotNone(b['execution_plan']['previous']['idle_seconds'])
+        calls = [json.loads(line) for line in (self.repo / 'invocations.jsonl').read_text().splitlines()]
+        self.assertEqual(calls[1][calls[1].index('--max-turns') + 1], '75')
+        self.assertEqual(float(calls[1][calls[1].index('--max-budget-usd') + 1]), 12)
+        third, c = self.invoke('ok', '--max-budget-usd', '5')
+        self.assertEqual(third.returncode, 0, c)
+        self.assertEqual(c['limits']['max_budget_usd'], 5)
+        self.assertEqual(c['limits']['max_turns'], 75)
+        self.assertEqual(c['execution_plan']['limit_sources']['max_budget_usd'], 'explicit')
+
+    def test_plan_is_read_only_and_reports_checkpoint_without_its_contents(self):
+        def inspect():
+            process = subprocess.run([sys.executable, str(SCRIPT), 'plan',
+                '--checkout', str(self.repo), '--task-dir', str(self.task)],
+                env=self.env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(process.returncode, 0, process.stdout)
+            return json.loads(process.stdout)
+        initial = inspect()
+        self.assertFalse(self.task.exists())
+        self.assertFalse((self.repo / 'invocations.jsonl').exists())
+        self.assertEqual(initial['limits'], runner.DEFAULT_LIMITS)
+        self.invoke('ok', '--max-budget-usd', '11')
+        checkpoint = self.task / 'rounds/001/checkpoint.md'
+        checkpoint.write_text('private checkpoint contents must not appear')
+        before = {p: p.read_bytes() for p in self.task.rglob('*') if p.is_file()}
+        calls = (self.repo / 'invocations.jsonl').read_bytes()
+        resumed = inspect()
+        self.assertEqual(resumed['limits']['max_budget_usd'], 11)
+        self.assertGreater(resumed['previous']['checkpoint']['bytes'], 0)
+        self.assertFalse(resumed['previous']['checkpoint']['progress_verified'])
+        self.assertNotIn('private checkpoint contents', json.dumps(resumed))
+        self.assertEqual(before, {p: p.read_bytes() for p in self.task.rglob('*') if p.is_file()})
+        self.assertEqual(calls, (self.repo / 'invocations.jsonl').read_bytes())
+
+    def test_legacy_resume_uses_summary_limits_and_unknown_finish_time(self):
+        self.invoke('ok', '--max-budget-usd', '9')
+        state_path = self.task / 'runner-state.json'
+        state = json.loads(state_path.read_text())
+        state.pop('limits')
+        state_path.write_text(json.dumps(state))
+        summary_path = self.task / 'rounds/001/summary.json'
+        summary = json.loads(summary_path.read_text())
+        summary.pop('finished_at')
+        summary_path.write_text(json.dumps(summary))
+        p, data = self.invoke()
+        self.assertEqual(p.returncode, 0, data)
+        self.assertEqual(data['limits']['max_budget_usd'], 9)
+        self.assertIsNone(data['execution_plan']['previous']['idle_seconds'])
+
+    def test_bad_saved_limits_and_summary_identity_refuse_without_launch(self):
+        for scenario in ('missing', 'boolean', 'identity', 'linked-summary', 'null-state'):
+            with self.subTest(scenario=scenario):
+                self.task = self.root / scenario
+                self.invoke()
+                state_path = self.task / 'runner-state.json'
+                state = json.loads(state_path.read_text())
+                summary_path = self.task / 'rounds/001/summary.json'
+                summary = json.loads(summary_path.read_text())
+                if scenario == 'missing':
+                    state.pop('limits')
+                    summary.pop('limits')
+                elif scenario == 'boolean':
+                    state['limits']['max_turns'] = True
+                elif scenario == 'identity':
+                    summary['session_id'] = 'other-session'
+                if scenario == 'linked-summary':
+                    saved = self.root / 'external-summary.json'
+                    saved.write_text(json.dumps(summary))
+                    summary_path.unlink()
+                    summary_path.symlink_to(saved)
+                else:
+                    summary_path.write_text(json.dumps(summary))
+                state_path.write_text('null' if scenario == 'null-state' else json.dumps(state))
+                before = (self.repo / 'invocations.jsonl').read_bytes()
+                p, data = self.invoke()
+                self.assertNotEqual(p.returncode, 0, data)
+                self.assertEqual(before, (self.repo / 'invocations.jsonl').read_bytes())
+                self.assertFalse((self.task / 'rounds/002').exists())
+
     def test_zero_exit_is_not_enough(self):
         for scenario in ('missing', 'malformed', 'duplicate', 'error', 'denied',
                          'result-denied', 'bad-mcp', 'wrong-session', 'wrong-mode'):
