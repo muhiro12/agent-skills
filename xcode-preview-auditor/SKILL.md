@@ -63,8 +63,10 @@ or use merely similar screens as substitutes. If fixes are already requested,
 repair a confirmed preview/setup defect in the implementation phase and recapture
 it; the original failure remains part of the evidence. New persistent live-app
 data or destructive setup still needs its own authorized safe path.
-Follow the active live-session lifecycle and its input
-rules, inspect the screenshot and hierarchy, and always end the session.
+Follow [device-session ownership](../xcode-ui-smoke-auditor/references/device-session-ownership.md)
+and the active live-session input rules. Inspect the screenshot and hierarchy,
+and always end the session. Direct Preview rendering does not require creating
+an interaction session; verify its actual destination separately.
 
 A successful fallback can be `captured` in the ledger, but retain the original
 direct Preview failure and label the mechanism. Count direct and fallback captures

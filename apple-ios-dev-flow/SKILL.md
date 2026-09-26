@@ -79,9 +79,10 @@ shell or Xcode-native contract without creating another wrapper.
 
 ## Xcode Execution
 
-1. Resolve workspace, selection, build, tests, Preview, run/log, and device
-   interaction capabilities from the current tool schemas. Match the workspace
-   to the repository; never guess a runtime handle.
+1. Resolve needed capabilities by narrowly filtered tool names, then inspect only
+   their schemas. Reuse confirmed schemas within the task; rediscover after a
+   relevant failure or runtime change. Match the workspace to the repository.
+   For Simulator runtime work, follow [device-session ownership](../xcode-ui-smoke-auditor/references/device-session-ownership.md).
 2. Before switching, capture the original scheme, destination, and active test
    plan when relevant. Use discovered eligible values. A scheme switch may
    change the destination; recheck before proceeding.

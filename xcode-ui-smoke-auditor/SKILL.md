@@ -26,7 +26,9 @@ was discovered. Identify supported device families and companion targets before
 promising coverage. Keep each relevant target as audited, skipped, or a gap with
 its reason. A narrow request need not expand into every supported platform.
 
-Use the current suitable Simulator by default. For broad iPhone/iPad coverage,
+Use a Simulator assigned to this app and reused across its tasks, following
+[device-session ownership](references/device-session-ownership.md). Honor an
+explicit device or required existing data state. For broad iPhone/iPad coverage,
 choose representative compact and wide cases; prefer iPad landscape when useful,
 and confirm orientation from the returned image/hierarchy. Do not count an
 unconfirmed landscape capture or an iPhone image as evidence for another target.
