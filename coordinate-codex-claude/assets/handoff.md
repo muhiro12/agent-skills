@@ -15,7 +15,7 @@
 - Implementation session: <explicit session ID; optional until started>
 - Run limits: <effective time/turn/budget limits and maximum calls; sized for the whole batch; inspect plan before resume>
 - Codex model / effort: <user-selected baseline; observed or user-reported; actual quality-driven increases and reasons, if any>
-- Claude model / effort: <explicit launch flags; default opus/high; task-specific overrides and reasons; resolved model evidence kept separate>
+- Claude model / effort: <explicit selected launch flags; use the delegated implementation selection policy; record task-specific overrides and reasons; resolved model evidence kept separate>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>
 
 ## Incoming review scope (omit for delegated implementation)

@@ -61,17 +61,19 @@ result and Git evidence. Claude works in the specified checkout.
 python3 <skill-root>/scripts/claude_runner.py run \
   --checkout <checkout> --task-dir <private-task-directory> \
   --request-file <private-request-file> \
-  --model opus --effort high \
+  --model opus --effort <selected-effort> \
   --permission-mode auto
 ```
 
-The flags above select Claude only and implement the current delegation default:
-latest Opus with explicit `high` effort. Replace them for a current task-specific
-user choice or a justified, recorded effort increase under the delegated policy.
+The flags above select Claude only. Resolve `<selected-effort>` using the
+[Claude selection policy](delegated-implementation.md#claude-selection-policy):
+current task-specific choice, otherwise the maintained default, with any
+justified quality-driven adjustment recorded. Replace the example model when
+the selected model differs.
 They do not change the active Codex model, Desktop selection, or client settings.
 The runner still requires `--effort`; omission must not silently use the CLI's
 model-dependent default. Pass the intended value on resume too, instead of copying
-an old run's `xhigh` automatically.
+an old run's effort automatically.
 
 The helper defaults to the rolling
 [`opus` alias](https://code.claude.com/docs/en/model-config#model-aliases)
