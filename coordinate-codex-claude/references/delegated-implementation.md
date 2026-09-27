@@ -32,14 +32,35 @@ Explain the reason briefly and use a supported setting control if available;
 do not claim prompt wording changed a client setting. If no such control is
 available, state that limitation and request a user-side adjustment when needed.
 Do not automatically change the selected model or revert an increased effort;
-follow subsequent user direction. Claude retains its independently chosen model
-and effort preference; do not map Codex's setting onto Claude. For delegated
-Claude runs, default to the rolling `opus` alias rather than a version-specific
-ID when there is no existing user-selected or configured model. Pass an existing
-selection explicitly to the runner, including on resume, and preserve intentional
-version pins. Do not turn a resolved model ID observed in an app, previous run,
-or result into an implicit pin. Record settings only when observable or
-user-reported, including any actual effort change.
+follow subsequent user direction.
+
+For Claude delegation, prefer the most capable model confirmed to be included
+in the user's subscription, with `high` effort. The current default is the
+rolling `opus` alias with explicit `--effort high` on each launch and resume.
+Do not inherit a historic `xhigh` choice merely because an older run used it.
+A current task-specific user selection or explicit version pin takes precedence.
+Keep Claude settings independent of Codex's model and reasoning effort.
+
+Do not use `best` as a subscription-entitlement check: an alias can resolve to
+a model requiring usage credits. Switch to Fable when current account evidence
+confirms it is included in the subscription; until then retain `opus`. Do not
+enable credits, route to separately billed API usage, or spend tokens probing an
+unavailable model merely to select a default. Reassess when availability changes,
+not on every tool call. Record the evidence behind a changed selection.
+
+A concrete quality need, such as unresolved reasoning about a migration or a
+complex concurrency failure, can justify a supported higher effort unless the
+user fixed or capped it. Explain the reason and record the explicit flag; task
+size or a generic difficulty label alone does not require an increase. Keep an
+intentional elevation for its relevant scope and use `high` for ordinary new
+work. Never reduce a current task-specific user choice to save usage.
+
+Pass model and effort explicitly to the runner, including on resume; do not
+assume the Desktop selection or legacy global effort setting reaches print mode.
+Check applicable environment or managed overrides when the effective setting
+is uncertain. Record requested settings separately from returned model metadata;
+do not claim effective effort is independently verified when the CLI does not
+report it. A resolved model ID is evidence, not a reason to pin future runs.
 
 ## Codex: prepare implementation
 

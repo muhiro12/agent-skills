@@ -61,24 +61,30 @@ result and Git evidence. Claude works in the specified checkout.
 python3 <skill-root>/scripts/claude_runner.py run \
   --checkout <checkout> --task-dir <private-task-directory> \
   --request-file <private-request-file> \
-  --model opus --effort <selected-effort> \
+  --model opus --effort high \
   --permission-mode auto
 ```
 
-The flags above select Claude only; replace the example model with any existing
-independent user preference.
-They do not select or change the active Codex model or reasoning effort.
+The flags above select Claude only and implement the current delegation default:
+latest Opus with explicit `high` effort. Replace them for a current task-specific
+user choice or a justified, recorded effort increase under the delegated policy.
+They do not change the active Codex model, Desktop selection, or client settings.
+The runner still requires `--effort`; omission must not silently use the CLI's
+model-dependent default. Pass the intended value on resume too, instead of copying
+an old run's `xhigh` automatically.
+
 The helper defaults to the rolling
 [`opus` alias](https://code.claude.com/docs/en/model-config#model-aliases)
-when `--model` is omitted.
-This is a helper fallback, not automatic discovery of the user's Claude settings.
-Pass an existing user-selected or configured model explicitly, including on
-resume; omission does not preserve a previous non-Opus selection. When no such
-selection exists, use `opus` to follow the current Opus release. Preserve an
-intentional version pin, but do not infer one from observed runtime metadata.
-Keep the requested alias and returned model ID distinct: the returned ID is evidence, not a replacement for the alias on the
-next invocation or resume. Pass Claude's selected effort explicitly (including
-`xhigh` when selected); do not derive it from Codex. Verify the resolved model
+when `--model` is omitted. This is a fallback, not discovery of subscription
+entitlements or Desktop settings. Pass the selected model explicitly on resume;
+omission does not preserve a previous non-Opus choice. Preserve explicit version
+pins; distinguish the requested alias from the returned model ID.
+
+Prefer the most capable subscription-included model. Do not substitute `best`
+for account availability evidence or enable usage credits. Use Fable once its
+inclusion is confirmed for the account; until then use `opus`. See the current
+[model and effort configuration](https://code.claude.com/docs/en/model-config)
+for resolution, overrides, and plan-dependent availability. Verify the resolved model
 in the session and result metadata, and distinguish requested effort from an
 effective effort value when the CLI does not return one. Inspect the actual
 permission mode in the result. If automatic permission review is unavailable,
