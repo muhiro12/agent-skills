@@ -34,39 +34,9 @@ available, state that limitation and request a user-side adjustment when needed.
 Do not automatically change the selected model or revert an increased effort;
 follow subsequent user direction.
 
-### Claude selection policy
-
-Current default Claude effort: `high`. This is the single maintained default;
-update it here when the user's preference changes.
-
-For Claude delegation, prefer the most capable model confirmed to be included
-in the user's subscription; the current model default is the rolling `opus` alias.
-Select effort from the current task-specific user choice first, otherwise the
-current default above, with justified quality-driven adjustments as described
-below. Do not inherit a historic level merely because an older run used it.
-An explicit model selection or version pin takes precedence over the model default.
-Keep Claude settings independent of Codex's model and reasoning effort.
-
-Do not use `best` as a subscription-entitlement check: an alias can resolve to
-a model requiring usage credits. Switch to Fable when current account evidence
-confirms it is included in the subscription; until then retain `opus`. Do not
-enable credits, route to separately billed API usage, or spend tokens probing an
-unavailable model merely to select a default. Reassess when availability changes,
-not on every tool call. Record the evidence behind a changed selection.
-
-A concrete quality need, such as unresolved reasoning about a migration or a
-complex concurrency failure, can justify a supported higher effort unless the
-user fixed or capped it. Explain the reason and record the explicit flag; task
-size or a generic difficulty label alone does not require an increase. Keep an
-intentional elevation for its relevant scope and use the current default for
-ordinary new work. Never reduce a current task-specific user choice to save usage.
-
-Pass model and effort explicitly to the runner, including on resume; do not
-assume the Desktop selection or legacy global effort setting reaches print mode.
-Check applicable environment or managed overrides when the effective setting
-is uncertain. Record requested settings separately from returned model metadata;
-do not claim effective effort is independently verified when the CLI does not
-report it. A resolved model ID is evidence, not a reason to pin future runs.
+For Claude delegation, use the rolling `opus` alias for the latest Opus and
+fixed `high` effort. Pass `--model opus --effort high` on launch and resume.
+Keep these settings independent of Codex's model and reasoning effort.
 
 ## Codex: prepare implementation
 

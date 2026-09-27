@@ -61,34 +61,15 @@ result and Git evidence. Claude works in the specified checkout.
 python3 <skill-root>/scripts/claude_runner.py run \
   --checkout <checkout> --task-dir <private-task-directory> \
   --request-file <private-request-file> \
-  --model opus --effort <selected-effort> \
+  --model opus --effort high \
   --permission-mode auto
 ```
 
-The flags above select Claude only. Resolve `<selected-effort>` using the
-[Claude selection policy](delegated-implementation.md#claude-selection-policy):
-current task-specific choice, otherwise the maintained default, with any
-justified quality-driven adjustment recorded. Replace the example model when
-the selected model differs.
-They do not change the active Codex model, Desktop selection, or client settings.
-The runner still requires `--effort`; omission must not silently use the CLI's
-model-dependent default. Pass the intended value on resume too, instead of copying
-an old run's effort automatically.
-
-The helper defaults to the rolling
-[`opus` alias](https://code.claude.com/docs/en/model-config#model-aliases)
-when `--model` is omitted. This is a fallback, not discovery of subscription
-entitlements or Desktop settings. Pass the selected model explicitly on resume;
-omission does not preserve a previous non-Opus choice. Preserve explicit version
-pins; distinguish the requested alias from the returned model ID.
-
-Prefer the most capable subscription-included model. Do not substitute `best`
-for account availability evidence or enable usage credits. Use Fable once its
-inclusion is confirmed for the account; until then use `opus`. See the current
-[model and effort configuration](https://code.claude.com/docs/en/model-config)
-for resolution, overrides, and plan-dependent availability. Verify the resolved model
-in the session and result metadata, and distinguish requested effort from an
-effective effort value when the CLI does not return one. Inspect the actual
+The flags above select Claude only; they do not change Codex or Desktop settings.
+Use the same model and effort flags on resume. Record the requested alias and
+returned model separately; a resolved model ID does not pin future runs.
+Do not claim effective effort is verified when the CLI does not report it.
+Inspect the actual
 permission mode in the result. If automatic permission review is unavailable,
 use the supported `manual` mode with the smallest task-scoped `--allow-tool` grants, resolving real
 approval needs through the coordinator's current controls. The runner supplies
