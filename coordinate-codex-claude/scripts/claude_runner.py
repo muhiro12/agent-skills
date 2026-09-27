@@ -426,7 +426,11 @@ def execution_plan(args, checkout, task):
     limits = {name: getattr(args, name) if getattr(args, name) is not None else baseline[name]
               for name in DEFAULT_LIMITS}
     validate_limits(limits)
-    report = {'resumed': state is not None, 'session_id': state.get('session_id') if state else None,
+    fresh_reason = ('initial' if state is None else 'requested' if args.new_session else
+                    'idle' if previous['idle_seconds'] is not None and previous['idle_seconds'] >= 3600
+                    else None)
+    report = {'resumed': state is not None and fresh_reason is None,
+              'new_session_reason': fresh_reason, 'session_id': state.get('session_id') if state else None,
               'next_round': state['round_count'] + 1 if state else 1, 'limits': limits,
               'limit_sources': {name: 'explicit' if getattr(args, name) is not None
                                 else ('previous_round' if state else 'protective_default')
@@ -465,10 +469,12 @@ def run(args):
         state, planned = execution_plan(args, checkout, task)
         for name, value in planned['limits'].items():
             setattr(args, name, value)
-        resume = state is not None
+        resume = planned['resumed']
         if state is None:
             state = {'version': 1, 'checkout': str(checkout), 'task_dir': str(task),
                      'session_id': str(uuid.uuid4()), 'round_count': 0, 'max_rounds': args.max_rounds}
+        elif not resume:
+            state['session_id'] = str(uuid.uuid4())
         request = Path(args.request_file).read_text()
         if len(request.encode()) > 512 * 1024:
             raise Refusal('request exceeds 512 KiB')
@@ -547,6 +553,8 @@ def parser():
     planning.add_argument('--checkout', required=True)
     planning.add_argument('--task-dir', required=True)
     for target in (r, planning):
+        target.add_argument('--new-session', action='store_true',
+                            help='start fresh within the same task and round limits; use for new scope')
         for name in DEFAULT_LIMITS:
             target.add_argument('--' + name.replace('_', '-'),
                                 type=count if name in ('max_turns', 'max_rounds') else positive,

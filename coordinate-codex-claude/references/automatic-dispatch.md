@@ -5,7 +5,7 @@ needs Claude implementation or substantial incoming-review corrections. An
 incoming review with bounded Codex fixes does not require runner preflight.
 The active Codex task is the coordinator: it runs Claude, inspects the returned
 code, makes bounded final adjustments, and accepts the result. Substantial
-rework can return as one grouped request to the same Claude session. The helper makes
+rework can return as one grouped request using the session policy below. The helper makes
 one bounded implementation call; it neither calls a second Codex model nor
 provides a daemon, scheduler, or a wake-up mechanism after Codex finishes.
 
@@ -149,7 +149,7 @@ evidence; it can be missing, incomplete, or stale and never replaces final revie
 This separate file preserves one writer per record. No checkpoint watcher, daemon,
 or background wake-up mechanism is introduced.
 
-Record available usage-limit snapshots in the private handoff as described in
+Capture Claude usage at dispatch and return in the private handoff as described in
 [usage and waiting](usage-and-waiting.md). The runner's estimated cost and result token counts do not measure
 Codex subscription-limit consumption. A missing final result after interruption
 must remain visible; partial streaming usage is not a finalized token total.
@@ -168,9 +168,24 @@ Codex reviews every item and their integration. Complete bounded final adjustmen
 findings into one correction request and call `run` with the same task directory
 and checkout within the existing limits. Include the current brief revision, changes since the
 last return, and any Codex edits; link evidence rather than repeating transcripts.
-The helper uses the saved session ID with `--resume`; it never uses the ambiguous
-`--continue` option. If execution limits interrupt a batch, inspect the partial
-result and resume the unfinished scope within the remaining limits, without
+For a new work scope, add `--new-session` to both `plan` and `run`. Otherwise the
+helper resumes the saved UUID when less than one hour has passed since the
+previous round finished, and starts a fresh UUID after that gap. The finish time
+is an operational proxy for last model activity, not proof of cache validity;
+never measure from the start of a long-running round. For older records without
+a finish time, inspect the handoff and use `--new-session` if the gap is unknown
+or long. Immediate grouped corrections can resume. The helper never uses the
+ambiguous `--continue` option.
+
+Before a fresh session, update the handoff and include its path and the previous
+checkpoint path in the current request, together with remaining work, decisions,
+and relevant evidence. Inspect stale or missing checkpoints against the actual
+work first. Do not copy the entire transcript. A new UUID retains the task
+directory, round count, inherited limits, and all previous round evidence; it
+does not reset the maximum calls. `plan` reports the selection before execution.
+
+If execution limits interrupt a batch, inspect the partial
+result and continue the unfinished scope within the remaining limits, without
 requiring a review handoff for each completed Issue. Once accepted, record the
 final revision, verification and `Stage: done` in `handoff.md`.
 
@@ -182,8 +197,8 @@ Timeout or interruption terminates the helper's child process group and retains
 partial results. If the host itself crashes, verify that the previous process
 is no longer writing before another call. The session and attempt count are
 saved before launch. A failure before Claude creates that session may make
-resume unavailable; retain the failed record, inspect partial work, and create
-a new task record explicitly instead of rewriting the saved UUID. Do not evade
+resume unavailable; retain the failed record, inspect partial work, and use
+`--new-session` within the same task instead of manually rewriting its UUID. Do not evade
 an exhausted review limit by silently starting new task records.
 
 ## Sources
@@ -192,3 +207,4 @@ an exhausted review limit by silently starting new task records.
 - [CLI flags](https://code.claude.com/docs/en/cli-reference)
 - [Permission rules and working directories](https://code.claude.com/docs/en/permissions)
 - [Authentication](https://code.claude.com/docs/en/authentication)
+- [Prompt caching and cache lifetime](https://code.claude.com/docs/en/prompt-caching)

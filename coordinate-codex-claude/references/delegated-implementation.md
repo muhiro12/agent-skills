@@ -87,7 +87,9 @@ carry over to an externally started process. Keep machine-specific routing
 outside this portable skill, and preserve shared asset sources.
 
 Bind each task to an explicit implementation session ID and checkout. Resume
-that session for justified grouped rework; do not select an unrelated "most recent" session.
+that session for immediate grouped rework; use a fresh session for new scope or
+a long gap under the [runner session policy](automatic-dispatch.md#review-and-resume).
+Keep the same task record and round limits; never select an unrelated "most recent" session.
 Set proportional time, usage, and invocation limits for the whole batch, rather
 than assuming each Issue needs a separate call. Continuation after an execution
 limit remains the same batch, not a mandatory per-Issue review. Return

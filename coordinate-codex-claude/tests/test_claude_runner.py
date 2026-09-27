@@ -121,6 +121,42 @@ class RunnerTests(unittest.TestCase):
         before = json.loads((self.task / 'rounds/001/git-before.json').read_text())
         self.assertIn('sha256', before['unstaged'])
 
+    def test_fresh_sessions_preserve_task_rounds_and_limits(self):
+        _, first = self.invoke('ok', '--max-rounds', '3', '--max-turns', '75')
+        _, second = self.invoke('ok', '--new-session')
+        self.assertFalse(second['resumed'])
+        self.assertNotEqual(first['session_id'], second['session_id'])
+        self.assertEqual(second['round'], 2)
+        self.assertEqual(second['limits'], first['limits'])
+        self.assertTrue((self.task / 'rounds/001/summary.json').is_file())
+        _, third = self.invoke()
+        self.assertTrue(third['resumed'])
+        self.assertEqual(second['session_id'], third['session_id'])
+        refused, result = self.invoke('ok', '--new-session')
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('exhausted', result['error'])
+
+    def test_idle_selection_uses_finish_not_start(self):
+        _, first = self.invoke()
+        path = self.task / 'rounds/001/summary.json'
+        summary = json.loads(path.read_text())
+        summary['started_at'] = 1
+        summary['finished_at'] = 10000
+        path.write_text(json.dumps(summary))
+        args = runner.parser().parse_args(['plan', '--checkout', str(self.repo),
+                                         '--task-dir', str(self.task)])
+        for now, resumed in ((10001, True), (13599, True), (13600, False)):
+            with patch.object(runner.time, 'time', return_value=now):
+                plan = runner.plan(args)
+            self.assertEqual(plan['resumed'], resumed)
+        _, second = self.invoke()
+        self.assertFalse(second['resumed'])
+        self.assertEqual(second['execution_plan']['new_session_reason'], 'idle')
+        self.assertNotEqual(first['session_id'], second['session_id'])
+        call = json.loads((self.repo / 'invocations.jsonl').read_text().splitlines()[-1])
+        self.assertIn('--session-id', call)
+        self.assertNotIn('--resume', call)
+
     def test_default_alias_and_explicit_model_reach_cli(self):
         args = self.args('--effort', 'xhigh')
         index = args.index('--model')

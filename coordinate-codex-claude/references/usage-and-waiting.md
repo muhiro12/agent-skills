@@ -34,6 +34,23 @@ actionable follow-up. Preserve design
 rationale and unresolved decisions in the task record so a long collaboration
 can continue without rediscovering them or copying full logs into each message.
 
+At each Claude boundary (before dispatch and after return), run the resolved
+Claude executable with `-p "/usage" --output-format json`. Keep the timestamped
+result in the private task record, including remaining plan windows and reset
+times and any last-known/stale-data notice. A cached usage display is not a
+fresh measurement. On verified Claude Code 2.1.281 this built-in command uses no
+model turns or tokens; recheck that property after incompatible CLI changes, and do not send a
+natural-language fallback to the model. If unavailable, record unknown rather
+than zero remaining usage. This does not resume the implementation session.
+
+Codex decides whether the remaining allowance is clearly inadequate for the
+next complete deliverable, using its size and relevant recent boundary records.
+If so, keep or take over implementation in Codex after Claude stops writing.
+Do not invent a universal percentage cutoff or convert CLI dollar estimates
+into subscription quota. Using the full allowance and concurrent tasks are
+permitted; account-wide snapshots cannot attribute consumption to one task.
+Do not poll usage during implementation.
+
 Record available Codex usage-limit snapshots before preparation and after
 completion, with timestamps, window/reset identity, and known concurrent tasks.
 During initial workflow evaluation, also capture dispatch and Claude-return
@@ -76,3 +93,6 @@ Keep large diffs/logs local and inspect relevant parts. Reduce unnecessary tool
 turns by grouping independent work, while retaining verification and important
 design context. A low exchange count alone does not establish efficient use if
 each implementation turn carries a very large accumulated context.
+
+See [Claude usage reporting](https://code.claude.com/docs/en/costs#using-the-usage-command)
+for plan bars, local estimates, and stale-data behavior.
