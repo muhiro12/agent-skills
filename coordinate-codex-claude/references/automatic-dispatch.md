@@ -92,16 +92,36 @@ per-invocation choices. A disconnected MCP server or a permission denial is a
 failed return, even when the CLI otherwise exits zero.
 
 For a new task, protective defaults are 600 seconds, 20 agent turns and a
-CLI-estimated 3 USD ceiling per invocation, with at most four invocations per task. These are protective defaults,
+CLI-estimated 3 USD ceiling per invocation, with at most three invocations per work item. These are protective defaults,
 not a target number of review cycles or a mapping from Issues to calls. Size the
 first call for the whole batch using `--timeout`, `--max-turns`,
 `--max-budget-usd` and `--max-rounds`; keep any user-set caps. Costs are
 CLI estimates, not a subscription bill or a guarantee about billing. On resume, omitted time, turn, and budget flags inherit the previous invocation's
-recorded effective limits; explicit flags override them. The maximum round count
+recorded effective limits; explicit flags override them. The per-item maximum
 is fixed at first invocation and can be omitted on resume. Older task records
 inherit from the previous round summary. Missing or invalid saved limits cause a
 refusal instead of silently reverting to smoke-test defaults. Failed attempted
 launches count too. There is no automatic retry.
+
+Count work items independently of the conversation, session UUID, and total
+launch count. Pass a stable `--work-item issue-a` on both `plan` and `run`;
+repeat it for each item actually assigned in a batched call. A call covering
+A/B/C consumes one attempt for each; a correction covering only A consumes only
+A's next attempt. Codex review, edits, waits, and Claude's internal tool turns
+consume none. Failed attempted launches still consume an attempt for each
+assigned item. Three independent items can therefore use nine calls in total,
+although one combined implementation call is preferred when appropriate.
+
+Record acceptance per item. A later user request for additional adjustment of
+accepted A gets a new identifier such as `issue-a-followup-1` and three fresh
+attempts; record the request and link the accepted item in the handoff. An
+unfinished correction keeps its identifier. New scope also uses `--new-session`.
+Changing the UUID or waiting an hour never resets an item's counter. Omitted
+`--work-item` repeats the previous selection, or uses one default item initially.
+Legacy records without item counters remain one item with their saved cap and
+attempt count; do not invent per-Issue historical attribution. For a new user
+request after accepting legacy work, start a linked new record with the current
+default cap. Preserve the old record as evidence.
 
 Before dispatch or resume, inspect the read-only execution plan with the intended
 limit overrides (if any):
@@ -181,7 +201,7 @@ Before a fresh session, update the handoff and include its path and the previous
 checkpoint path in the current request, together with remaining work, decisions,
 and relevant evidence. Inspect stale or missing checkpoints against the actual
 work first. Do not copy the entire transcript. A new UUID retains the task
-directory, round count, inherited limits, and all previous round evidence; it
+directory, item counters, inherited limits, and all previous round evidence; it
 does not reset the maximum calls. `plan` reports the selection before execution.
 
 If execution limits interrupt a batch, inspect the partial
@@ -199,7 +219,9 @@ is no longer writing before another call. The session and attempt count are
 saved before launch. A failure before Claude creates that session may make
 resume unavailable; retain the failed record, inspect partial work, and use
 `--new-session` within the same task instead of manually rewriting its UUID. Do not evade
-an exhausted review limit by silently starting new task records.
+an exhausted item limit by renaming unfinished work or starting new task records.
+At the limit, Codex finishes the remaining work after taking ownership, or
+reports the concrete blocker; do not abandon the requested deliverable.
 
 ## Sources
 

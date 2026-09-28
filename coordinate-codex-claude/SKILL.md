@@ -6,6 +6,11 @@ description: "Explicitly coordinate Codex-to-Claude implementation or review exi
 # Coordinate Codex and Claude
 
 Use one task record for delegated implementation or incoming work review.
+Within a batch, count Claude dispatches separately for each Issue or agreed
+deliverable, with a default maximum of three per item. Codex review and local
+adjustments do not consume attempts. A new user-requested adjustment after
+acceptance is a new item, even in the same conversation; unfinished rework is
+the existing item. See the runner reference for batched counting.
 Codex owns significant decisions, design, independent review, and final
 acceptance. Claude owns implementation, implementation-level choices, and verification
 through a complete reviewable deliverable. After return, Codex reviews, makes

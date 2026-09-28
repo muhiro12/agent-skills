@@ -20,7 +20,7 @@ import time
 import uuid
 
 SKILL = Path(__file__).resolve().parents[1] / 'SKILL.md'
-DEFAULT_LIMITS = {'timeout': 600, 'max_turns': 20, 'max_budget_usd': 3, 'max_rounds': 4}
+DEFAULT_LIMITS = {'timeout': 600, 'max_turns': 20, 'max_budget_usd': 3, 'max_rounds': 3}
 VISIBLE_FLAGS = ('--print', '--output-format', '--verbose', '--model', '--effort',
                  '--max-budget-usd', '--permission-mode', '--permission-prompts',
                  '--session-id', '--resume', '--allowedTools', '--add-dir')
@@ -390,7 +390,7 @@ def execution_plan(args, checkout, task):
         uuid.UUID(state['session_id'])
         number, maximum = state.get('round_count'), state.get('max_rounds')
         if (type(number) is not int or type(maximum) is not int
-                or number < 1 or number >= maximum):
+                or number < 1 or maximum < 1):
             raise Refusal('invalid or exhausted task round count')
         folder = checked(checked(task / 'rounds') / f'{number:03d}')
         if not folder.is_dir():
@@ -426,12 +426,37 @@ def execution_plan(args, checkout, task):
     limits = {name: getattr(args, name) if getattr(args, name) is not None else baseline[name]
               for name in DEFAULT_LIMITS}
     validate_limits(limits)
+    # A launch may cover several items; each named item spends one attempt.
+    saved_counts = state.get('item_rounds') if state else None
+    if saved_counts is None:
+        saved_counts = {'default': state['round_count']} if state else {}
+        if state and args.work_item:
+            raise Refusal('legacy task has no item attribution; continue it without --work-item')
+    if (not isinstance(saved_counts, dict)
+            or any(not isinstance(k, str) or not k or type(v) is not int or v < 0
+                   for k, v in saved_counts.items())):
+        raise Refusal('invalid saved item round counts')
+    if state and (not saved_counts or any(v < 1 or v > state['round_count']
+                                         for v in saved_counts.values())
+                  or sum(saved_counts.values()) < state['round_count']):
+        raise Refusal('inconsistent saved item round counts')
+    items = args.work_item or (state.get('work_items', ['default']) if state else ['default'])
+    if (not isinstance(items, list) or not items
+            or any(not isinstance(item, str) or not item.strip() for item in items)
+            or len(set(items)) != len(items)):
+        raise Refusal('work items must be distinct nonempty identifiers')
+    if any(saved_counts.get(item, 0) >= limits['max_rounds'] for item in items):
+        raise Refusal('exhausted work item round count')
+    item_rounds = dict(saved_counts)
+    for item in items:
+        item_rounds[item] = item_rounds.get(item, 0) + 1
     fresh_reason = ('initial' if state is None else 'requested' if args.new_session else
                     'idle' if previous['idle_seconds'] is not None and previous['idle_seconds'] >= 3600
                     else None)
     report = {'resumed': state is not None and fresh_reason is None,
               'new_session_reason': fresh_reason, 'session_id': state.get('session_id') if state else None,
               'next_round': state['round_count'] + 1 if state else 1, 'limits': limits,
+              'work_items': items, 'item_rounds_after_launch': item_rounds,
               'limit_sources': {name: 'explicit' if getattr(args, name) is not None
                                 else ('previous_round' if state else 'protective_default')
                                 for name in DEFAULT_LIMITS},
@@ -494,7 +519,8 @@ def run(args):
         new_file(folder / 'prompt.md', prompt.encode())
         snapshot(checkout, folder, 'before')
         started_at = time.time()
-        state.update(round_count=state['round_count'] + 1, status='running', limits=planned['limits'])
+        state.update(round_count=state['round_count'] + 1, status='running', limits=planned['limits'],
+                     work_items=planned['work_items'], item_rounds=planned['item_rounds_after_launch'])
         atomic_json(state_path, state)  # Persist identity and count before spawning.
         summary = {'status': 'failure', 'round': state['round_count'], 'session_id': state['session_id'],
                    'started_at': started_at, 'execution_plan': planned,
@@ -553,6 +579,8 @@ def parser():
     planning.add_argument('--checkout', required=True)
     planning.add_argument('--task-dir', required=True)
     for target in (r, planning):
+        target.add_argument('--work-item', action='append',
+                            help='stable Issue or follow-up identifier; repeat for a batched launch')
         target.add_argument('--new-session', action='store_true',
                             help='start fresh within the same task and round limits; use for new scope')
         for name in DEFAULT_LIMITS:

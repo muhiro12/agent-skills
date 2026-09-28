@@ -157,6 +157,47 @@ class RunnerTests(unittest.TestCase):
         self.assertIn('--session-id', call)
         self.assertNotIn('--resume', call)
 
+    def test_batch_counts_items_and_followup_independently(self):
+        _, first = self.invoke('ok', '--work-item', 'a', '--work-item', 'b', '--work-item', 'c')
+        self.assertEqual(first['limits']['max_rounds'], 3)
+        self.assertEqual(first['execution_plan']['item_rounds_after_launch'], {'a': 1, 'b': 1, 'c': 1})
+        for item in ('a', 'b', 'c'):
+            for attempt in (2, 3):
+                process, result = self.invoke('ok', '--work-item', item)
+                self.assertEqual(process.returncode, 0, result)
+                self.assertEqual(result['execution_plan']['item_rounds_after_launch'][item], attempt)
+        refused, result = self.invoke('ok', '--work-item', 'a', '--new-session')
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('exhausted', result['error'])
+        process, followup = self.invoke('ok', '--work-item', 'a-followup-1', '--new-session')
+        self.assertEqual(process.returncode, 0, followup)
+        self.assertEqual(followup['execution_plan']['item_rounds_after_launch'],
+                         {'a': 3, 'b': 3, 'c': 3, 'a-followup-1': 1})
+        self.assertEqual(followup['round'], 8)
+        self.assertFalse(followup['resumed'])
+
+    def test_legacy_counts_and_invalid_item_ledger(self):
+        self.invoke('ok', '--max-rounds', '4')
+        path = self.task / 'runner-state.json'
+        state = json.loads(path.read_text())
+        for counts in ({}, {'default': 0}, {'default': True}):
+            state['item_rounds'] = counts
+            path.write_text(json.dumps(state))
+            self.assertNotEqual(self.invoke()[0].returncode, 0)
+        state.pop('item_rounds')
+        state.pop('work_items')
+        path.write_text(json.dumps(state))
+        self.assertNotEqual(self.invoke('ok', '--work-item', 'a')[0].returncode, 0)
+        process, resumed = self.invoke()
+        self.assertEqual(process.returncode, 0, resumed)
+        self.assertEqual(resumed['limits']['max_rounds'], 4)
+        self.assertEqual(resumed['execution_plan']['item_rounds_after_launch'], {'default': 2})
+
+    def test_duplicate_work_items_do_not_launch(self):
+        process, result = self.invoke('ok', '--work-item', 'a', '--work-item', 'a')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertFalse((self.repo / 'invocations.jsonl').exists())
+
     def test_default_alias_and_explicit_model_reach_cli(self):
         args = self.args('--effort', 'xhigh')
         index = args.index('--model')

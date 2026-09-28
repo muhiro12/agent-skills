@@ -13,7 +13,8 @@
 - Dispatch: not needed | automated
 - Execution route: <verified executable or adapter reference>
 - Implementation session: <explicit session ID; optional until started>
-- Run limits: <effective time/turn/budget limits and maximum calls; sized for the whole batch; inspect plan before resume>
+- Run limits: <effective time/turn/budget limits per invocation, sized for the batch; default maximum three calls per work item; inspect plan before dispatch>
+- Work items: <stable IDs, assigned scope, attempts used, acceptance; link later user-requested follow-ups to accepted items>
 - Codex model / effort: <user-selected baseline; observed or user-reported; actual quality-driven increases and reasons, if any>
 - Claude model / effort: <actual launch flags and returned model; distinguish requested from observed settings>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>

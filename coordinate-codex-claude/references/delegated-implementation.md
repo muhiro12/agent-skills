@@ -90,8 +90,9 @@ Bind each task to an explicit implementation session ID and checkout. Resume
 that session for immediate grouped rework; use a fresh session for new scope or
 a long gap under the [runner session policy](automatic-dispatch.md#review-and-resume).
 Keep the same task record and round limits; never select an unrelated "most recent" session.
-Set proportional time, usage, and invocation limits for the whole batch, rather
-than assuming each Issue needs a separate call. Continuation after an execution
+Size time and usage limits for the whole batch, while counting the default
+three Claude dispatches separately per Issue or agreed deliverable. A batch
+does not require separate calls for each Issue. Continuation after an execution
 limit remains the same batch, not a mandatory per-Issue review. Return
 control on authentication errors, permission denials, material product choices,
 or exhausted limits, preserving partial work instead of retrying indefinitely.
