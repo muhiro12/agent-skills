@@ -1,85 +1,116 @@
 ---
 name: release-risk-analyzer
-description: "Assess release-blocking risk in a Git range using durable-state, external-identity, permissions, build, and API signals. Use for pre-release risk review; heuristic scores do not establish release readiness."
+description: "Review and report release risk between a previous public release and a candidate, prioritizing primary-data loss and published compatibility obligations. Use for pre-release assessment; do not implement fixes or perform release operations."
 ---
 
 # Release Risk Analyzer
 
-## Overview
+## Scope and boundaries
 
-Use this skill to turn `<latest-tag>..HEAD` into a scored release-blocking risk assessment.
-Lead the report with the release decision before detailed summaries.
-
-## Trigger Conditions
-
-Use this skill when the user asks to:
-
-- decide whether a release should be blocked
-- assess risk since the latest release tag
-- review potentially dangerous changes before shipping
+This skill reviews and reports only. Do not edit the reviewed repository, run
+migrations, change versions, commit, push, or distribute a build. Recommend concrete
+checks or fixes without performing them. A score is review priority, not failure
+probability, permission to ship, or an operation-approval gate.
 
 ## Workflow
 
-1. Resolve comparison range.
-- Default to latest reachable release tag -> `HEAD`.
-- Use `--base-ref`, `--head-ref`, or `--tag-pattern` when explicitly needed.
+1. Establish the comparison.
+- Normally compare the previous **public** release with the candidate. The script's
+  latest reachable tag is a source-range fallback, not proof of public distribution.
+- Use `--base-ref`, `--head-ref`, or `--tag-pattern` to select the intended sources.
+  Follow an explicit request for previous -> current -> next or longer history.
+- Identify the distributed version/build and its source when evidence is available.
+  Distinguish archive/build source from tag source; report an unknown correspondence.
+- Separate shipped contracts, candidate additions, unpublished prototypes, and
+  development-only state. Git ancestry alone does not establish shipping status.
 
-2. Load risk rules.
-- Use only the built-in heuristics bundled with the skill.
-- Do not load repository-local or external rule files.
-
-3. Generate analysis with the bundled script.
+2. Generate candidate evidence using the bundled rules, without external rule files.
 
 ```bash
-python3 scripts/review_release_risk.py   --repo /path/to/repository   --format markdown
+python3 scripts/review_release_risk.py --repo /path/to/repository --format markdown
 ```
 
-4. Prioritize durable-risk findings.
-- Highlight durable-state compatibility, irreversible/external identifiers and configuration values, permissions, capabilities, migration paths, persistent storage, and long-lived settings first.
-- Treat concrete technologies as detection anchors, not as the risk model. For example, SwiftData, Core Data, Realm, SQL, and migration files all map to durable-state compatibility; Bundle ID, App Group, iCloud container, URL schemes, associated domains, StoreKit product IDs, signing team/profile changes, and similar values all map to irreversible/external identity or configuration risk.
-- Distinguish reversible UI changes from potentially lasting product damage.
+Read [references/risk-rules.md](references/risk-rules.md) for interpretation and
+scoring. The script reads source at the selected refs, not the working-tree version.
+Its matches are review candidates; inspect context, consumers, guards, and recovery
+sources before treating them as defects. Regex or path matches prove neither harm
+nor safety.
 
-5. Produce final release posture using this template.
-- `Block` (`80-100`): release should stop until manual inspection is complete.
-- `Hold for review` (`60-79`): release should not proceed automatically; a human should decide whether this blocks release.
-- `Proceed with caution` (`40-59`): release may continue only after explicit mitigations or focused validation.
-- `Review recommended` (`20-39`): release may continue after a lightweight manual review confirms intent.
-- `Proceed` (`0-19`): no release-blocking surfaces detected from available evidence, or only low-risk surfaces were detected.
+3. Review consequences in this order.
+- First, loss or corruption of long-term users' primary data, especially loss of
+  all restoration sources. Distinguish already-saved rows lost through writes from
+  a crash, inaccessible export, retired selection state, or a derived-cache reset.
+- Check the original database, required sidecars, backups, and other viable copies.
+  A SQLite filename remaining does not prove recoverability; a consistent retained
+  store with required sidecars is different from complete loss. Trace error paths,
+  including pending delete/update mutations persisted by a later save.
+- Then inspect what publication commits the product to. A contract may belong to
+  several classes: (1) identity fixed for the same published product, (2) changeable
+  with risky technical migration or user guidance, (3) changeable while old schema,
+  keys, readers, aliases, or migration code require long-term support.
+- Do not call every obligation literally permanent. State its retirement evidence;
+  without guaranteed retirement of old states, assume long-term compatibility work.
+- Review actual schema/raw key/ID/type/default/serialized wire or file field/OS
+  registered identifier values before publication. Check typos, naming mismatches,
+  unused columns, speculative reserved fields, real consumers, and whether stored
+  empty or recomputable values need to become contracts. A necessary new contract
+  is an awareness item, not an automatic risk surcharge.
+- Swift logical names are not contracts when storage/wire/registered values are
+  unchanged. Intentional eight-character random defaults keys are valid; do not
+  propose cosmetic renames of shipped identifiers. Defaults used for disposable UI
+  preferences or derived caches do not gain risk merely because a raw key exists.
+- Ordinary `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` updates contribute zero.
+  Inspect version readers that drive migration, feature gates, or stored formats;
+  score those effects separately. Never exempt co-located identity, entitlement,
+  minimum-OS, schema, or other changes as part of a version bump.
+- Judge reversible bugs using affected users, trigger frequency, recovery options,
+  and available recovery effort. Do not block every unknown or every irreversible
+  contract. An acknowledged change is not automatically harmless either.
 
-6. Explain the score.
-- Report the total as `risk_score/risk_score_max`.
-- Show the highest-scoring findings first.
-- Treat the score as a heuristic review-priority scale, not a calibrated probability of failure. `0` means no signal was detected by the available rules; it does not prove safety. Inspect concrete findings before deciding actual release readiness.
-- Do not describe score items as additive points. Use the strongest signal per independent risk category, suppress weaker path-only signals already covered by concrete findings on the same files, and only apply small breadth modifiers for independent secondary risks.
-- Mention that ordinary heuristic matches are capped below `100`; reserve `100` for evidence strong enough to say a major release problem is highly likely, not merely possible.
-- Explain the risk axis behind each score contribution, not only the matched framework, file type, or key name.
-- Include short `diff` excerpts for risky findings so the reviewer can inspect the concrete code/config changes without opening every file immediately.
-- Do not rely on the old severity label alone when giving the final decision.
+4. Explain the assessment.
+- Keep the existing category-maximum aggregation and small independent breadth
+  modifiers. Count one cause once; path hints and awareness items do not add a
+  second contribution for the same change. Explain any contextual adjustment from
+  the script score. The script caps heuristic output at 95; reserve a final 100 for
+  separately substantiated catastrophic loss, never a deletion regex alone.
+- Bands remain `80-100=Block`, `60-79=Hold for review`, `40-59=Proceed with caution`,
+  `20-39=Review recommended`, `0-19=Proceed`. A high score recommends pausing because
+  of the stated consequences; it does not perform a release operation or require
+  answers to every awareness item. Zero means no scored signal, not verified safety.
+- Prioritize serious findings before general diff summaries. Use short relevant
+  diff excerpts. Do not promote a path-only label into a confirmed severe defect.
 
-## Safety / Guardrails
+## Report contract
 
-- Never bury blocking findings under verbose diff summaries.
-- Never claim safety without stating the inspected range and confidence level. Separate heuristic matches, confirmed defects, completed verification, and unverified release gates. A score or clean diff does not prove purchase/restore behavior, privacy declarations, device coverage, or distribution approval.
-- Keep rule reasoning concrete and actionable.
-- Prefer false positives on irreversible-risk surfaces over false negatives, especially durable state, unique identifiers, externally registered IDs, and long-lived configuration values.
-- Do not down-rank a durable setting or identifier change only because it appears in a plist, project file, generated schema, or config file rather than application code.
+Report in the conversation's language:
 
-## Response Contract
+1. **Overall score and rationale:** score out of 100, band, strongest consequence,
+   independent modifiers, evidence strength, and reasons for contextual adjustments.
+2. **Scope:** public release/build/source -> candidate, refs/range, any history, and
+   whether distributed-build source matches the tag source.
+3. **Serious findings:** trigger, affected users/data, impact, retained/lost recovery
+   sources, evidence, missing evidence, and recommended checks or remedies.
+4. **Awareness and confirmation items:** concrete old/new raw values (including
+   unchanged relevant values), introduction/shipping status, consumers, applicable
+   contract classes, migration/user-guidance burden, future compatibility and
+   retirement responsibility, evidence, and what remains unverified. Specify whether
+   the candidate retains, replaces with an alias/reader, or retires old metadata and
+   readers. A retirement record alone does not establish state regeneration.
+5. **Unverified items:** the specific missing evidence and its effect on the judgment.
 
-Report concisely using these sections in the conversation's language:
-
-1. `Conclusion` (`Block` / `Hold for review` / `Proceed with caution` / `Review recommended` / `Proceed`) and `Risk score` (`0-100`)
-2. `Rationale` (highest score and durable-risk first)
-3. `Scope` (base tag, head commit, git range)
-4. `Main risks` (built-in heuristics, concrete findings, and score contribution)
-5. `Relevant diff excerpts` (short diff snippets for findings or medium+ path-rule signals)
-6. `Recommended actions`
+Keep technical verification separate from personal acknowledgment. Mark personal
+awareness as explicitly evidenced or unconfirmed; `ADR Accepted`, account identity,
+or commit authorship alone is not evidence of the user's approval. Report concrete
+recognition items instead of asking many questions or making all replies mandatory.
 
 ## Verification
 
-- Confirm range resolution is explicit and correct.
-- Confirm the conclusion matches the listed evidence.
-- Confirm the score threshold maps to the conclusion: `80-100=Block`, `60-79=Hold for review`, `40-59=Proceed with caution`, `20-39=Review recommended`, `0-19=Proceed`.
-- Confirm built-in heuristic matches and concrete findings are clearly separated.
-- Confirm risky findings include short diff snippets in markdown and `risk_diff_snippets` in JSON when changed lines are available.
-- Use `--verbose` only when full file/commit listing is necessary.
+- Check the intended range and ref-specific source, mixed version changes, raw-value
+  equality, contract classes, recovery distinctions, and independent scoring.
+- Separate detection candidates, confirmed defects, completed verification, and
+  remaining uncertainty. A source diff cannot prove distribution readiness.
+- Preserve `risk_diff_snippets` in JSON and relevant snippets in Markdown.
+- Use `--verbose` only when full file/commit listings help the review.
+- When maintaining this skill, run its Git-fixture behavior tests and the repository
+  verification contract. Tests should verify decisions and read-only behavior, not
+  merely expected wording.

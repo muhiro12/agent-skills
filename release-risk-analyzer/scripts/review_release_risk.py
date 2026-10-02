@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Review release-blocking risk since the latest reachable release tag."""
+"""Read-only release-risk evidence between selected Git sources."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import plistlib
 import re
 import subprocess
 import sys
@@ -41,12 +43,19 @@ SCORE_MAX = 100
 HEURISTIC_SCORE_MAX = 95
 FALLBACK_UNKNOWN_CHANGE_SCORE = 15
 
+VERSION_ASSIGNMENT = re.compile(r'^\s*(?:MARKETING_VERSION|CURRENT_PROJECT_VERSION)\s*=\s*["\w.]+\s*;?\s*$')
+VERSION_READER = r'CFBundleShortVersionString|CFBundleVersion|MARKETING_VERSION|CURRENT_PROJECT_VERSION'
+EXPLICIT_RAW_CASE = re.compile(r'^\s*case\s+(\w+)\s*=\s*("(?:\\.|[^"\\])*"|\d+)\s*[,;]?\s*$')
+CONFIG_TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|[\w.$]+|[^\s]')
+DESTRUCTIVE_OPERATION = re.compile(r'\b(?:removeItem|deleteAll)\s*\(|\b(?:DROP\s+TABLE|DELETE\s+FROM)\b|\b\w*context\.delete\(', re.I)
+CRASH_OPERATION = re.compile(r'\bfatalError\s*\(|\btry!\s')
+
 BUILTIN_RULES = [
     {
         "name": "一意ID・外部固定設定の変更",
-        "severity": "critical",
+        "severity": "medium",
         "category": "external-identity-config",
-        "score": 25,
+        "score": 20,
         "mode": "any",
         "paths": [
             "**/*.xcodeproj/project.pbxproj",
@@ -65,9 +74,9 @@ BUILTIN_RULES = [
     },
     {
         "name": "永続化領域・スキーマ互換性の変更",
-        "severity": "high",
+        "severity": "medium",
         "category": "durable-state",
-        "score": 30,
+        "score": 20,
         "mode": "any",
         "paths": [
             "**/Persistence/**",
@@ -91,9 +100,9 @@ BUILTIN_RULES = [
     },
     {
         "name": "権限・セキュリティ面の変更",
-        "severity": "high",
+        "severity": "medium",
         "category": "security-capability",
-        "score": 30,
+        "score": 20,
         "mode": "any",
         "paths": [
             "**/Auth/**",
@@ -111,9 +120,9 @@ BUILTIN_RULES = [
     },
     {
         "name": "ビルド・依存関係・CI の変更",
-        "severity": "high",
+        "severity": "medium",
         "category": "packaging",
-        "score": 25,
+        "score": 20,
         "mode": "any",
         "paths": [
             ".github/workflows/**",
@@ -371,6 +380,26 @@ class ReviewFinding:
     advice: str
     files: list[str]
     evidence: list[str]
+    risk_id: str = ""
+    covered_lines: list[str] = field(default_factory=list)
+    verification_status: str = "candidate; semantics, guards, scope and recovery unverified"
+
+
+@dataclass
+class AwarenessItem:
+    title: str
+    category: str
+    files: list[str]
+    contract_values: list[str]
+    introduction_status: str
+    consumers: list[str]
+    contract_classes: list[str]
+    migration_burden: str
+    future_responsibility: str
+    evidence: list[str]
+    classification_status: str = "candidate classes; actual applicability and support lifetime unverified"
+    verification_status: str = "source evidence only; runtime and distribution unverified"
+    acknowledgment_status: str = "unconfirmed; ADR status and authorship are not personal acknowledgment"
 
 
 class GitCommandError(RuntimeError):
@@ -416,10 +445,12 @@ def parse_args() -> argparse.Namespace:
 
 def run_git(repo: Path, *args: str) -> str:
     result = subprocess.run(
-        ["git", "-C", str(repo), *args],
+        ["git", "-c", "core.fsmonitor=false", "-C", str(repo), *args],
         check=False,
         capture_output=True,
         text=True,
+        errors="replace",
+        env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
     )
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "git command failed"
@@ -534,7 +565,7 @@ def get_commits(repo: Path, base_ref: str, head_ref: str) -> list[Commit]:
 
 
 def get_files(repo: Path, base_ref: str, head_ref: str) -> list[FileChange]:
-    output = run_git(repo, "diff", "--name-status", "--find-renames", f"{base_ref}..{head_ref}")
+    output = run_git(repo, "diff", "--no-ext-diff", "--no-textconv", "--name-status", "--find-renames", f"{base_ref}..{head_ref}")
     if not output:
         return []
 
@@ -564,10 +595,13 @@ def get_diff_lines(repo: Path, base_ref: str, head_ref: str, files: list[FileCha
         patch = run_git(
             repo,
             "diff",
+            "--no-ext-diff",
+            "--no-textconv",
             "--unified=0",
             "--no-color",
             f"{base_ref}..{head_ref}",
             "--",
+            *([file.old_path] if file.old_path else []),
             file.path,
         )
         added: list[str] = []
@@ -590,11 +624,13 @@ def get_diff_lines(repo: Path, base_ref: str, head_ref: str, files: list[FileCha
     return diffs
 
 
-def read_file(repo: Path, path: str) -> str:
-    file_path = repo / path
-    if not file_path.exists() or not file_path.is_file():
+def read_file(repo: Path, path: str, ref: str = "HEAD") -> str:
+    if Path(path).suffix.lower() in {".sqlite", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip"}:
         return ""
-    return file_path.read_text(encoding="utf-8", errors="ignore")
+    try:
+        return run_git(repo, "show", f"{ref}:{path}")
+    except GitCommandError:
+        return ""
 
 
 def top_areas(files: list[FileChange], limit: int = 5) -> list[dict[str, int | str]]:
@@ -669,237 +705,352 @@ def has_durable_model_marker(content: str, diff: DiffLines) -> bool:
     )
 
 
-def detect_external_identity_config_findings(
-    files: list[FileChange],
-    diff_by_file: dict[str, DiffLines],
-) -> list[ReviewFinding]:
-    identifier_files = [
-        file.path
-        for file in files
-        if file.path.endswith(".entitlements")
-        or file.path.endswith("Info.plist")
-        or file.path.endswith("project.pbxproj")
-        or file.path.endswith(".xcconfig")
-        or file.path.endswith(".storekit")
-        or file.path.endswith("project.yml")
-        or file.path.endswith("project.yaml")
-        or "/StoreKit/" in file.path
-    ]
-    if not identifier_files:
+def tokens(content: str) -> list[str]:
+    return CONFIG_TOKEN.findall(content)
+
+
+def raw_cases(content: str) -> dict[str, str]:
+    return {match.group(1): match.group(2) for line in content.splitlines()
+            if (match := EXPLICIT_RAW_CASE.match(line))}
+
+
+def changed_source(diff: DiffLines) -> list[str]:
+    return [line for line in [*diff.removed, *diff.added] if line.strip()]
+
+
+def config_contract_values(repo: Path, file: FileChange, diff: DiffLines, base: str, head: str, *, capability: bool = False) -> tuple[list[str], list[str]]:
+    patterns = CAPABILITY_MARKER_PATTERNS if capability else IDENTIFIER_MARKER_PATTERNS
+    if file.path.endswith((".plist", ".entitlements")):
+        try:
+            old = plistlib.loads(read_file(repo, file.old_path or file.path, base).encode()) if file.status != "A" else {}
+            new = plistlib.loads(read_file(repo, file.path, head).encode()) if file.status != "D" else {}
+            if isinstance(old, dict) and isinstance(new, dict):
+                identity_keys = {"CFBundleIdentifier", "CFBundleURLTypes", "com.apple.security.application-groups",
+                                 "com.apple.developer.icloud-container-identifiers", "com.apple.developer.associated-domains", "keychain-access-groups"}
+                def selected(key: str) -> bool:
+                    if capability:
+                        return key not in identity_keys and bool(re.match(r"NS.*UsageDescription$|com\.apple\.|aps-environment$", key))
+                    return key in identity_keys
+                keys = [key for key in sorted(set(old) | set(new)) if selected(key)]
+                changed = [key for key in keys if old.get(key) != new.get(key) or (key in old) != (key in new)]
+                if changed:
+                    keys = changed
+                elif not any(collect_markers([line], patterns) for line in changed_source(diff)):
+                    keys = []
+                def values(content: dict) -> list[str]:
+                    return [f"{key} = {json.dumps(content[key], ensure_ascii=False, sort_keys=True)}" for key in keys if key in content]
+                return values(old), values(new)
+        except (ValueError, plistlib.InvalidFileException, OverflowError):
+            pass
+    return collect_markers(diff.removed, patterns), collect_markers(diff.added, patterns)
+
+
+def nonrisk_reason(repo: Path, file: FileChange, diff: DiffLines, base: str, head: str) -> str:
+    if file.status != "M":
+        return ""
+    old = read_file(repo, file.old_path or file.path, base)
+    new = read_file(repo, file.path, head)
+    if file.path.endswith((".plist", ".entitlements")):
+        try:
+            if plistlib.loads(old.encode()) == plistlib.loads(new.encode()):
+                return "format-equivalent"
+        except (ValueError, plistlib.InvalidFileException, OverflowError):
+            pass
+    elif file.path.endswith((".pbxproj", ".xcconfig")) and old and new and tokens(old) == tokens(new):
+        return "format-equivalent"
+    lines = changed_source(diff)
+    if file.path.endswith((".pbxproj", ".xcconfig")) and lines and all(VERSION_ASSIGNMENT.fullmatch(line) for line in lines):
+        return "release-metadata"
+    if matches_any(file.path, PERSISTENT_SETTINGS_PATTERNS) or re.search(r'\benum\s+\w+\s*:\s*(?:String|U?Int\d*)\b', old):
+        before, after = raw_cases(old), raw_cases(new)
+        if before and len(before) == len(after) and Counter(before.values()) == Counter(after.values()):
+            # Only unique explicit raw values support a logical-name pairing.
+            if len(set(before.values())) == len(before):
+                names = {name: next(key for key, value in after.items() if value == raw)
+                         for name, raw in before.items()}
+                # Rename identifiers, never quoted registered/wire values.
+                renamed = [names.get(token, token) if re.fullmatch(r"\w+", token) else token for token in tokens(old)]
+                if renamed == tokens(new):
+                    return "unchanged-contract"
+    return ""
+
+
+def grep_source(repo: Path, ref: str, terms: list[str], *, regex: bool = False) -> list[str]:
+    if not terms:
+        return []
+    args = ["grep", "-n", "-E" if regex else "-F"]
+    for term in unique(terms):
+        args.extend(["-e", term])
+    args.extend([ref, "--", "*.swift", "*.m", "*.mm", "*.kt", "*.java", "*.sql"])
+    try:
+        return run_git(repo, *args).splitlines()
+    except GitCommandError:
         return []
 
-    added_markers: list[str] = []
-    removed_markers: list[str] = []
-    for path in identifier_files:
-        diff = diff_by_file.get(path)
-        if not diff:
-            continue
-        added_markers.extend(collect_markers(diff.added, IDENTIFIER_MARKER_PATTERNS))
-        removed_markers.extend(collect_markers(diff.removed, IDENTIFIER_MARKER_PATTERNS))
 
-    if not added_markers and not removed_markers:
-        return []
-
-    evidence = truncate_list(unique([*added_markers, *removed_markers]), 8)
-    return [
-        ReviewFinding(
-            title="一意ID・外部固定設定の変更候補",
-            severity="critical",
-            category="external-identity-config",
-            score=80,
-            reason="外部登録済みの一意IDや連携設定値は、誤って出すと既存アプリ、外部サービス、ユーザー導線へ長く残りやすく後戻りが難しい。",
-            advice="配布・署名・クラウド・ドメイン・購入・連携先に登録済みの値と照合し、新規IDや設定値変更が意図的か確認する。",
-            files=unique(identifier_files),
-            evidence=evidence,
-        )
-    ]
+def consumer_candidates(repo: Path, base: str, head: str, terms: list[str]) -> list[str]:
+    hits: list[str] = []
+    for ref in unique([base, head]):
+        for hit in grep_source(repo, ref, terms):
+            source = hit.split(":", 3)[-1].strip()
+            if re.match(r"(?:case\s|(?:public\s|private\s|static\s)*(?:let|var)\s)", source):
+                continue
+            hits.append(hit)
+    return truncate_list(unique(hits), 6) or ["No consumer candidate found by literal search; indirect consumers remain unverified."]
 
 
-def detect_capability_findings(files: list[FileChange], diff_by_file: dict[str, DiffLines]) -> list[ReviewFinding]:
-    capability_files = [
-        file.path
-        for file in files
-        if file.path.endswith(".entitlements")
-        or file.path.endswith("Info.plist")
-        or file.path.endswith("project.pbxproj")
-    ]
-    if not capability_files:
-        return []
-
-    added_markers: list[str] = []
-    removed_markers: list[str] = []
-    for path in capability_files:
-        diff = diff_by_file.get(path)
-        if not diff:
-            continue
-        added_markers.extend(collect_markers(diff.added, CAPABILITY_MARKER_PATTERNS))
-        removed_markers.extend(collect_markers(diff.removed, CAPABILITY_MARKER_PATTERNS))
-
-    if not added_markers and not removed_markers and not any(path.endswith(".entitlements") for path in capability_files):
-        return []
-
-    severity = "critical" if added_markers else "high"
-    evidence = truncate_list(unique([*added_markers, *removed_markers]), 6)
-    return [
-        ReviewFinding(
-            title="権限・Capability の追加/変更候補",
-            severity=severity,
-            category="security-capability",
-            score=70 if severity == "critical" else 50,
-            reason="不要な権限要求や審査リスク、既存機能の破壊につながる変更面。",
-            advice="entitlements / Info.plist / project 設定の差分が意図通りかを手動確認する。",
-            files=unique(capability_files),
-            evidence=evidence,
-        )
-    ]
-
-
-def detect_durable_state_findings(
-    repo: Path,
-    files: list[FileChange],
-    diff_by_file: dict[str, DiffLines],
-) -> list[ReviewFinding]:
-    storage_infra_files: list[str] = []
-    model_files: list[str] = []
-    property_changes: list[str] = []
-
+def build_awareness_items(repo: Path, files: list[FileChange], diffs: dict[str, DiffLines], base: str, head: str) -> list[AwarenessItem]:
+    items: list[AwarenessItem] = []
     for file in files:
-        path = file.path
-        diff = diff_by_file.get(path, DiffLines([], []))
-        content = read_file(repo, path)
-        if matches_any(path, DURABLE_STORAGE_INFRA_PATTERNS):
-            storage_infra_files.append(path)
+        diff = diffs.get(file.path, DiffLines([], []))
+        old = read_file(repo, file.old_path or file.path, base)
+        new = read_file(repo, file.path, head)
+        groups: list[tuple[str, str, list[str], list[str], list[str]]] = []
+        identity_before, identity_after = config_contract_values(repo, file, diff, base, head)
+        if identity_before or identity_after:
+            classes = ["migration-required", "legacy-support"]
+            if any("PRODUCT_BUNDLE_IDENTIFIER" in line or "CFBundleIdentifier" in line for line in [*changed_source(diff), *identity_before, *identity_after]):
+                classes.insert(0, "identity-fixed")
+            groups.append(("External identity/configuration", "external-identity-config", identity_before, identity_after, classes))
+        capability_before, capability_after = config_contract_values(repo, file, diff, base, head, capability=True)
+        if capability_before or capability_after:
+            groups.append(("Permission/capability", "security-capability", capability_before, capability_after, ["migration-required"]))
+        versions_before = [line.strip() for line in diff.removed if VERSION_ASSIGNMENT.fullmatch(line)]
+        versions_after = [line.strip() for line in diff.added if VERSION_ASSIGNMENT.fullmatch(line)]
+        if versions_before or versions_after:
+            groups.append(("Release version metadata", "release-metadata", versions_before, versions_after, []))
+        is_settings = matches_any(file.path, PERSISTENT_SETTINGS_PATTERNS) or "enum AppStorageKey" in old + new
+        raw_before = raw_cases(old) if is_settings else {}
+        raw_after = raw_cases(new) if is_settings else {}
+        touched_names = {match.group(1) for line in changed_source(diff) if (match := EXPLICIT_RAW_CASE.match(line))}
+        raw_before = {name: value for name, value in raw_before.items() if name in touched_names}
+        raw_after = {name: value for name, value in raw_after.items() if name in touched_names}
+        literal_key = re.compile(r'@AppStorage\(\s*("[^"\n]+")|forKey:\s*("[^"\n]+")')
+        def defaults_values(lines: list[str]) -> list[str]:
+            return unique([next(group for group in match.groups() if group)
+                           for line in lines for match in literal_key.finditer(line)])
+        defaults_before = [f"{name} = {value}" for name, value in raw_before.items()] or defaults_values(diff.removed)
+        defaults_after = [f"{name} = {value}" for name, value in raw_after.items()] or defaults_values(diff.added)
+        if defaults_before or defaults_after:
+            groups.append(("Defaults raw values and purpose", "persistent-settings", defaults_before, defaults_after, ["legacy-support"]))
+        if not is_settings and re.search(r'\benum\s+\w+\s*:\s*(?:String|U?Int\d*)\b', old + new):
+            before = [line.strip() for line in diff.removed if EXPLICIT_RAW_CASE.match(line)]
+            after = [line.strip() for line in diff.added if EXPLICIT_RAW_CASE.match(line)]
+            if before or after:
+                groups.append(("Explicit enum raw values", "serialized-registered", before, after, ["migration-required", "legacy-support"]))
+        if has_durable_model_marker(old + new, diff) or file.path.endswith(".sql"):
+            fields_before = [line.strip() for line in diff.removed if MODEL_PROPERTY_PATTERN.match(line.strip()) or file.path.endswith(".sql")]
+            fields_after = [line.strip() for line in diff.added if MODEL_PROPERTY_PATTERN.match(line.strip()) or file.path.endswith(".sql")]
+            if fields_before or fields_after:
+                groups.append(("Stored schema fields/types/defaults", "durable-state", fields_before, fields_after, ["migration-required", "legacy-support"]))
+        wire_or_os = re.compile(r'CodingKeys|\bkind\s*[:=]|\b(?:identifier|activityType|restorationIdentifier)\s*[:=]')
+        if "CodingKeys" in old + new or any(wire_or_os.search(line) for line in changed_source(diff)):
+            before = [line.strip() for line in diff.removed if wire_or_os.search(line) or re.match(r"\s*case\s", line)]
+            after = [line.strip() for line in diff.added if wire_or_os.search(line) or re.match(r"\s*case\s", line)]
+            if before or after:
+                groups.append(("Serialized/OS-registered values", "serialized-registered", before, after, ["migration-required", "legacy-support"]))
+        for title, category, before, after, classes in groups:
+            search_terms = find_model_properties(changed_source(diff)) if category == "durable-state" else []
+            if category == "persistent-settings":
+                search_terms = [*raw_before, *raw_after, *[value.strip('"') for value in [*raw_before.values(), *raw_after.values()]]]
+            if category == "release-metadata":
+                consumers = truncate_list(grep_source(repo, head, [VERSION_READER], regex=True), 6)
+                consumers = consumers or ["No literal version reader found; indirect/version-generated readers remain unverified."]
+            else:
+                consumers = consumer_candidates(repo, base, head, search_terms or [*before, *after])
+            items.append(AwarenessItem(
+                title=title, category=category, files=[file.path],
+                contract_values=[*truncate_list([f"old: {value}" for value in before], 12),
+                                 *truncate_list([f"new: {value}" for value in after], 12)],
+                introduction_status="present in base source; public/prototype/development status unverified" if before else "added in candidate source; shipping status unverified",
+                consumers=consumers, contract_classes=classes,
+                migration_burden="Assess actual migration complexity and user guidance; no automatic score for a necessary contract." if classes else "Ordinary metadata has no compatibility surcharge; inspect behavioral version readers.",
+                future_responsibility="Identify retained/replaced/retired metadata, readers and aliases; long-term support until retirement is established. Disposable preferences/cache may need no legacy support." if classes else "No fixed-contract obligation inferred from the version number alone.",
+                evidence=truncate_list(changed_source(diff), 8),
+            ))
+    return items
 
-        if has_durable_model_marker(content, diff):
-            model_files.append(path)
-            property_changes.extend(find_model_properties(diff.added))
-            property_changes.extend(find_model_properties(diff.removed))
 
+def detect_external_identity_config_findings(repo: Path, files: list[FileChange], diffs: dict[str, DiffLines], base: str, head: str) -> list[ReviewFinding]:
     findings: list[ReviewFinding] = []
-    if storage_infra_files:
-        evidence: list[str] = []
-        for path in storage_infra_files:
-            diff = diff_by_file.get(path, DiffLines([], []))
-            evidence.extend(
-                line.strip()
-                for line in [*diff.added, *diff.removed]
-                if any(
-                    token in line
-                    for token in [
-                        "ModelContainer",
-                        "Database",
-                        "Migration",
-                        "legacyURL",
-                        "fileName",
-                        "url",
-                        "Schema",
-                    ]
-                )
-            )
-        findings.append(
-            ReviewFinding(
-                title="永続化領域の保存先・移行導線の変更候補",
-                severity="critical",
-                category="durable-state",
-                score=75,
-                reason="保存先、スキーマ定義、移行処理、既存データ読込経路の変更は、起動不能やデータ欠落に直結しやすい。",
-                advice="既存データを持つ環境で起動、読み書き、移行、失敗時の扱いを確認する。",
-                files=unique(storage_infra_files),
-                evidence=truncate_list(unique(evidence), 6),
-            )
-        )
-
-    if model_files:
-        findings.append(
-            ReviewFinding(
-                title="永続化モデル・保存プロパティ変更候補",
-                severity="high" if not property_changes else "critical",
-                category="durable-state",
-                score=40 if not property_changes else 55,
-                reason="保存モデルや永続化プロパティの追加・削除・型変更は、既存データとの互換性に影響する可能性がある。",
-                advice="追加・削除・型変更・既定値・optional 化の意図と、旧データからの読み込み可否を確認する。",
-                files=unique(model_files),
-                evidence=truncate_list([f"保存プロパティ候補: {name}" for name in unique(property_changes)], 6),
-            )
-        )
-
+    for file in files:
+        if not (file.path.endswith((".entitlements", "Info.plist", "project.pbxproj", ".xcconfig", ".storekit", "project.yml", "project.yaml")) or "/StoreKit/" in file.path):
+            continue
+        diff = diffs.get(file.path, DiffLines([], []))
+        before, after = config_contract_values(repo, file, diff, base, head)
+        if not before and not after:
+            continue
+        score = 55 if before != after and before else 0
+        lines = [line for line in changed_source(diff) if collect_markers([line], IDENTIFIER_MARKER_PATTERNS)]
+        findings.append(ReviewFinding(
+            title="既存の外部ID・設定値変更候補" if score else "外部契約の追加または同値維持",
+            severity="high" if score else "none", category="external-identity-config", score=score,
+            reason="既存値の変更は同じ公開製品のidentityや連携互換性へ影響する候補。新規値や同値だけでは危険を断定しない。",
+            advice="公開状態、対象target、登録値、旧alias、移行と利用者案内の責任を確認する。",
+            files=[file.path], evidence=[f"old: {value}" for value in before] + [f"new: {value}" for value in after],
+            risk_id=f"external-config:{file.path}", covered_lines=lines,
+        ))
     return findings
 
 
-def detect_persistent_settings_findings(
-    files: list[FileChange],
-    diff_by_file: dict[str, DiffLines],
-) -> list[ReviewFinding]:
+def detect_capability_findings(repo: Path, files: list[FileChange], diffs: dict[str, DiffLines], base: str, head: str) -> list[ReviewFinding]:
     findings: list[ReviewFinding] = []
-
-    settings_files = [file.path for file in files if matches_any(file.path, PERSISTENT_SETTINGS_PATTERNS)]
-    if settings_files:
-        key_changes: list[str] = []
-        for path in settings_files:
-            diff = diff_by_file.get(path, DiffLines([], []))
-            key_changes.extend(
-                match.group(1)
-                for line in [*diff.added, *diff.removed]
-                if (match := APP_STORAGE_CASE_PATTERN.match(line.strip()))
-            )
-        findings.append(
-            ReviewFinding(
-                title="永続設定キーの追加/変更候補",
-                severity="high",
-                category="persistent-settings",
-                score=30,
-                reason="UserDefaults / AppStorage のキーは一度導入すると長く背負いやすい。",
-                advice="その設定が本当に永続化すべきか、名称と寿命が妥当かを確認する。",
-                files=unique(settings_files),
-                evidence=truncate_list([f"キー候補: {name}" for name in unique(key_changes)], 6),
-            )
-        )
-
-    usage_files: list[str] = []
-    usage_evidence: list[str] = []
     for file in files:
-        path = file.path
-        if matches_any(path, DEFAULT_IGNORE_USAGE_PATTERNS):
+        diff = diffs.get(file.path, DiffLines([], []))
+        # Shared identity markers (such as App Groups) represent one cause.
+        before = [line for line in diff.removed if not collect_markers([line], IDENTIFIER_MARKER_PATTERNS)]
+        after = [line for line in diff.added if not collect_markers([line], IDENTIFIER_MARKER_PATTERNS)]
+        old = collect_markers(before, CAPABILITY_MARKER_PATTERNS)
+        new = collect_markers(after, CAPABILITY_MARKER_PATTERNS)
+        if file.path.endswith((".plist", ".entitlements")):
+            old, new = config_contract_values(repo, file, diff, base, head, capability=True)
+        if old == new or not (old or new):
             continue
-        diff = diff_by_file.get(path, DiffLines([], []))
-        matched_lines = [
-            line.strip()
-            for line in diff.added
-            if any(pattern.search(line) for pattern in PERSISTENT_USAGE_PATTERNS)
-        ]
-        if not matched_lines:
-            continue
-        usage_files.append(path)
-        usage_evidence.extend(matched_lines)
-
-    if usage_files:
-        findings.append(
-            ReviewFinding(
-                title="永続設定の利用箇所追加候補",
-                severity="medium",
-                category="persistent-settings",
-                score=25,
-                reason="新しい保存値や読み出し前提が増えると、将来の開発で考慮し続ける必要が出る。",
-                advice="その値が永続化である必要があるか、一時状態で済まないかを確認する。",
-                files=unique(usage_files),
-                evidence=truncate_list(unique(usage_evidence), 6),
-            )
-        )
-
+        findings.append(ReviewFinding(
+            title="権限・Capability 変更候補", severity="medium", category="security-capability", score=35,
+            reason="新しい権限要求や既存機能への作用を確認する候補で、不要権限や実害の確定ではない。",
+            advice="差分の用途、公開状態、対象利用者、既存導線を確認する。",
+            files=[file.path], evidence=old + new, risk_id=f"capability:{file.path}",
+            covered_lines=[line for line in [*before, *after] if collect_markers([line], CAPABILITY_MARKER_PATTERNS)],
+        ))
     return findings
 
 
-def build_review_findings(
-    repo: Path,
-    files: list[FileChange],
-    diff_by_file: dict[str, DiffLines],
-) -> list[ReviewFinding]:
+def detect_durable_state_findings(repo: Path, files: list[FileChange], diffs: dict[str, DiffLines], base: str, head: str) -> list[ReviewFinding]:
+    findings: list[ReviewFinding] = []
+    for file in files:
+        diff = diffs.get(file.path, DiffLines([], []))
+        old = read_file(repo, file.old_path or file.path, base)
+        new = read_file(repo, file.path, head)
+        if has_durable_model_marker(old + new, diff):
+            removed = [line for line in diff.removed if MODEL_PROPERTY_PATTERN.match(line.strip())]
+            added = [line for line in diff.added if MODEL_PROPERTY_PATTERN.match(line.strip())]
+            if removed or added:
+                # Added optional/defaulted properties are awareness, not automatic harm.
+                uninitialized = [line for line in added if "=" not in line and "?" not in line]
+                score = 45 if removed else 35 if uninitialized else 0
+                findings.append(ReviewFinding(
+                    title="保存プロパティの互換性確認候補", severity="high" if score >= 40 else "medium" if score else "none",
+                    category="durable-state", score=score,
+                    reason="旧fieldの削除/変更や非optional・既定値なしの追加は読込互換性の候補。必要な新field自体には加点しない。",
+                    advice="raw schema、type/default、consumer、旧reader、不要/予約fieldの必要性を確認する。",
+                    files=[file.path], evidence=[line.strip() for line in [*removed, *added]],
+                    risk_id=f"model-compatibility:{file.path}", covered_lines=[*removed, *added],
+                ))
+        if matches_any(file.path, DURABLE_STORAGE_INFRA_PATTERNS):
+            lines = [line for line in changed_source(diff) if re.search(r'ModelContainer|Migration|legacyURL|fileName|\burl\b|Schema', line)]
+            if lines:
+                findings.append(ReviewFinding(
+                    title="保存先・移行経路変更候補", severity="medium", category="durable-state", score=35,
+                    reason="保存先や移行経路の差分候補。ファイル名だけで起動不能やデータ消失とは断定しない。",
+                    advice="旧storeと必要sidecar、guards、旧reader、失敗後の書込みと復元経路を確認する。",
+                    files=[file.path], evidence=[line.strip() for line in lines], risk_id=f"storage-route:{file.path}", covered_lines=lines,
+                ))
+    return findings
+
+
+def detect_persistent_settings_findings(repo: Path, files: list[FileChange], diffs: dict[str, DiffLines], base: str, head: str) -> list[ReviewFinding]:
+    findings: list[ReviewFinding] = []
+    for file in files:
+        diff = diffs.get(file.path, DiffLines([], []))
+        old = read_file(repo, file.old_path or file.path, base)
+        new = read_file(repo, file.path, head)
+        settings = matches_any(file.path, PERSISTENT_SETTINGS_PATTERNS) or "enum AppStorageKey" in old + new
+        before, after = raw_cases(old) if settings else {}, raw_cases(new) if settings else {}
+        usage = [line for line in changed_source(diff) if any(pattern.search(line) for pattern in PERSISTENT_USAGE_PATTERNS)]
+        if not settings and not usage:
+            continue
+        removed_raw = set(before.values()) - set(after.values())
+        removed_usage = [line for line in diff.removed if any(pattern.search(line) for pattern in PERSISTENT_USAGE_PATTERNS)]
+        score = 15 if removed_raw or removed_usage else 0
+        lines = [line for line in changed_source(diff) if EXPLICIT_RAW_CASE.match(line) or line in usage]
+        findings.append(ReviewFinding(
+            title="Defaultsのraw値・用途確認", severity="low" if score else "none", category="persistent-settings", score=score,
+            reason="既存raw値/読出し前提の変更候補。UI選好や派生cacheの許容されるresetと一次データを区別する。",
+            advice="consumer、保存用途、type/default、旧keyを残す責任を確認する。random rawやlogical名だけを改名理由にしない。",
+            files=[file.path], evidence=[f"old: {name} = {value}" for name, value in before.items()] + [f"new: {name} = {value}" for name, value in after.items()] or [line.strip() for line in usage],
+            risk_id=f"defaults:{file.path}", covered_lines=lines,
+        ))
+    return findings
+
+
+def detect_operation_findings(files: list[FileChange], diffs: dict[str, DiffLines]) -> list[ReviewFinding]:
+    findings: list[ReviewFinding] = []
+    for file in files:
+        if matches_any(file.path, DEFAULT_IGNORE_USAGE_PATTERNS):
+            continue
+        diff = diffs.get(file.path, DiffLines([], []))
+        destructive = [line for line in diff.added if DESTRUCTIVE_OPERATION.search(line)]
+        crash = [line for line in diff.added if CRASH_OPERATION.search(line)]
+        if destructive:
+            state_named = any(re.search(r'sqlite|store|database|backup|\bwal\b|DROP\s+TABLE|DELETE\s+FROM', line, re.I) for line in destructive)
+            findings.append(ReviewFinding(
+                title="削除・破壊的書込み候補", severity="high", category="primary-data", score=60 if state_named else 45,
+                reason="削除候補を先に確認する。guard、保存用途、発火条件と全復元元の有無は未確認で、完全消失の証明ではない。",
+                advice="一次データかcacheか、原storeと必要sidecar/backup、失敗後pending変更と後続saveを追跡する。",
+                files=[file.path], evidence=[line.strip() for line in destructive], risk_id=f"destructive-state:{file.path}", covered_lines=destructive,
+            ))
+        if crash:
+            findings.append(ReviewFinding(
+                title="起動・操作不能候補", severity="high", category="operational", score=40,
+                reason="crash候補。保存済みdata消失とは別で、元storeが復元可能か、人数・頻度・復旧資源を確認する。",
+                advice="発火条件と利用者範囲、原store/sidecar保持、復旧手段を確認する。",
+                files=[file.path], evidence=[line.strip() for line in crash], risk_id=f"crash:{file.path}", covered_lines=crash,
+            ))
+        minimum_os = [line for line in changed_source(diff) if re.search(r'\b(?:IPHONEOS|MACOSX|WATCHOS|TVOS)_DEPLOYMENT_TARGET\s*=', line)]
+        if minimum_os:
+            findings.append(ReviewFinding(
+                title="最小OS変更候補", severity="medium", category="packaging", score=35,
+                reason="対象端末/OSの変更は通常version更新と別の互換面。data消失を意味しない。",
+                advice="旧利用者の更新可否と配布対象を確認する。",
+                files=[file.path], evidence=[line.strip() for line in minimum_os], risk_id=f"minimum-os:{file.path}", covered_lines=minimum_os,
+            ))
+    return findings
+
+
+def version_effect_findings(repo: Path, head: str, files: list[FileChange], diffs: dict[str, DiffLines]) -> list[ReviewFinding]:
+    version_files = [file.path for file in files if any(VERSION_ASSIGNMENT.fullmatch(line) for line in changed_source(diffs.get(file.path, DiffLines([], []))))]
+    if not version_files:
+        return []
+    hits = grep_source(repo, head, [VERSION_READER], regex=True)
+    behavioral: list[str] = []
+    paths: list[str] = []
+    for hit in hits:
+        parts = hit.split(":", 3)
+        if len(parts) != 4:
+            continue
+        path = parts[1]
+        content = read_file(repo, path, head)
+        if re.search(r'migrat|feature.?gate|schema|removeItem|deleteAll', path + content, re.I):
+            behavioral.append(hit)
+            paths.append(path)
+    if not behavioral:
+        return []
+    return [ReviewFinding(
+        title="version値の挙動consumer候補", severity="high", category="version-behavior", score=40,
+        reason="版番号自体は0点。既存readerにmigration/gate等の文脈があり、版番号で変わる作用を確認する候補。",
+        advice="表示/ログだけか、今回の値で移行・feature gate・保存形式が変わるかを追跡する。",
+        files=unique(paths + version_files), evidence=truncate_list(behavioral, 6), risk_id="version-behavior",
+    )]
+
+
+def build_review_findings(repo: Path, files: list[FileChange], diff_by_file: dict[str, DiffLines], base_ref: str = "HEAD", head_ref: str = "HEAD") -> list[ReviewFinding]:
     findings = [
-        *detect_external_identity_config_findings(files, diff_by_file),
-        *detect_capability_findings(files, diff_by_file),
-        *detect_durable_state_findings(repo, files, diff_by_file),
-        *detect_persistent_settings_findings(files, diff_by_file),
+        *detect_external_identity_config_findings(repo, files, diff_by_file, base_ref, head_ref),
+        *detect_capability_findings(repo, files, diff_by_file, base_ref, head_ref),
+        *detect_durable_state_findings(repo, files, diff_by_file, base_ref, head_ref),
+        *detect_persistent_settings_findings(repo, files, diff_by_file, base_ref, head_ref),
+        *detect_operation_findings(files, diff_by_file),
     ]
+    for file in files:
+        lines = [line for line in changed_source(diff_by_file.get(file.path, DiffLines([], []))) if VERSION_ASSIGNMENT.fullmatch(line)]
+        if file.path.endswith((".pbxproj", ".xcconfig")) and lines:
+            findings.append(ReviewFinding(
+                title="通常のrelease metadata", severity="none", category="release-metadata", score=0,
+                reason="通常の版番号代入には契約加点しない。同じファイルの別変更は免除しない。",
+                advice="versionの実作用は別consumer候補として確認する。", files=[file.path],
+                evidence=[line.strip() for line in lines], risk_id=f"release-metadata:{file.path}", covered_lines=lines,
+            ))
     return sorted(findings, key=lambda finding: (-finding.score, -SEVERITY_ORDER[finding.severity], finding.title))
 
 
@@ -907,10 +1058,26 @@ def score_items(
     files: list[FileChange],
     findings: list[ReviewFinding],
     signals: list[RiskSignal],
+    diff_by_file: dict[str, DiffLines] | None = None,
 ) -> list[dict[str, int | str]]:
     items: list[dict[str, int | str]] = []
-    covered_finding_paths = {path for finding in findings for path in finding.files}
-    for finding in findings:
+    strongest_by_cause: dict[str, ReviewFinding] = {}
+    for index, finding in enumerate(findings):
+        cause = finding.risk_id or f"finding:{index}"
+        previous = strongest_by_cause.get(cause)
+        if previous is None or finding.score > previous.score:
+            strongest_by_cause[cause] = finding
+    explained: dict[str, Counter[str]] = {}
+    for finding in strongest_by_cause.values():
+        for path in finding.files:
+            explained.setdefault(path, Counter()).update(line.strip() for line in finding.covered_lines if line.strip())
+    covered_finding_paths = set()
+    if diff_by_file is not None:
+        for path, covered in explained.items():
+            remaining = Counter(line.strip() for line in changed_source(diff_by_file.get(path, DiffLines([], [])))) - covered
+            if not remaining:
+                covered_finding_paths.add(path)
+    for finding in strongest_by_cause.values():
         items.append(
             {
                 "source": "finding",
@@ -933,7 +1100,11 @@ def score_items(
             }
         )
 
-    if files and not items:
+    unclassified = files and not items
+    if diff_by_file is not None:
+        located = {path for signal in signals for path in signal.matched_files}
+        unclassified = unclassified or any(file.path not in covered_finding_paths and file.path not in located for file in files)
+    if unclassified:
         items.append(
             {
                 "source": "fallback",
@@ -1090,9 +1261,9 @@ def release_posture(score: int, files: list[FileChange], findings: list[ReviewFi
     if not files:
         return "未リリース差分は見つかっていません。"
     if score >= 90:
-        return "そのまま出すと大きな問題につながる可能性が高い変更候補があります。リリースを止めて原因を確認するべきです。"
+        return "優先確認すべき重大な候補があります。実害・発火条件・復元元を確認して出荷判断へ反映してください。"
     if score >= 80:
-        return "重大な変更候補があります。根拠を確認し終えるまでリリースを止めるべきです。"
+        return "重大候補の確認を優先する判定です。静的検出だけでは実害や全復元元消失の確定ではありません。"
     if score >= 60:
         return "リリース前に手動レビューで可否を判断するべき変更候補があります。"
     if score >= 40:
@@ -1103,9 +1274,9 @@ def release_posture(score: int, files: list[FileChange], findings: list[ReviewFi
 
 
 def confidence(findings: list[ReviewFinding], signals: list[RiskSignal]) -> str:
-    if findings or signals:
-        return "中"
-    return "低"
+    if any(finding.score > 0 for finding in findings):
+        return "中（source候補あり・実害は未検証）"
+    return "低（静的差分のみ・安全性は未証明）"
 
 
 def sort_signals(signals: list[RiskSignal]) -> list[RiskSignal]:
@@ -1136,6 +1307,7 @@ def render_findings(title: str, findings: list[ReviewFinding]) -> list[str]:
         if finding.evidence:
             lines.append(f"  手がかり: {', '.join(truncate_list(finding.evidence, 4))}")
         lines.append(f"  確認: {finding.advice}")
+        lines.append(f"  検証状態: {finding.verification_status}")
     return lines
 
 
@@ -1187,16 +1359,34 @@ def render_diff_snippets(snippets: list[dict]) -> list[str]:
     return lines
 
 
+def render_awareness(items: list[dict]) -> list[str]:
+    lines = ["## 認識・確認事項（この一覧自体は加点しません）"]
+    if not items:
+        return [*lines, "- 組み込み検出で該当なし。公開契約がないことの証明ではありません。"]
+    for item in items:
+        lines.append(f"- {item['title']} / `{', '.join(item['files'])}`")
+        lines.append(f"  契約値: {'; '.join(item['contract_values'])}")
+        lines.append(f"  導入状態: {item['introduction_status']}")
+        lines.append(f"  consumer候補: {'; '.join(item['consumers'])}")
+        lines.append(f"  契約分類候補: {', '.join(item['contract_classes']) or '通常metadata（固定契約を推定しない）'} / {item['classification_status']}")
+        lines.append(f"  移行負担: {item['migration_burden']}")
+        lines.append(f"  将来責任: {item['future_responsibility']}")
+        lines.append(f"  根拠: {'; '.join(item['evidence'])}")
+        lines.append(f"  技術確認: {item['verification_status']}")
+        lines.append(f"  本人認識: {item['acknowledgment_status']}")
+    return lines
+
+
 def render_markdown(report: dict, max_files: int, max_commits: int, verbose: bool) -> str:
     blocker_findings = [
         ReviewFinding(**finding)
         for finding in report["review_findings"]
-        if SEVERITY_ORDER[finding["severity"]] >= SEVERITY_ORDER["high"]
+        if finding["score"] >= 40
     ]
     minor_findings = [
         ReviewFinding(**finding)
         for finding in report["review_findings"]
-        if SEVERITY_ORDER[finding["severity"]] < SEVERITY_ORDER["high"]
+        if 0 < finding["score"] < 40
     ]
     signals = [RiskSignal(**signal) for signal in report["risk_signals"]]
 
@@ -1229,13 +1419,19 @@ def render_markdown(report: dict, max_files: int, max_commits: int, verbose: boo
 
     lines.extend(render_score_breakdown(report["score_breakdown"]))
     lines.append("")
-    lines.extend(render_diff_snippets(report["risk_diff_snippets"]))
+    blocker_findings.sort(key=lambda finding: (finding.category != "primary-data", -finding.score))
+    lines.extend(render_findings("重大所見候補（実害・復元元は要確認）", blocker_findings))
     lines.append("")
-    lines.extend(render_findings("先に止めて確認したい項目", blocker_findings))
+    lines.extend(render_diff_snippets(report["risk_diff_snippets"]))
     lines.append("")
     lines.extend(render_findings("追加で確認したい項目", minor_findings))
     lines.append("")
     lines.extend(render_signals("変更面から見たリスクシグナル", signals))
+    lines.append("")
+    lines.extend(render_awareness(report["awareness_items"]))
+    lines.append("")
+    lines.append("## 未確認")
+    lines.extend(f"- {item}" for item in report["unverified_items"])
 
     if not verbose:
         lines.append("")
@@ -1284,12 +1480,28 @@ def build_report(args: argparse.Namespace) -> dict:
 
     rules = load_rules_from_dicts(BUILTIN_RULES)
 
-    signals = [signal for signal in (evaluate_rule(rule, files) for rule in rules) if signal]
+    review_files: list[FileChange] = []
+    signals: list[RiskSignal] = []
+    for file in files:
+        reason = nonrisk_reason(repo, file, diff_by_file[file.path], base_ref, head_ref)
+        if reason:
+            signals.append(RiskSignal(
+                name="通常metadataまたは契約同値の差分", severity="none", category=reason,
+                score=0, mode="any", reason=reason,
+                advice="契約加点は0。versionの挙動consumerと同梱された別変更は独立して確認する。",
+                matched_files=[file.path],
+            ))
+        else:
+            review_files.append(file)
+    signals.extend(signal for rule in rules if (signal := evaluate_rule(rule, review_files)))
     signals = sort_signals(signals)
 
-    findings = build_review_findings(repo, files, diff_by_file)
+    findings = build_review_findings(repo, review_files, diff_by_file, base_ref, head_ref)
+    findings.extend(version_effect_findings(repo, head_ref, files, diff_by_file))
+    findings.sort(key=lambda finding: -finding.score)
+    awareness = build_awareness_items(repo, files, diff_by_file, base_ref, head_ref)
 
-    score_breakdown = score_items(files, findings, signals)
+    score_breakdown = score_items(files, findings, signals, diff_by_file)
     risk_diff_snippets = build_risk_diff_snippets(findings, signals, diff_by_file)
     risk_score = total_score(score_breakdown)
     risk = risk_from_score(risk_score)
@@ -1312,6 +1524,14 @@ def build_report(args: argparse.Namespace) -> dict:
         "score_breakdown": score_breakdown,
         "risk_diff_snippets": [asdict(snippet) for snippet in risk_diff_snippets],
         "review_findings": [asdict(finding) for finding in findings],
+        "awareness_items": [asdict(item) for item in awareness],
+        "unverified_items": [
+            "Public shipping status and distributed-build/source-to-tag correspondence are not established by Git.",
+            "Candidate semantics, guards, affected users/frequency, and runtime behavior require contextual review.",
+            "Primary-data scope and viability of original stores, required sidecars, backups and other restoration copies are unverified.",
+            "Indirect consumers, migration/user-guidance burden, old metadata/readers/aliases and retirement conditions remain to be checked.",
+            "Personal acknowledgment requires explicit evidence; ADR status and authorship alone do not establish it. Awareness items are not mandatory-response gates.",
+        ],
         "risk_signals": [asdict(signal) for signal in signals],
         "files": [asdict(file) for file in files],
         "commits": [asdict(commit) for commit in commits],
