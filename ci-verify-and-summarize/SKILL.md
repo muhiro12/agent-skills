@@ -1,12 +1,16 @@
 ---
 name: ci-verify-and-summarize
-description: Run the repository's documented verification checks and review the current diff. Summarize actual shell or Xcode-native evidence, current-run artifacts, and remaining readiness risks, including on a clean worktree.
+description: Run the repository's documented verification checks and review the current diff. Summarize actual shell or Xcode-native evidence, current-run artifacts, and verification gaps, including on a clean worktree.
 ---
 
 # CI Verify and Summarize
 
 Run the current repository's verification contract and review staged and unstaged
-diffs. Explicit invocation applies even when the worktree is clean. Keep explanations concise. Verification readiness does not authorize a commit or push.
+diffs. Release-risk judgment belongs to `release-risk-analyzer`, and publication
+judgment belongs to `git-publication-review` when that work is requested; neither
+is a mandatory extra step for ordinary verification. Explicit invocation applies
+even when the worktree is clean. Keep explanations concise. Verification readiness
+does not authorize a commit or push.
 
 ## Resolve the Real Contract
 
@@ -42,6 +46,13 @@ known `ci_scripts` verification names. It never treats an arbitrary migration,
 formatter, or deployment script as a verification command. A broken documented
 entrypoint is a failure, not permission to silently choose a different check.
 
+The helper creates and removes a temporary output file and executes the selected
+repository command, whose own cache or artifact writes still apply. `--diff-only`
+skips command execution and artifact inspection; use it after native checks or
+another command form to collect the diff inventory. It reports shell verification
+as unexecuted and never substitutes for native evidence. With no supported shell
+entrypoint, the default also reports diff-only evidence rather than inventing a gate.
+
 If the repository uses another command form, run the documented command directly
 and perform the same evidence/diff review. Do not create a compatibility wrapper
 just for this skill. If no reliable verification can be derived, report that
@@ -68,14 +79,18 @@ artifact directory when output is the contract's evidence.
 
 Review both current diff and staged diff for introduced failures, unintended
 behavior, persistence/identifier changes, missing behavioral checks, and scope
-creep. Preserve unrelated edits. The helper's category scan supplements this
-review; it does not perform a complete semantic code review.
+creep. Preserve unrelated edits. The helper collects a diff inventory; it does not
+perform a semantic code review.
 
 Report the actual commands/capabilities and result, important diff findings,
 current-change versus pre-existing failures, and remaining limitations. Include
 current-run paths only when such artifacts exist. A clean worktree is valid
-context, not a reason to skip requested verification. Do not claim readiness
-while an introduced failure or required unverified boundary remains.
+context, not a reason to skip requested verification. Do not claim that required
+verification completed when a boundary remains unverified.
+The helper preserves command failure exits and rejects ambiguous or unsafe current-run
+evidence. Paths, keywords, diff size, unstaged work, and warning samples alone do not
+change a successful command into a failed gate. Report warnings as evidence for scoped
+review; they do not automatically prohibit publication.
 
 Do not edit source/configuration or run formatting as a side effect of this
 verification-only workflow. If a user also asked for fixes, perform that authorized

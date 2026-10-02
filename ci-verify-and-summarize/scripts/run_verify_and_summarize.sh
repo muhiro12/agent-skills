@@ -96,39 +96,48 @@ cleanup_verify_output() {
 
 trap cleanup_verify_output EXIT
 
+diff_only=false
+case "${1:-}" in
+  "") ;;
+  --diff-only) diff_only=true; shift ;;
+  *) echo "Usage: bash run_verify_and_summarize.sh [--diff-only]" >&2; exit 2 ;;
+esac
+if [ "$#" -ne 0 ]; then
+  echo "Usage: bash run_verify_and_summarize.sh [--diff-only]" >&2
+  exit 2
+fi
+repository_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repository_root"
+
 run_base=".build/ci/runs"
-if [ -L "$run_base" ]; then
+verify_entrypoint=""
+if [ "$diff_only" = false ]; then
+  verify_entrypoint="$(detect_verify_entrypoint)"
+fi
+verification_ran=false
+verify_command="(未実行)"
+verify_exit=0
+latest_run=""
+run_dir=""
+run_is_new=false
+run_selection_error=""
+if [ -n "$verify_entrypoint" ]; then
+  verification_ran=true
+for run_component in ".build" ".build/ci" "$run_base"; do
+if [ -L "$run_component" ]; then
   echo "結果: ❌ failure"
   echo "最新RUN: (なし)"
   echo "要約:"
-  echo "- .build/ci/runs がsymlinkのため、安全にCI成果物を選択できません。"
-  echo "Pushリスク: high"
-  echo "リスク理由:"
+  echo "- $run_component がsymlinkのため、安全にCI成果物を選択できません。"
+  echo "証拠の問題:"
   echo "- CI成果物rootがrepository外を指し得るため、verifyを実行していません。"
   echo "次の一手:"
   echo "- .build/ci/runs を通常directoryへ戻してから再実行してください。"
   exit 1
 fi
+done
 
 pre_runs="$(list_run_ids "$run_base")"
-verify_entrypoint="$(detect_verify_entrypoint)"
-
-if [ -z "$verify_entrypoint" ]; then
-  echo "結果: ❌ failure"
-  echo "最新RUN: (なし)"
-  echo "要約:"
-  echo "- このリポジトリでは verify 系CIエントリポイントを解決できず、最終ゲートを開始できません。"
-  echo "- AGENTS.md の repository 内 verify/check shell、または ci_scripts 配下の標準 verify スクリプトが必要です。"
-  echo "- git diff / staged diff レビューも未実施です。"
-  echo "Pushリスク: high"
-  echo "リスク理由:"
-  echo "- verify 実行前提が欠けており、現時点では push 非推奨です。"
-  echo "- 最終ゲートとして必要な latest run と git diff の確認が成立していません。"
-  echo "次の一手:"
-  echo "- AGENTS.md か ci_scripts/ に標準 verify エントリポイントを定義してください。"
-  echo "- git 管理下のリポジトリルートで再実行してください。"
-  exit 1
-fi
 
 verify_command="bash $verify_entrypoint"
 
@@ -182,8 +191,10 @@ if [ -n "$latest_run" ]; then
   run_dir="$run_base/$latest_run"
 fi
 
+fi
+
 set +e
-python3 - "$latest_run" "$run_dir" "$verify_exit" "$verify_command" "$verify_output" "$run_is_new" "$run_base" "$run_selection_error" <<'PY'
+python3 - "$latest_run" "$run_dir" "$verify_exit" "$verify_command" "$verify_output" "$run_is_new" "$run_base" "$run_selection_error" "$verification_ran" <<'PY'
 from __future__ import annotations
 
 import json
@@ -274,7 +285,10 @@ def parse_meta(path: Path | None) -> tuple[dict[str, object], str]:
         return {}, "meta.json が存在しません。"
 
     try:
-        return json.loads(read_text(path)), ""
+        value = json.loads(read_text(path))
+        if not isinstance(value, dict):
+            return {}, "meta.json はJSON objectではありません。"
+        return value, ""
     except Exception as error:  # pragma: no cover - defensive
         return {}, f"meta.json の読取で問題がありました: {error}"
 
@@ -389,23 +403,6 @@ def parse_name_status(text: str) -> list[tuple[str, str]]:
     return entries
 
 
-def parse_numstat(text: str) -> tuple[list[tuple[str, int, int]], int]:
-    entries: list[tuple[str, int, int]] = []
-    total_lines = 0
-
-    for line in text.splitlines():
-        parts = line.split("\t")
-        if len(parts) < 3:
-            continue
-        added = 0 if parts[0] == "-" else int(parts[0])
-        deleted = 0 if parts[1] == "-" else int(parts[1])
-        path = parts[2]
-        entries.append((path, added, deleted))
-        total_lines += added + deleted
-
-    return entries, total_lines
-
-
 def collect_git_state() -> dict[str, object]:
     git_root = run_command(["git", "rev-parse", "--show-toplevel"])
     if git_root is None:
@@ -414,28 +411,19 @@ def collect_git_state() -> dict[str, object]:
             "staged_files": [],
             "unstaged_files": [],
             "all_files": [],
-            "total_lines": 0,
-            "combined_patch_lower": "",
         }
 
-    staged_status = parse_name_status(
-        run_command(["git", "diff", "--cached", "--name-status", "--find-renames", "--relative"]) or ""
-    )
-    unstaged_status = parse_name_status(
-        run_command(["git", "diff", "--name-status", "--find-renames", "--relative"]) or ""
-    )
-    _, staged_lines = parse_numstat(
-        run_command(["git", "diff", "--cached", "--numstat", "--relative"]) or ""
-    )
-    _, unstaged_lines = parse_numstat(
-        run_command(["git", "diff", "--numstat", "--relative"]) or ""
-    )
+    outputs = [run_command(["git", "diff", *args, "--no-ext-diff", "--no-textconv", "--relative"])
+               for args in (("--cached", "--name-status", "--find-renames"),
+                            ("--name-status", "--find-renames"))]
+    if any(output is None for output in outputs):
+        return {"available": False}
+    staged_status = parse_name_status(outputs[0])
+    unstaged_status = parse_name_status(outputs[1])
 
     staged_files = sorted({path for _, path in staged_status})
     unstaged_files = sorted({path for _, path in unstaged_status})
     all_files = sorted(set(staged_files) | set(unstaged_files))
-    staged_patch = run_command(["git", "diff", "--cached", "--no-color", "--unified=0", "--relative"]) or ""
-    unstaged_patch = run_command(["git", "diff", "--no-color", "--unified=0", "--relative"]) or ""
 
     return {
         "available": True,
@@ -445,15 +433,7 @@ def collect_git_state() -> dict[str, object]:
         "all_files": all_files,
         "staged_count": len(staged_files),
         "unstaged_count": len(unstaged_files),
-        "total_files": len(all_files),
-        "total_lines": staged_lines + unstaged_lines,
-        "combined_patch_lower": f"{staged_patch}\n{unstaged_patch}".lower(),
     }
-
-
-def matching_paths(paths: list[str], pattern: str) -> list[str]:
-    regex = re.compile(pattern, re.IGNORECASE)
-    return [path for path in paths if regex.search(path)]
 
 
 def dedupe_lines(lines: list[str]) -> list[str]:
@@ -480,7 +460,9 @@ def limit_lines(lines: list[str], limit: int) -> list[str]:
     run_is_new_arg,
     run_base_arg,
     run_selection_error,
-) = sys.argv[1:9]
+    verification_ran_arg,
+) = sys.argv[1:10]
+verification_ran = verification_ran_arg == "true"
 latest_run = latest_run_arg or "(なし)"
 run_dir, run_dir_error = resolve_run_directory(run_dir_arg, run_base_arg)
 verify_exit = int(verify_exit_arg)
@@ -499,6 +481,8 @@ artifact_integrity_errors.extend(
 
 summary_lines = load_summary_lines(summary_path)
 meta, meta_error = parse_meta(meta_path)
+if meta_path is not None and meta_error:
+    artifact_integrity_errors.append(meta_error)
 status_field = str(meta.get("status", ""))
 result_field = str(meta.get("result", ""))
 success_field = meta.get("success", "")
@@ -536,7 +520,9 @@ if bool(git_state.get("available")) and staged_count == 0 and unstaged_count == 
 else:
     diff_overview = f"stage済み {staged_count}件 / 未stage {unstaged_count}件を確認しました。"
 
-if missing_run:
+if not verification_ran:
+    summary_lines = ["shell検証は未実行です。native契約または別commandの証拠はagentが別途報告してください。"]
+elif missing_run:
     if verify_exit == 0:
         summary_lines = [
             f"{verify_command} は成功しました。",
@@ -571,179 +557,36 @@ else:
 
 summary_lines = limit_lines(summary_lines, 6)
 
-risk_rank = {"low": 0, "medium": 1, "high": 2}
-risk_level = "low"
-risk_reasons: list[str] = []
-next_steps: list[str] = []
-
-
-def raise_risk(level: str) -> None:
-    global risk_level
-    if risk_rank[level] > risk_rank[risk_level]:
-        risk_level = level
-
-
-def add_reason(level: str, message: str) -> None:
-    raise_risk(level)
-    risk_reasons.append(message)
-
-
-combined_patch_lower = str(git_state.get("combined_patch_lower", ""))
-total_files = int(git_state.get("total_files", 0))
-total_lines = int(git_state.get("total_lines", 0))
-
-if artifact_integrity_errors:
-    for error in artifact_integrity_errors[:2]:
-        add_reason("high", f"CI成果物を安全に読めません: {error} 現時点では push 非推奨です。")
-    next_steps.append("CI成果物のpath・symlink・並列RUN状態を修正してから再実行してください。")
-
-if missing_run and verify_exit != 0:
-    add_reason("high", "latest run を確認できず、verify 結果を確定できません。現時点では push 非推奨です。")
-    next_steps.append("verify出力の要約を確認し、RUNが作られる状態にしてから再実行してください。")
-
-if verify_failed:
-    failed_step_text = failed_step or f"{verify_command} (exit={verify_exit})"
-    if resolved_failed_log is not None:
-        add_reason(
-            "high",
-            f"verify が失敗しています ({failed_step_text})。失敗ログ {resolved_failed_log} を確認するまで push 非推奨です。",
-        )
-        next_steps.append(f"{resolved_failed_log} を確認して verify 失敗を解消してください。")
-    else:
-        add_reason(
-            "high",
-            f"verify が失敗しています ({failed_step_text})。verify出力の要約を確認するまで push 非推奨です。",
-        )
-        next_steps.append("同じverifyコマンドを直接再実行し、失敗を解消してください。")
-    if commands_path is not None and commands_path.is_file():
-        next_steps.append(f"{commands_path} で失敗コマンドを再確認してください。")
-
+evidence_errors = list(artifact_integrity_errors)
 if not bool(git_state.get("available")):
-    add_reason("high", "git diff / staged diff を確認できず、最終 push 判定が不完全です。現時点では push 非推奨です。")
-    next_steps.append("git 管理下のリポジトリルートで再実行してください。")
-else:
-    if unstaged_count > 0:
-        add_reason("medium", f"未stage差分が {unstaged_count} 件あり、push 対象が未固定です。")
-        next_steps.append("未stage差分を整理し、push 対象を固定してから再判定してください。")
+    evidence_errors.append("git diff / staged diff を確認できません。")
 
-    if re.search(r"--no-verify\b", combined_patch_lower):
-        add_reason("high", "差分に `--no-verify` があり、標準フック回避が疑われます。現時点では push 非推奨です。")
-        next_steps.append("`--no-verify` を差分から外し、標準 verify フローに戻してください。")
-
-    category_rules = [
-        (
-            "high",
-            "entitlements / capabilities",
-            r"(\.entitlements$|project\.pbxproj$|info\.plist$)",
-            r"(aps-environment|com\.apple\.developer|associated-domains|app groups|push notifications|healthkit)",
-        ),
-        (
-            "high",
-            "persistence / migration / schema",
-            r"(migration|schema|xcdatamodel|swiftdata|coredata|sqlite|realm|database|persistent|modelcontainer)",
-            r"(migration|schema|swiftdata|coredata|sqlite|realm|database|persistent|modelcontainer)",
-        ),
-        (
-            "medium",
-            "notifications / background behavior",
-            r"(notification|background|bgtask|push)",
-            r"(notification|background|bgtask|push)",
-        ),
-        (
-            "high",
-            "remote config / force update",
-            r"(remote.?config|force.?update|minimum.?version|required.?version|feature.?flag|kill.?switch|rollout)",
-            r"(remote.?config|force.?update|minimum.?version|required.?version|feature.?flag|kill.?switch|rollout)",
-        ),
-        (
-            "high",
-            "ads / subscription / monetization",
-            r"(admob|paywall|storekit|revenuecat|subscription|purchase|monet)",
-            r"(admob|paywall|storekit|revenuecat|subscription|purchase|monet)",
-        ),
-        (
-            "medium",
-            "widgets / app intents / watch / deeplinks",
-            r"(widget|appintent|appintents|appshortcut|watch|deeplink|universal.?link|urlscheme)",
-            r"(widget|appintent|appintents|appshortcut|watch|deeplink|universal.?link|urlscheme)",
-        ),
-    ]
-
-    for severity, label, path_pattern, patch_pattern in category_rules:
-        hits = matching_paths(all_files, path_pattern)
-        patch_hit = bool(re.search(patch_pattern, combined_patch_lower))
-        if not hits and not patch_hit:
-            continue
-
-        if hits:
-            shown = ", ".join(sorted(hits)[:2])
-            add_reason(severity, f"{label} に関わる差分を検出しました: {shown}")
-        else:
-            add_reason(severity, f"{label} に関わる差分キーワードを検出しました。")
-
-    if total_files >= 25 or total_lines >= 800:
-        add_reason("high", f"差分が広く ({total_files} files, ±{total_lines} lines)、想定外の巻き込みがないか追加確認が必要です。")
-        next_steps.append("差分を分割し、広い変更を push 前に個別レビューしてください。")
-    elif total_files >= 10 or total_lines >= 250:
-        add_reason("medium", f"差分がやや広く ({total_files} files, ±{total_lines} lines)、最終確認コストが高めです。")
-        next_steps.append("差分を絞れるなら分割し、主要変更点を目視確認してください。")
-
-if repo_warning_samples:
-    add_reason(
-        "high",
-        f"verify 出力に現在変更または repo 管理範囲の warning が残っています: {repo_warning_samples[0]} 現時点では push 非推奨です。",
-    )
-    next_steps.append("warning を解消してから再度 verify を通してください。")
-elif external_warning_samples:
-    add_reason(
-        "medium",
-        f"verify 出力に外部依存または既存要因の可能性が高い warning が残っています: {external_warning_samples[0]}",
-    )
-    next_steps.append("warning の発生源が current change ではないことを確認し、必要なら別タスクで追跡してください。")
-elif preexisting_warning_samples:
-    add_reason(
-        "medium",
-        f"verify 出力に既存の未解消 warning の可能性が高い項目が残っています: {preexisting_warning_samples[0]}",
-    )
-    next_steps.append("warning の発生源が current change ではないことを確認し、必要なら別タスクで追跡してください。")
-
-if not risk_reasons:
-    risk_reasons.append(f"{diff_overview} 重大カテゴリ差分や warning は見当たりませんでした。")
-
-if risk_level == "high" and not any("push 非推奨" in reason for reason in risk_reasons):
-    risk_reasons.insert(0, "高リスク差分があるため、現時点では push 非推奨です。")
-
-if not next_steps:
-    if risk_level == "low" and not verify_failed:
-        if staged_count == 0 and unstaged_count == 0:
-            next_steps.append("差分はないため、この verify 結果を基準に次の変更へ進めます。")
-        else:
-            next_steps.append("このまま commit / push 前の最終確認へ進めます。")
-    else:
-        next_steps.append("リスク理由を解消または確認した後に再度このゲートを通してください。")
-
-result_label = "✅ success"
-if verify_failed or artifact_integrity_errors:
+result_label = "✅ success" if verification_ran else "未実行 (diffのみ)"
+if verify_failed or evidence_errors:
     result_label = "❌ failure"
-
 print(f"結果: {result_label}")
+print(f"実行コマンド: {verify_command}; exit={verify_exit if verification_ran else '(未実行)'}")
 print(f"最新RUN: {latest_run}")
 print("要約:")
 for line in summary_lines:
     print(f"- {line}")
+print(f"差分: {diff_overview}")
+for path in all_files[:10]:
+    print(f"- {path}")
+for label, samples in (("現在変更に関連する可能性のあるwarning", repo_warning_samples),
+                       ("既存要因の可能性のあるwarning", preexisting_warning_samples),
+                       ("外部依存の可能性のあるwarning", external_warning_samples)):
+    for sample in samples:
+        print(f"{label}: {sample}")
+for error in evidence_errors:
+    print(f"証拠の問題: {error}")
+if verify_failed:
+    print(f"verify が失敗しています: {failed_step or verify_command}")
+    for line in load_verify_output_lines(verify_output):
+        print(line)
+print("release riskと公開可否はこのhelperの判定対象外です。")
+raise SystemExit(verify_exit or (1 if meta_says_failure or evidence_errors else 0))
 
-print(f"Pushリスク: {risk_level}")
-print("リスク理由:")
-for line in limit_lines(risk_reasons, 4):
-    print(f"- {line}")
-
-print("次の一手:")
-for line in limit_lines(next_steps, 3):
-    print(f"- {line}")
-
-if verify_failed or artifact_integrity_errors or risk_level == "high":
-    raise SystemExit(1)
-raise SystemExit(0)
 PY
 report_exit=$?
 set -e

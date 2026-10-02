@@ -22,7 +22,7 @@ and should remain in their provider-managed locations.
 - `apple-intelligence-dev`: Builds and evaluates Apple Intelligence features with current Apple guidance, grounded generation, lifecycle safety, and platform-specific evidence.
 - `apple-ios-dev-flow`: Orchestrates the owner's Apple development workflow using personal principles, MH Swift style, reference architecture, and reusable platform specialists.
 - `apple-sample-code-advisor`: Finds and applies Apple Developer sample code as official implementation guidance for Apple-platform work.
-- `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and summarizes push readiness from the current diff.
+- `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and reports verification evidence and gaps from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
 - `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality.
