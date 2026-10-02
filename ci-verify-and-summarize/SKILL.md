@@ -14,7 +14,8 @@ does not authorize a commit or push.
 
 ## Resolve the Real Contract
 
-Read `AGENTS.md`, actual build/test configuration, and relevant repository CI.
+Read applicable repository instructions when present, README verification
+guidance, actual build/test configuration, and relevant repository CI.
 Resolve the repository root from Git rather than assuming the current directory.
 Prefer the documented checks over filename conventions or obsolete wrappers.
 Do not require `ci_scripts`, an aggregate shell, or `.build/ci/runs` when the
@@ -33,18 +34,27 @@ within host/tool limits. Do not poll unchanged status every second or repeatedly
 read full logs. Keep raw output local and inspect failed-check excerpts and final
 results; widen the excerpt when the diagnosis needs more context.
 
-For a supported shell contract, run the bundled helper from the target repository:
+For a documented repository-relative bash check, pass its exact arguments to the
+bundled helper from the target repository:
 
 ```bash
-bash /path/to/ci-verify-and-summarize/scripts/run_verify_and_summarize.sh
+bash /path/to/ci-verify-and-summarize/scripts/run_verify_and_summarize.sh \
+  -- bash scripts/check.sh --profile rules
 ```
 
 Resolve the helper relative to the loaded skill rather than assuming the default
-Codex home. It recognizes documented repository-relative `bash` scripts with
-verify/check names, including `scripts/verify_repository.sh`, and falls back to
-known `ci_scripts` verification names. It never treats an arbitrary migration,
-formatter, or deployment script as a verification command. A broken documented
-entrypoint is a failure, not permission to silently choose a different check.
+Codex home. Replace the example with an actual check selected from the repository
+contract; do not infer it from the first README code block. Arguments are passed
+literally, without shell evaluation. Explicit checks must be regular, non-symlink
+repository scripts. Do not select a migration, formatter, or deployment as a check.
+A broken selected command is a failure, not permission to choose another silently.
+
+For compatibility, invocation without arguments still reads retained root
+`AGENTS.md` for verify/check script names and known `ci_scripts` fallbacks.
+That legacy parser does not preserve arguments, so prefer explicit argv. When
+`AGENTS.md` is absent, default invocation executes no command, even if conventional
+CI scripts exist. It reports unexecuted diff evidence; this is a valid repository
+layout, not a request to recreate AGENTS or add a wrapper.
 
 The helper creates and removes a temporary output file and executes the selected
 repository command, whose own cache or artifact writes still apply. `--diff-only`

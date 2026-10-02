@@ -894,6 +894,10 @@ def discover_skill_records(
 
 
 def choose_canonical_entrypoint(agents_text: str, ci_script_rel_paths: list[str]) -> str | None:
+    # A conventional filename is not a contract for a repo without AGENTS.
+    # Its README/native workflow needs review, not an invented aggregate gate.
+    if not agents_text.strip():
+        return None
     # Honor documented repository commands before legacy directory conventions.
     agents_paths = re.findall(r"\bbash[ \t]+([A-Za-z0-9_./-]+\.sh)(?=[`\s]|$)", agents_text)
     for path in agents_paths:
@@ -979,6 +983,8 @@ def extract_ground_truth(repo_root: Path, include_doc_source: bool) -> dict[str,
     ci_script_rel_paths = [str(path.relative_to(repo_root)) for path in ci_script_files]
 
     agents_text = read_text_if_exists(agents_path)
+    readme_path = repo_root / "README.md"
+    readme_text = read_text_if_exists(readme_path) if not agents_text else ""
     canonical_entrypoint = choose_canonical_entrypoint(agents_text, ci_script_rel_paths)
     run_required_entrypoint = choose_run_required_entrypoint(ci_script_rel_paths, canonical_entrypoint)
     ci_ground_truth_available = canonical_entrypoint is not None
@@ -1003,6 +1009,8 @@ def extract_ground_truth(repo_root: Path, include_doc_source: bool) -> dict[str,
     sources_read: list[str] = []
     if agents_path.exists():
         sources_read.append(str(agents_path.relative_to(repo_root)))
+    elif readme_text:
+        sources_read.append("README.md")
     sources_read.extend(ci_script_rel_paths)
     if pre_commit_path.exists():
         sources_read.append(str(pre_commit_path.relative_to(repo_root)))
@@ -1014,6 +1022,7 @@ def extract_ground_truth(repo_root: Path, include_doc_source: bool) -> dict[str,
         "canonical_entrypoint": canonical_entrypoint or "",
         "run_required_entrypoint": run_required_entrypoint or "",
         "ci_ground_truth_available": ci_ground_truth_available,
+        "contract_source": "AGENTS.md" if agents_text else ("README.md" if readme_text else ""),
         "artifact_root": artifact_root,
         "retention_count": retention_count,
         "environment_variables": sorted(environment_variables),
@@ -1817,7 +1826,8 @@ def analyze_skill(skill: SkillRecord, ground_truth: dict[str, Any]) -> dict[str,
         set(re.findall(r"bash\s+ci_scripts/[A-Za-z0-9_./-]+\.sh", combined_text))
     )
     mentions_dynamic_ci_policy = (
-        "AGENTS.md" in combined_text
+        ("AGENTS.md" in combined_text or "README" in combined_text
+         or "repository contract" in lower_text)
         and (
             "entrypoint" in lower_text
             or "verification contract" in lower_text
@@ -1847,8 +1857,8 @@ def analyze_skill(skill: SkillRecord, ground_truth: dict[str, Any]) -> dict[str,
                 severity="drift",
                 summary_ja="ハードコードされたCI実行コマンドがリポジトリ標準と一致していません。",
                 fix_ja=(
-                    "`AGENTS.md` を優先し、未定義時は `ci_scripts/**/*.sh` を検出して、"
-                    "必要時のみ標準CIコマンドを使用してください。"
+                    "適用される指示とREADME/configurationから実際の検証契約を確認し、"
+                    "必要なcheckと引数を明示してください。"
                 ),
             )
 
@@ -1859,8 +1869,8 @@ def analyze_skill(skill: SkillRecord, ground_truth: dict[str, Any]) -> dict[str,
                 severity="drift",
                 summary_ja="CIエントリポイントの動的解決ポリシーが明記されていません。",
                 fix_ja=(
-                    "`AGENTS.md` を先に確認し、未定義時は `ci_scripts/**/*.sh` へ"
-                    "フォールバックする方針を明記してください。"
+                    "READMEやbuild/test configurationから契約を確認し、"
+                    "scriptの存在だけでaggregate gateを要求しない方針を明記してください。"
                 ),
             )
 
@@ -2282,14 +2292,16 @@ def build_alignment_lines(
         canonical_entrypoint = ground_truth.get("canonical_entrypoint", "")
         if canonical_entrypoint:
             lines.append(
-                "- Resolve CI commands from `AGENTS.md` first, fall back to detected "
-                f"`ci_scripts/**/*.sh` paths when needed, and use the repository standard entrypoint "
-                f"`{canonical_entrypoint}` when CI verification is required."
+                "- Read applicable repository instructions, README, and build/test "
+                "configuration to select the required checks and their exact arguments. "
+                f"The currently documented shell entrypoint is `{canonical_entrypoint}`; "
+                "it does not replace other evidence required by the contract."
             )
         else:
             lines.append(
-                "- Resolve CI commands from `AGENTS.md` first and fall back to detected "
-                "`ci_scripts/**/*.sh` paths when CI verification is required."
+                "- Read applicable repository instructions, README, and build/test "
+                "configuration to select checks and exact arguments. An absent AGENTS "
+                "or aggregate script is valid; report evidence that remains unexecuted."
             )
 
     if "ci_artifact_root_not_aligned" in issue_codes and artifact_root:

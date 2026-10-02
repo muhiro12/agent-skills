@@ -45,6 +45,25 @@ class AuditSkillsBatchCLITests(unittest.TestCase):
         )
         self.assertEqual(selected, "bash scripts/verify_repository.sh")
 
+    def test_without_agents_readme_and_scripts_do_not_invent_a_gate(self) -> None:
+        module = self._load_script_module()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            (repo / "README.md").write_text(
+                "Use native package tests and consumer builds.\n"
+                "Prerequisites: `bash ci_scripts/tasks/check_environment.sh --profile rules`\n"
+            )
+            for name in ("check_environment", "check_repository_rules", "verify_task_completion"):
+                path = repo / f"ci_scripts/tasks/{name}.sh"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("#!/bin/bash\ntouch unintended-execution\n")
+            truth = module.extract_ground_truth(repo, False)
+            self.assertFalse((repo / "unintended-execution").exists())
+        self.assertEqual(truth["contract_source"], "README.md")
+        self.assertEqual(truth["canonical_entrypoint"], "")
+        self.assertFalse(truth["ci_ground_truth_available"])
+        self.assertIn("README.md", truth["sources_read"])
+
     def test_unrelated_scripts_are_not_verification_candidates(self) -> None:
         module = self._load_script_module()
         self.assertIsNone(module.choose_canonical_entrypoint(

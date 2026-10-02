@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -11,6 +12,60 @@ SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_verify_and_
 
 class RunVerifyAndSummarizeTests(unittest.TestCase):
     maxDiff = None
+
+    def test_without_agents_does_not_guess_from_readme_or_script_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_text(root / "README.md", """
+                Use native library tests and consumer builds.
+                Diagnose prerequisites: `bash ci_scripts/tasks/check_environment.sh --profile rules`.
+            """)
+            for name in ("verify_task_completion", "check_repository_rules", "check_environment"):
+                self._write_executable(root / f"ci_scripts/tasks/{name}.sh",
+                                       "#!/bin/bash\ntouch unintended-check\n")
+            self._write_text(root / ".build/ci/runs/old/summary.md", "STALE_SUCCESS")
+            completed = self._run_helper(root)
+            self.assertFalse((root / "unintended-check").exists())
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("未実行 (diffのみ)", completed.stdout)
+        self.assertNotIn("✅ success", completed.stdout)
+        self.assertNotIn("STALE_SUCCESS", completed.stdout)
+
+    def test_explicit_check_without_agents_preserves_literal_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "ci_scripts/tasks/verify_task_completion.sh",
+                                   "#!/bin/bash\ntouch unintended-aggregate\n")
+            self._write_executable(root / "checks/check with spaces.sh", """
+                #!/bin/bash
+                python3 - "$@" <<'PY'
+                import json,sys
+                from pathlib import Path
+                Path('received.json').write_text(json.dumps(sys.argv[1:]))
+                PY
+            """)
+            args = ("--profile", "rules", "a b", "$(touch injected)", "; touch injected")
+            completed = self._run_helper(root, "--", "bash", "checks/check with spaces.sh", *args)
+            received = json.loads((root / "received.json").read_text())
+            self.assertFalse((root / "injected").exists())
+            self.assertFalse((root / "unintended-aggregate").exists())
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertEqual(received, list(args))
+        self.assertIn("✅ success", completed.stdout)
+
+    def test_explicit_missing_check_does_not_run_legacy_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_text(root / "AGENTS.md", "`bash ci_scripts/tasks/verify.sh`\n")
+            self._write_executable(root / "ci_scripts/tasks/verify.sh",
+                                   "#!/bin/bash\ntouch unintended-fallback\n")
+            completed = self._run_helper(root, "--", "bash", "checks/missing.sh")
+            self.assertFalse((root / "unintended-fallback").exists())
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("checks/missing.sh", completed.stdout)
 
     def test_documented_repository_verify_precedes_legacy_delegate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -181,7 +236,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "docs" / "overview.md", "after\n")
             self._git(repo_root, "add", "docs/overview.md")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("結果: ✅ success", completed.stdout)
@@ -195,7 +250,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("結果: ✅ success", completed.stdout)
@@ -216,7 +271,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/check_repository_rules.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("結果: ✅ success", completed.stdout)
@@ -249,7 +304,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/check_repository_rules.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("結果: ✅ success", completed.stdout)
@@ -278,7 +333,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("複数の新しいRUN", completed.stdout)
@@ -307,7 +362,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("failed_logが選択RUNの外", completed.stdout)
@@ -336,7 +391,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("symlink entry", completed.stdout)
@@ -401,7 +456,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "Sources" / "Feature.swift", "let value = 2\n")
             self._git(repo_root, "add", "Sources/Feature.swift")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("warning", completed.stdout)
@@ -421,7 +476,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "Sources" / "Feature.swift", "let value = 2\n")
             self._git(repo_root, "add", "Sources/Feature.swift")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("既存要因の可能性のあるwarning", completed.stdout)
@@ -440,7 +495,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "Sources" / "Feature.swift", "let value = 2\n")
             self._git(repo_root, "add", "Sources/Feature.swift")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("外部依存の可能性のあるwarning", completed.stdout)
@@ -468,7 +523,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             )
             self._git(repo_root, "add", "scripts/release.sh")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("結果: ✅ success", completed.stdout)
@@ -505,7 +560,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self._write_text(repo_root / "README.md", "base\n")
             self._commit_all(repo_root, "Initial")
 
-            completed = self._run_helper(repo_root)
+            completed = self._run_helper(repo_root, "--", "bash", "ci_scripts/tasks/verify.sh")
 
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("結果: ❌ failure", completed.stdout)
@@ -538,7 +593,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             for path in ("App.xcodeproj/project.pbxproj", "Info.plist", "Sources/Schema.swift"):
                 self._write_text(root / path, "version=2\n")
             self._git(root, "add", "App.xcodeproj/project.pbxproj")
-            completed = self._run_helper(root)
+            completed = self._run_helper(root, "--", "bash", "ci_scripts/tasks/verify.sh")
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("stage済み 1件 / 未stage 2件", completed.stdout)
 
@@ -547,7 +602,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             root = Path(temporary_directory)
             self._init_git_repo(root)
             self._write_executable(root / "ci_scripts/tasks/verify.sh", "#!/bin/bash\necho CHECK_FAILED\nexit 7\n")
-            completed = self._run_helper(root)
+            completed = self._run_helper(root, "--", "bash", "ci_scripts/tasks/verify.sh")
         self.assertEqual(completed.returncode, 7, completed.stdout + completed.stderr)
         self.assertIn("CHECK_FAILED", completed.stdout)
         self.assertIn("exit=7", completed.stdout)
@@ -560,7 +615,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
                 self._write_executable(root / "ci_scripts/tasks/verify.sh",
                     "#!/bin/bash\nmkdir -p .build/ci/runs/new\n"
                     + "echo '" + metadata + "' > .build/ci/runs/new/meta.json\n")
-                completed = self._run_helper(root)
+                completed = self._run_helper(root, "--", "bash", "ci_scripts/tasks/verify.sh")
             self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
             self.assertIn("meta.json", completed.stdout)
 
@@ -576,7 +631,9 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
         self.assertIn("ROOT_CHECK", completed.stdout)
 
     def test_unknown_or_extra_arguments_do_not_execute_checks(self) -> None:
-        for args in (("--unknown",), ("--diff-only", "extra")):
+        for args in (("--unknown",), ("--diff-only", "extra"), ("--",),
+                     ("--", "bash"), ("--", "bash", ""),
+                     ("--", "sh", "ci_scripts/tasks/verify.sh")):
             with self.subTest(args=args), tempfile.TemporaryDirectory() as temporary_directory:
                 root = Path(temporary_directory)
                 self._init_git_repo(root)
@@ -598,7 +655,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
                 path = root / component
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.symlink_to(root / "outside", target_is_directory=True)
-                completed = self._run_helper(root)
+                completed = self._run_helper(root, "--", "bash", "ci_scripts/tasks/verify.sh")
                 self.assertFalse((root / "verification-ran").exists())
             self.assertEqual(completed.returncode, 1)
             self.assertIn("symlink", completed.stdout)

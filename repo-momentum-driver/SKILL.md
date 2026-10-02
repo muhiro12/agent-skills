@@ -11,8 +11,9 @@ continue it before inventing new work. Keep explanations concise.
 
 ## Find the Next Useful Work
 
-Read the current repository's `AGENTS.md`, worktree/index changes, recent commits,
-and relevant planning notes. `scripts/collect_repo_signals.sh /path/to/repo` can
+Read the current repository's README and applicable instructions when present,
+worktree/index changes, recent commits, and relevant planning notes.
+`scripts/collect_repo_signals.sh /path/to/repo` can
 collect a bounded starting inventory; its output is evidence, not a task order.
 Read [references/signal-priority.md](references/signal-priority.md) when choosing
 among competing candidates.

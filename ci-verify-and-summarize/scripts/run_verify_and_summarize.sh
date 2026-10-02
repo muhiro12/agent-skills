@@ -65,6 +65,9 @@ detect_verify_entrypoint() {
   local agents_entrypoint=""
   local rel_path=""
 
+  # Legacy automatic resolution applies only to repositories that retain AGENTS.
+  # With no instruction file, the caller must select a documented command.
+  [ -f "AGENTS.md" ] || return 0
   agents_entrypoint="$(extract_agents_entrypoint "AGENTS.md")"
   if [ -n "$agents_entrypoint" ]; then
     printf '%s\n' "$agents_entrypoint"
@@ -97,13 +100,27 @@ cleanup_verify_output() {
 trap cleanup_verify_output EXIT
 
 diff_only=false
+explicit_command=false
+verify_argv=()
+usage() {
+  echo "Usage: bash run_verify_and_summarize.sh [--diff-only | -- bash <repository-script> [args...]]" >&2
+}
 case "${1:-}" in
   "") ;;
   --diff-only) diff_only=true; shift ;;
-  *) echo "Usage: bash run_verify_and_summarize.sh [--diff-only]" >&2; exit 2 ;;
+  --)
+    shift
+    if [ "$#" -lt 2 ] || [ "$1" != bash ] || [ -z "$2" ]; then
+      usage; exit 2
+    fi
+    explicit_command=true
+    verify_argv=("$@")
+    shift "$#"
+    ;;
+  *) usage; exit 2 ;;
 esac
 if [ "$#" -ne 0 ]; then
-  echo "Usage: bash run_verify_and_summarize.sh [--diff-only]" >&2
+  usage
   exit 2
 fi
 repository_root=$(git rev-parse --show-toplevel) || exit 1
@@ -111,8 +128,13 @@ cd "$repository_root"
 
 run_base=".build/ci/runs"
 verify_entrypoint=""
-if [ "$diff_only" = false ]; then
+if [ "$explicit_command" = true ]; then
+  verify_entrypoint="${verify_argv[1]}"
+elif [ "$diff_only" = false ]; then
   verify_entrypoint="$(detect_verify_entrypoint)"
+  if [ -n "$verify_entrypoint" ]; then
+    verify_argv=(bash "$verify_entrypoint")
+  fi
 fi
 verification_ran=false
 verify_command="(未実行)"
@@ -139,7 +161,8 @@ done
 
 pre_runs="$(list_run_ids "$run_base")"
 
-verify_command="bash $verify_entrypoint"
+printf -v verify_command '%q ' "${verify_argv[@]}"
+verify_command="${verify_command% }"
 
 set +e
 python3 - "$verify_entrypoint" >"$verify_output" 2>&1 <<'PY'
@@ -159,7 +182,7 @@ except ValueError:
 PY
 verify_exit=$?
 if [ "$verify_exit" -eq 0 ]; then
-  bash "$verify_entrypoint" >>"$verify_output" 2>&1
+  "${verify_argv[@]}" >>"$verify_output" 2>&1
   verify_exit=$?
 fi
 set -e

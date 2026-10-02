@@ -27,7 +27,7 @@ an old automation's gate applies to a separate interactive review. Inventory and
 preserve existing tracked and untracked changes; do not stash, commit, or discard
 work merely to pass a gate. A request for proposals alone remains read-only.
 
-Read the repository `AGENTS.md` and selected skills' full `SKILL.md` before
+Read the repository README, applicable instructions when present, and selected skills' full `SKILL.md` before
 judging or editing them. Use user-specific constraints supplied by the request or
 applicable contracts when they affect portfolio decisions. Current instructions
 override older preferences.
@@ -67,6 +67,9 @@ python3 scripts/audit_skills_batch.py \
 Use `--skill NAME` for a selected subset, `--format markdown` for a human-readable
 baseline, and `--mode maintenance` only for deterministic automatic corrections.
 Inspect the script's selected repository entrypoint before trusting CI findings.
+Without AGENTS, the baseline reads README as context but does not derive a command
+from its code blocks or promote conventional script names to a verification gate.
+Review its native/shell contract directly; missing AGENTS is not drift.
 
 The baseline analyzes definitions and lists conventional test paths. It does
 not execute those tests, arbitrary skill scripts, or runtime capability probes.
