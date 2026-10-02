@@ -57,11 +57,11 @@ class ReleaseRiskBehaviorTests(unittest.TestCase):
                 hashlib.sha256(path.read_bytes()).hexdigest())
                 for path in self.repo.rglob("*") if path.is_file()}
 
-    def report(self, head="HEAD", format="json"):
+    def report(self, head="HEAD", format="json", verbose=False, base="public"):
         before = self.snapshot()
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), "--repo", str(self.repo), "--base-ref", "public",
-             "--head-ref", head, "--format", format],
+            [sys.executable, str(SCRIPT), "--repo", str(self.repo), "--base-ref", base,
+             "--head-ref", head, "--format", format] + (["--verbose"] if verbose else []),
             check=True, capture_output=True, text=True,
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "GIT_OPTIONAL_LOCKS": "0"},
         )
@@ -295,6 +295,54 @@ class ReleaseRiskBehaviorTests(unittest.TestCase):
         self.commit()
         report = self.report()
         self.assertTrue(all(item["acknowledgment_status"].startswith("unconfirmed") for item in report["awareness_items"]))
+
+    def test_scene_restoration_key_is_visible_without_claiming_fixed_identity(self):
+        self.commit("public")
+        self.write("App/Views/Navigation.swift",
+                   '@SceneStorage("Navigation.restoredRoute") var route: String = ""\n')
+        self.commit()
+        report = self.report()
+        scene = next(item for item in report["awareness_items"] if item["category"] == "scene-storage")
+        self.assertEqual(scene["contract_values"], ['new: "Navigation.restoredRoute"'])
+        self.assertEqual(scene["contract_classes"], [])
+        self.assertFalse(any(item["category"] == "durable-state" for item in report["review_findings"]))
+        self.assertLess(report["risk_score"], 20)
+        self.git("tag", "scene-public")
+        self.write("App/Views/Navigation.swift",
+                   '@SceneStorage("Navigation.newRoute") var route: String = ""\n')
+        self.commit()
+        scene = next(item for item in self.report(base="scene-public")["awareness_items"] if item["category"] == "scene-storage")
+        self.assertIn('old: "Navigation.restoredRoute"', scene["contract_values"])
+        self.assertIn('new: "Navigation.newRoute"', scene["contract_values"])
+
+    def test_default_output_groups_large_evidence_and_keeps_all_serious_kinds(self):
+        for index in range(24):
+            self.write(f"App/Models/Record{index}.swift",
+                       f'@Model\nclass Record{index} {{\nvar originalField{index}: String = ""\n}}\n')
+        self.write("App/Recovery.swift", "func recover() {}\n")
+        self.commit("public")
+        for index in range(24):
+            self.write(f"App/Models/Record{index}.swift",
+                       f'@Model\nclass Record{index} {{\nvar newField{index}: String = ""\n}}\n')
+        self.write("App/Recovery.swift",
+                   'func recover() {\ntry FileManager.default.removeItem(at: sqliteURL)\n'
+                   'fatalError("Cannot open retained store")\n}\n')
+        self.commit()
+        report = self.report()
+        compact = self.report(format="markdown")
+        detailed = self.report(format="markdown", verbose=True)
+        self.assertLess(len(compact.splitlines()), 45)
+        self.assertGreater(len(detailed), len(compact) * 5)
+        self.assertEqual(sum(item["category"] == "durable-state" for item in report["awareness_items"]), 24)
+        self.assertIn("originalField23", json.dumps(report))
+        self.assertIn("originalField23", detailed)
+        self.assertNotIn("originalField23", compact)
+        serious_titles = {item["title"] for item in report["review_findings"] if item["score"] >= 40}
+        self.assertGreaterEqual(len(serious_titles), 3)
+        for title in serious_titles:
+            self.assertEqual(compact.count(title), 1)
+        self.assertIn(str(report["risk_score"]), compact)
+        self.assertTrue(report["risk_diff_snippets"])
 
 
 if __name__ == "__main__":

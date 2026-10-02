@@ -438,7 +438,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Include full file and commit sections in markdown output",
+        help="Expand candidate evidence, score breakdown, diffs, file and commit sections in markdown output",
     )
     return parser.parse_args()
 
@@ -833,6 +833,11 @@ def build_awareness_items(repo: Path, files: list[FileChange], diffs: dict[str, 
         defaults_after = [f"{name} = {value}" for name, value in raw_after.items()] or defaults_values(diff.added)
         if defaults_before or defaults_after:
             groups.append(("Defaults raw values and purpose", "persistent-settings", defaults_before, defaults_after, ["legacy-support"]))
+        scene_key = re.compile(r'@SceneStorage\(\s*("[^"\n]+")')
+        scene_before = unique([match.group(1) for line in diff.removed for match in scene_key.finditer(line)])
+        scene_after = unique([match.group(1) for line in diff.added for match in scene_key.finditer(line)])
+        if scene_before or scene_after:
+            groups.append(("Scene restoration raw values and purpose", "scene-storage", scene_before, scene_after, []))
         if not is_settings and re.search(r'\benum\s+\w+\s*:\s*(?:String|U?Int\d*)\b', old + new):
             before = [line.strip() for line in diff.removed if EXPLICIT_RAW_CASE.match(line)]
             after = [line.strip() for line in diff.added if EXPLICIT_RAW_CASE.match(line)]
@@ -864,8 +869,8 @@ def build_awareness_items(repo: Path, files: list[FileChange], diffs: dict[str, 
                                  *truncate_list([f"new: {value}" for value in after], 12)],
                 introduction_status="present in base source; public/prototype/development status unverified" if before else "added in candidate source; shipping status unverified",
                 consumers=consumers, contract_classes=classes,
-                migration_burden="Assess actual migration complexity and user guidance; no automatic score for a necessary contract." if classes else "Ordinary metadata has no compatibility surcharge; inspect behavioral version readers.",
-                future_responsibility="Identify retained/replaced/retired metadata, readers and aliases; long-term support until retirement is established. Disposable preferences/cache may need no legacy support." if classes else "No fixed-contract obligation inferred from the version number alone.",
+                migration_burden="Assess purpose, recoverability, migration and user guidance; no automatic score for a necessary contract." if category != "release-metadata" else "Ordinary metadata has no compatibility surcharge; inspect behavioral version readers.",
+                future_responsibility="Trace ownership, writers/readers and retention; identify retained/replaced/retired metadata and aliases. Disposable preferences/cache may need no legacy support." if category != "release-metadata" else "No fixed-contract obligation inferred from the version number alone.",
                 evidence=truncate_list(changed_source(diff), 8),
             ))
     return items
@@ -1368,7 +1373,7 @@ def render_awareness(items: list[dict]) -> list[str]:
         lines.append(f"  契約値: {'; '.join(item['contract_values'])}")
         lines.append(f"  導入状態: {item['introduction_status']}")
         lines.append(f"  consumer候補: {'; '.join(item['consumers'])}")
-        lines.append(f"  契約分類候補: {', '.join(item['contract_classes']) or '通常metadata（固定契約を推定しない）'} / {item['classification_status']}")
+        lines.append(f"  契約分類候補: {', '.join(item['contract_classes']) or '固定契約を推定しない。用途・保存期間を要確認'} / {item['classification_status']}")
         lines.append(f"  移行負担: {item['migration_burden']}")
         lines.append(f"  将来責任: {item['future_responsibility']}")
         lines.append(f"  根拠: {'; '.join(item['evidence'])}")
@@ -1377,7 +1382,62 @@ def render_awareness(items: list[dict]) -> list[str]:
     return lines
 
 
+def render_compact_markdown(report: dict) -> str:
+    lines = [
+        "# リリースリスク検出候補",
+        "",
+        f"比較: `{report['range']}` / 候補 `{report['head_commit']}`"
+        f"（{report['commit_count']}コミット、{report['file_count']}ファイル）",
+        f"検出スコア: `{report['risk_score']}/{report['risk_score_max']}`"
+        f" / `{report['release_decision']}`",
+        "",
+        "これは調査の入口です。新しい契約の妥当性、旧契約の維持、実害は文脈確認が必要です。",
+        "",
+        "## 重大所見候補",
+        "",
+    ]
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for finding in report["review_findings"]:
+        if finding["score"] >= 40:
+            groups.setdefault((finding["category"], finding["title"]), []).append(finding)
+    ordered = sorted(groups.values(), key=lambda group: (
+        group[0]["category"] != "primary-data", -max(item["score"] for item in group)))
+    for group in ordered:
+        strongest = max(group, key=lambda item: item["score"])
+        lines.append(f"- {strongest['title']}（最大{strongest['score']}点、{len(group)}候補）: {strongest['reason']}")
+    if not groups:
+        lines.append("- 組み込み検出で該当なし。安全性の証明ではありません。")
+
+    lines.extend(["", "## 契約の確認候補", ""])
+    labels = {
+        "external-identity-config": "外部ID・登録設定",
+        "security-capability": "権限・Capability",
+        "durable-state": "保存スキーマ",
+        "persistent-settings": "UserDefaults等の設定",
+        "scene-storage": "画面の復元状態",
+        "serialized-registered": "シリアライズ・OS登録値",
+    }
+    counts = Counter(item["category"] for item in report["awareness_items"]
+                     if item["category"] != "release-metadata")
+    for category, count in sorted(counts.items()):
+        lines.append(f"- {labels.get(category, category)}: {count}候補")
+    if not counts:
+        lines.append("- 組み込み検出で該当なし。契約の追加・破棄がないことの証明ではありません。")
+    minor_count = sum(0 < item["score"] < 40 for item in report["review_findings"])
+    signal_count = sum(item["score"] > 0 for item in report["risk_signals"])
+    lines.extend([
+        "",
+        f"その他: 所見候補{minor_count}件、変更面からのシグナル{signal_count}件。",
+        "候補は種類ごとにまとめています。個別の値・対象ファイル・根拠は"
+        " `--format json` または `--verbose` で確認してください。",
+        "公開状態、実際の読み書き、保存期間、互換処理、復元元を確認してから結論にしてください。",
+    ])
+    return "\n".join(lines)
+
+
 def render_markdown(report: dict, max_files: int, max_commits: int, verbose: bool) -> str:
+    if not verbose:
+        return render_compact_markdown(report)
     blocker_findings = [
         ReviewFinding(**finding)
         for finding in report["review_findings"]
@@ -1432,12 +1492,6 @@ def render_markdown(report: dict, max_files: int, max_commits: int, verbose: boo
     lines.append("")
     lines.append("## 未確認")
     lines.extend(f"- {item}" for item in report["unverified_items"])
-
-    if not verbose:
-        lines.append("")
-        lines.append("## 補足")
-        lines.append("- 差分一覧は省略しています。必要なら `--verbose` でファイル一覧とコミット一覧を表示できます。")
-        return "\n".join(lines)
 
     lines.append("")
     lines.append("## 変更ファイル")

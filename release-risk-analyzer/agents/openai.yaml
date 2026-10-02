@@ -1,4 +1,4 @@
 interface:
   display_name: "Release Risk Analyzer"
-  short_description: "Review release risk and compatibility obligations"
-  default_prompt: "Use $release-risk-analyzer to review the previous public release against the candidate, report primary-data risk and concrete published compatibility obligations, and leave the reviewed repository unchanged."
+  short_description: "Review new and existing contracts with concise conclusions"
+  default_prompt: "Use $release-risk-analyzer to compare the public release with the candidate and concisely judge new contracts, their appropriateness, and preservation of existing contracts, surfacing serious primary-data risks."

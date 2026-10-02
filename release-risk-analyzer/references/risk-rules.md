@@ -29,12 +29,68 @@ status, and old metadata/readers. Unused or reserved schema fields deserve caref
 pre-publication review, even if empty today. A justified contract addition can be
 reported without increasing risk; mere existence of a key or schema is not harm.
 
-Ordinary release versions, format-only equal values, and Swift logical renames with
-unchanged storage/wire/registered contracts have no contract contribution. Defaults
-for disposable preferences or caches are not primary data. Intentional random
-eight-character keys need no naming correction. Shipped IDs need no cosmetic rename.
-Version consumers that alter migrations, gates, or formats are separate effects;
-co-located identity, capability, minimum-OS, or schema changes remain reviewable.
+## Contract inspection
+
+For every relevant addition, change, or removal, establish ownership, purpose,
+exact raw value/type/default, writer and reader, lifetime, and the consequence of
+renaming or dropping it. Report both whether a contract exists and whether it is
+appropriate. Necessity alone does not justify a poorly chosen format or avoidable
+support obligation; a justified new contract need not increase the score.
+
+Keep a working coverage record for the surfaces used by the product. For each,
+record net additions, changes/removals, unchanged values, or the specific unchecked
+area. Locate definitions and actual consumers at both refs; a detector miss or
+unchanged codec alone is not evidence that the whole surface was checked. This
+record supports completeness and stays out of the default answer. Inspect:
+
+- Stored schema and relationships, database/cloud identities and locations.
+- UserDefaults/AppStorage, SceneStorage and other restoration state, Keychain,
+  app groups, shared preferences, and SDK-owned settings touched by cleanup.
+- Serialized files and backup formats: extension/type identifier, schema version,
+  field names/types, old readers, and what the promised restoration preserves.
+- Deep links and saved routes: scheme, host, path, query names/encoding, old aliases,
+  and acceptance behavior. Check producers and parsers, notifications, widgets,
+  shared URLs, pending links, and persisted route consumers even if the codec is
+  unchanged. Display labels and internal screen names are not URL contracts unless
+  serialized or exposed; a new consumer of an existing path is not a new path.
+- Published API and OS-registered identifiers, such as widget kinds, activities,
+  and intent/entity identifiers. Check actual external use, not just Swift visibility.
+
+Compare raw values across refs, not file names or declaration names. A moved
+defaults descriptor, reused key, or logical rename is not a new contract when
+storage/wire/registered values and meaning are preserved. A newly protected
+SDK-owned key in a cleanup allowlist is not a newly introduced app-owned key.
+For UserDefaults, compare the actual raw keys, suites, value formats and types,
+cleanup registration, migration readers, and any continued old-format writes.
+Distinguish a logical Swift name, the fixed storage key, the stored value, and a
+transport payload field even when their logical names match. Verify semantics as
+well as strings; random-looking fixed keys are not values generated on each launch.
+
+Distinguish the stable name of a field from its changing contents. A UUID generated
+for each refresh is not a durable record identity. Framework support or retention
+of the latest transport payload, such as a WatchConnectivity application context,
+does not by itself make the app's message key permanent. Trace version skew,
+regeneration, fallback, and the actual replacement window before assigning
+long-term compatibility debt. Defaults storing durable preferences, disposable
+scene selection, and recomputable caches deserve different consequences.
+
+Judge names under the repository's relevant convention. Intentional random
+eight-character defaults keys are valid; descriptive names may be appropriate
+for communication fields or route paths. Do not impose one convention on every
+surface or propose cosmetic renames of shipped identifiers. Check new raw names
+before publication for errors, ambiguity, unnecessary fields, and local consistency.
+
+For existing contracts, check whether old states still load or resolve with the
+intended meaning. Keeping a parser declaration is insufficient if acceptance or
+interpretation changes. Removing a reader, alias, or key can break users without
+deleting their files. Identify retained, migrated, aliased, or deliberately retired
+contracts and the users/data affected; a retirement note alone proves no regeneration.
+Separate net endpoint changes from reverted or unpublished prototypes.
+
+Ordinary release versions, format-only equal values, and logical renames preserving
+the actual contract have no contract contribution. Version consumers that alter
+migrations, gates, or formats are separate effects; co-located identity, capability,
+minimum-OS, or schema changes remain reviewable.
 
 ## Scoring
 
@@ -66,6 +122,13 @@ from ADR status or authorship.
 
 Keep rules technology-independent: frameworks and paths are anchors for primary
 data, compatibility, external identity, capability, packaging, or operational risk.
-Keep the detector read-only and ref-specific. Include concrete awareness values,
-unverified shipping/consumer/recovery evidence, and short diffs in both outputs.
+Keep the detector read-only and ref-specific. Preserve concrete awareness values,
+unverified shipping/consumer/recovery evidence, and short diffs in JSON and verbose
+Markdown. Default Markdown groups candidates into a compact overview and clearly
+discloses that contextual review is required. Do not mistake that overview for the
+final assessment or restrict investigation to its matches. Keep the final answer
+focused on the three contract questions and material consequences. New contracts
+remain reportable when they are appropriate and do not raise the score. Summarize
+related obligations together, explicitly including their storage and external
+surfaces, so brevity does not hide additions that the user must discover by asking.
 Use generic Git fixtures for behavior regression; do not hard-code app histories.

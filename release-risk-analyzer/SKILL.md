@@ -1,116 +1,138 @@
 ---
 name: release-risk-analyzer
-description: "Review and report release risk between a previous public release and a candidate, prioritizing primary-data loss and published compatibility obligations. Use for pre-release assessment; do not implement fixes or perform release operations."
+description: "Review release risk from a public release to a candidate, focusing on new contracts, their appropriateness, and preservation of existing contracts. Report compact conclusions and prioritize primary-data loss; do not implement fixes or perform release operations."
 ---
 
 # Release Risk Analyzer
 
-## Scope and boundaries
+## Purpose and boundaries
+
+Help the user see what publication makes difficult to change, whether those
+commitments are appropriate, and whether existing users' contracts are preserved.
+The skill's value is a compact judgment that would be buried in a full diff.
+Investigate broadly; report selectively. Finding many matching literals is not
+the result.
 
 This skill reviews and reports only. Do not edit the reviewed repository, run
-migrations, change versions, commit, push, or distribute a build. Recommend concrete
-checks or fixes without performing them. A score is review priority, not failure
+migrations, change versions, commit, push, or distribute a build. Recommend checks
+or fixes without performing them. A score is review priority, not failure
 probability, permission to ship, or an operation-approval gate.
 
 ## Workflow
 
-1. Establish the comparison.
-- Normally compare the previous **public** release with the candidate. The script's
-  latest reachable tag is a source-range fallback, not proof of public distribution.
-- Use `--base-ref`, `--head-ref`, or `--tag-pattern` to select the intended sources.
-  Follow an explicit request for previous -> current -> next or longer history.
-- Identify the distributed version/build and its source when evidence is available.
-  Distinguish archive/build source from tag source; report an unknown correspondence.
-- Separate shipped contracts, candidate additions, unpublished prototypes, and
-  development-only state. Git ancestry alone does not establish shipping status.
+### Establish the comparison
 
-2. Generate candidate evidence using the bundled rules, without external rule files.
+- Compare the requested public release with the candidate. The latest reachable
+  tag is a source-range fallback, not proof of public distribution.
+- Use `--base-ref`, `--head-ref`, or `--tag-pattern` for the intended sources.
+  Identify the distributed version/build and its source when available; disclose
+  an unknown build-to-tag correspondence without a generic warning list.
+- Separate shipped contracts, candidate additions, unpublished prototypes, and
+  development-only state. Compare the net endpoints; a reverted experiment or
+  moved definition is not a new or retired contract.
+
+### Gather evidence
 
 ```bash
-python3 scripts/review_release_risk.py --repo /path/to/repository --format markdown
+python3 scripts/review_release_risk.py --repo /path/to/repository --format json
 ```
 
-Read [references/risk-rules.md](references/risk-rules.md) for interpretation and
-scoring. The script reads source at the selected refs, not the working-tree version.
-Its matches are review candidates; inspect context, consumers, guards, and recovery
-sources before treating them as defects. Regex or path matches prove neither harm
-nor safety.
+Keep the JSON as working evidence rather than pasting it into the answer. Default
+Markdown is a compact candidate overview; `--verbose` expands diagnostic detail.
+Read [references/risk-rules.md](references/risk-rules.md) for contract inspection
+and scoring. The script reads the selected refs, not the working-tree version.
+Its matches are candidates, not proof of a contract, harm, or safety. Inspect
+ref-specific source and consumers beyond the detector's matches. Keep a working
+coverage record for each applicable contract surface in the reference: added,
+changed, removed, unchanged, or unverified, with supporting evidence. Do not infer
+coverage from the score or let a database-only review stand for all contracts.
 
-3. Review consequences in this order.
-- First, loss or corruption of long-term users' primary data, especially loss of
-  all restoration sources. Distinguish already-saved rows lost through writes from
-  a crash, inaccessible export, retired selection state, or a derived-cache reset.
-- Check the original database, required sidecars, backups, and other viable copies.
-  A SQLite filename remaining does not prove recoverability; a consistent retained
-  store with required sidecars is different from complete loss. Trace error paths,
-  including pending delete/update mutations persisted by a later save.
-- Then inspect what publication commits the product to. A contract may belong to
-  several classes: (1) identity fixed for the same published product, (2) changeable
-  with risky technical migration or user guidance, (3) changeable while old schema,
-  keys, readers, aliases, or migration code require long-term support.
-- Do not call every obligation literally permanent. State its retirement evidence;
-  without guaranteed retirement of old states, assume long-term compatibility work.
-- Review actual schema/raw key/ID/type/default/serialized wire or file field/OS
-  registered identifier values before publication. Check typos, naming mismatches,
-  unused columns, speculative reserved fields, real consumers, and whether stored
-  empty or recomputable values need to become contracts. A necessary new contract
-  is an awareness item, not an automatic risk surcharge.
-- Swift logical names are not contracts when storage/wire/registered values are
-  unchanged. Intentional eight-character random defaults keys are valid; do not
-  propose cosmetic renames of shipped identifiers. Defaults used for disposable UI
-  preferences or derived caches do not gain risk merely because a raw key exists.
-- Ordinary `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` updates contribute zero.
-  Inspect version readers that drive migration, feature gates, or stored formats;
-  score those effects separately. Never exempt co-located identity, entitlement,
-  minimum-OS, schema, or other changes as part of a version bump.
-- Judge reversible bugs using affected users, trigger frequency, recovery options,
-  and available recovery effort. Do not block every unknown or every irreversible
-  contract. An acknowledged change is not automatically harmless either.
+### Answer the three contract questions
 
-4. Explain the assessment.
-- Keep the existing category-maximum aggregation and small independent breadth
-  modifiers. Count one cause once; path hints and awareness items do not add a
-  second contribution for the same change. Explain any contextual adjustment from
-  the script score. The script caps heuristic output at 95; reserve a final 100 for
-  separately substantiated catastrophic loss, never a deletion regex alone.
-- Bands remain `80-100=Block`, `60-79=Hold for review`, `40-59=Proceed with caution`,
-  `20-39=Review recommended`, `0-19=Proceed`. A high score recommends pausing because
-  of the stated consequences; it does not perform a release operation or require
-  answers to every awareness item. Zero means no scored signal, not verified safety.
-- Prioritize serious findings before general diff summaries. Use short relevant
-  diff excerpts. Do not promote a path-only label into a confirmed severe defect.
+1. **What is new?** Check actual stored, serialized, externally registered, and
+   published values. Include UserDefaults raw keys and stored value formats,
+   scene restoration keys, file formats, deep-link screen identifiers, paths and
+   query names, and external identities; do not stop at the database schema.
+2. **Is it appropriate?** Check necessity, purpose, raw naming and local conventions,
+   types/defaults, real writers/readers, promised behavior, and avoidable migration
+   or support burden. Give a judgment and a short reason, not just an inventory.
+3. **What happens to existing contracts?** Check changes and removals, old readers,
+   keys, aliases, migrations, and continued interpretation of old saved or shared
+   values. State whether each relevant contract is retained, compatibly replaced,
+   or retired, and what breaks if compatibility is lost.
 
-## Report contract
+Trace who owns each value, where it lives, how long it survives, who reads it, and
+what a change would lose. Distinguish an app-owned stable key from a newly generated
+message ID. An Apple API, OS-retained latest message, or literal alone does not
+establish a permanent app obligation. Mixed-version communication may need bounded
+compatibility without creating a durable record identity.
 
-Report in the conversation's language:
+Use the applicable classes: `identity-fixed`, `migration-required`, and
+`legacy-support`. Describe the actual support lifetime and retirement conditions;
+do not call every convention permanent. Necessary new contracts are not defects
+or automatic risk surcharges. Disposable UI state and caches carry different
+consequences from primary data.
 
-1. **Overall score and rationale:** score out of 100, band, strongest consequence,
-   independent modifiers, evidence strength, and reasons for contextual adjustments.
-2. **Scope:** public release/build/source -> candidate, refs/range, any history, and
-   whether distributed-build source matches the tag source.
-3. **Serious findings:** trigger, affected users/data, impact, retained/lost recovery
-   sources, evidence, missing evidence, and recommended checks or remedies.
-4. **Awareness and confirmation items:** concrete old/new raw values (including
-   unchanged relevant values), introduction/shipping status, consumers, applicable
-   contract classes, migration/user-guidance burden, future compatibility and
-   retirement responsibility, evidence, and what remains unverified. Specify whether
-   the candidate retains, replaces with an alias/reader, or retires old metadata and
-   readers. A retirement record alone does not establish state regeneration.
-5. **Unverified items:** the specific missing evidence and its effect on the judgment.
+### Check serious consequences and calibrate risk
 
-Keep technical verification separate from personal acknowledgment. Mark personal
-awareness as explicitly evidenced or unconfirmed; `ADR Accepted`, account identity,
-or commit authorship alone is not evidence of the user's approval. Report concrete
-recognition items instead of asking many questions or making all replies mandatory.
+- Surface loss or corruption of long-term users' primary data first when present.
+  Trace original stores, required sidecars, backups, and other viable copies,
+  including pending mutations saved after a failed operation. Reader rejection,
+  a recoverable crash, lost screen selection, and loss of all copies are distinct.
+- Ordinary version/build increments contribute zero; migration or format consumers
+  of those values and co-located contract changes remain separate effects.
+- Retain category maxima and small independent breadth modifiers; count a cause
+  once. Explain contextual adjustments briefly. Heuristic scores cap at 95;
+  reserve 100 for separately substantiated catastrophic loss.
+- Bands remain `80-100=Block`, `60-79=Hold for review`,
+  `40-59=Proceed with caution`, `20-39=Review recommended`, `0-19=Proceed`.
+  Zero means no scored signal, not verified safety. Unknown evidence or a new
+  contract alone does not prohibit release.
+
+## Compact report
+
+Respond in the conversation's language. Lead with answers, not the score or a
+chronological account of the investigation. Default to a short paragraph and
+roughly three to five bullets, or a small table if comparison is clearer:
+
+- **New contracts and appropriateness:** what was added, whether it is appropriate,
+  and the reason or concrete unresolved decision.
+- **Existing contracts:** what is preserved and any actual change, retirement,
+  broken interpretation, or required fallback.
+- **Attention needed:** only material risk or missing evidence that affects those
+  judgments. Put a serious primary-data finding first if present.
+
+Use `none found in the reviewed scope` or `unverified` where supported; do not
+claim absence from a detector miss. Group unchanged areas in one sentence. Include
+only decisive raw values and a few direct source links; retain the rest as working
+evidence. Name unfamiliar technology and explain its consequence in one plain
+sentence. For a format change, briefly identify what old and new data represent;
+distinguish transport dictionary keys from actual persisted keys. Keep scope to one
+line and a score/band, if reporting one, to one supporting line. Honor a request
+limited to contracts without adding general build, UI, or CI summaries.
+
+Do not paste the detector report, exhaustive key/schema/path lists, score
+breakdowns, all commits/files, repeated unverified boilerplate, or every possible
+confirmation item. Brevity comes from grouping and selecting evidence, not from
+skipping investigation or hiding an independent serious finding. Report
+independent contract additions or retirements even when their score is low or zero;
+group related details rather than silently omitting them. The user should not need
+to ask about UserDefaults or routes to discover an omitted contract surface, or
+read a full diff to find the conclusion. Expand only the requested detail on
+follow-up; do not replace the compact judgment with a full dump.
+
+Separate technical evidence from personal acknowledgment. Do not infer the
+user's approval from ADR status or authorship, or turn awareness into mandatory
+questions. Mention acknowledgment only when it affects the requested judgment.
 
 ## Verification
 
-- Check the intended range and ref-specific source, mixed version changes, raw-value
-  equality, contract classes, recovery distinctions, and independent scoring.
-- Separate detection candidates, confirmed defects, completed verification, and
-  remaining uncertainty. A source diff cannot prove distribution readiness.
-- Preserve `risk_diff_snippets` in JSON and relevant snippets in Markdown.
-- Use `--verbose` only when full file/commit listings help the review.
-- When maintaining this skill, run its Git-fixture behavior tests and the repository
-  verification contract. Tests should verify decisions and read-only behavior, not
-  merely expected wording.
+- Check ref-specific values, raw-value equality, purpose and lifetime, legacy
+  readers/aliases, recovery distinctions, and independent scoring.
+- Separate detection candidates, confirmed defects, completed checks, and
+  material uncertainty. A source review does not prove distribution readiness.
+- Preserve JSON evidence and `risk_diff_snippets`; use short relevant excerpts
+  only when needed to explain a conclusion.
+- When maintaining this skill, run its Git-fixture behavior tests and the
+  repository verification contract. Verify observable behavior and read-only
+  invariants rather than expected prose.
