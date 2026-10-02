@@ -449,6 +449,45 @@ class RunnerTests(unittest.TestCase):
         with patch.object(runner.shutil, 'which', return_value=None):
             self.assertIn('2.1.10/', runner.executable(desktop_root=root))
 
+    def test_hashed_desktop_runtime_and_legacy_fallback(self):
+        root = self.root / 'desktop'
+        legacy = root / '2.1.9/claude.app/Contents/MacOS/claude'
+        hashed = root / '2.1.10/f2326db61802/claude.app/Contents/MacOS/claude'
+        for binary in (legacy, hashed):
+            binary.parent.mkdir(parents=True)
+            binary.write_text('fixture; never executed')
+            binary.chmod(0o700)
+        with patch.object(runner.shutil, 'which', return_value=None):
+            self.assertEqual(runner.executable(desktop_root=root), str(hashed.resolve()))
+            hashed.chmod(0o600)
+            self.assertEqual(runner.executable(desktop_root=root), str(legacy.resolve()))
+
+    def test_desktop_discovery_does_not_recurse_arbitrary_directories(self):
+        root = self.root / 'desktop'
+        for relative in ('latest/f2326db61802', '2.1.10/arbitrary',
+                         '2.1.10/f2326db61802/nested'):
+            binary = root / relative / 'claude.app/Contents/MacOS/claude'
+            binary.parent.mkdir(parents=True)
+            binary.write_text('fixture; never executed')
+            binary.chmod(0o700)
+        with patch.object(runner.shutil, 'which', return_value=None):
+            with self.assertRaises(runner.Refusal):
+                runner.executable(desktop_root=root)
+
+    def test_explicit_and_path_runtimes_precede_desktop_discovery(self):
+        missing_root = self.root / 'missing-desktop'
+        with patch.object(runner.shutil, 'which', return_value=str(self.fake)) as lookup:
+            self.assertEqual(runner.executable('requested-cli', missing_root),
+                             str(self.fake.resolve()))
+            lookup.assert_called_once_with('requested-cli')
+        with patch.object(runner.shutil, 'which', return_value=str(self.fake)) as lookup:
+            self.assertEqual(runner.executable(desktop_root=missing_root),
+                             str(self.fake.resolve()))
+            lookup.assert_called_once_with('claude')
+        with patch.object(runner.shutil, 'which', return_value=None):
+            with self.assertRaises(runner.Refusal):
+                runner.executable('missing-explicit', missing_root)
+
 
 if __name__ == '__main__':
     unittest.main()

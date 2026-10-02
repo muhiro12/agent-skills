@@ -23,8 +23,10 @@ python3 <skill-root>/scripts/claude_runner.py probe --checkout <checkout>
 ```
 
 The helper uses an explicit `--claude-bin` first, then `claude` on PATH, then the
-newest numeric macOS Desktop runtime under the current user's Application
-Support directory. Desktop discovery is a local compatibility adapter, not a
+newest executable numeric macOS Desktop runtime under the current user's
+Application Support directory, supporting both a direct `claude.app` bundle
+and one hexadecimal build-hash directory before that bundle. Desktop discovery
+is a local compatibility adapter, not a
 vendor-guaranteed installation path. It never installs a CLI or falls back to
 an older version on failure. Inspect `probe` before proceeding after an update.
 `--max-turns` is documented but may be absent from the CLI's visible help.

@@ -109,9 +109,15 @@ def executable(explicit=None, desktop_root=None):
     candidates = []
     if root.is_dir():
         for folder in root.iterdir():
-            binary = folder / 'claude.app/Contents/MacOS/claude'
-            if re.fullmatch(r'\d+(?:\.\d+)*', folder.name) and binary.is_file() and os.access(binary, os.X_OK):
-                candidates.append((tuple(map(int, folder.name.split('.'))), binary))
+            if not folder.is_dir() or not re.fullmatch(r'\d+(?:\.\d+)*', folder.name):
+                continue
+            bundles = [folder / 'claude.app']
+            bundles.extend(build / 'claude.app' for build in folder.iterdir()
+                           if build.is_dir() and re.fullmatch(r'[0-9a-f]{8,64}', build.name))
+            for bundle in bundles:
+                binary = bundle / 'Contents/MacOS/claude'
+                if binary.is_file() and os.access(binary, os.X_OK):
+                    candidates.append((tuple(map(int, folder.name.split('.'))), binary))
     if not candidates:
         raise Refusal('no Claude CLI found; use --claude-bin')
     # Desktop discovery is a local adapter, not an official stable path contract.
