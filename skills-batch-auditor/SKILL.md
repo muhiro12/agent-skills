@@ -110,7 +110,10 @@ Compare each relevant skill against:
 
 Do not merge skills solely because they share words such as verify, CI, HIG, or
 repository. A live UI audit, Preview capture, static risk scan, and distribution
-check prove different things. Keep useful boundaries; remove duplicated
+check prove different things. The helper derives merge vocabulary from the name,
+first description sentence, and explicit purpose/trigger sections, excluding
+general procedure and reporting text. Its suggestions still require checking the actual guarantees
+and callers. Keep useful boundaries; remove duplicated
 routing. Do not build cross-agent compatibility layers without a concrete current
 consumer. Portable English definitions and Git history can remain useful alone.
 

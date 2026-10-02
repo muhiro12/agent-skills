@@ -760,6 +760,60 @@ description: >-
             [],
         )
 
+    def test_shared_procedure_does_not_merge_distinct_purposes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = root / "repo"
+            repo.mkdir()
+            skills = root / "skills"
+            for name, description, trigger in (
+                ("swift-concurrency", "Review Swift APIs and concurrency ownership.", ""),
+                ("hig-navigation", "Use when reviewing Apple UI navigation and accessibility.",
+                 "## Trigger Conditions\n\nReview reusable Apple UI navigation decisions.\n\n"),
+            ):
+                skill = self._write_minimal_skill(skills, name)
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\ndescription: {description}\n---\n\n"
+                    f"# {name}\n\n{trigger}## Apply and Review\n\n"
+                    "Read the rubric and checklist; inspect diagnostics and evidence.\n"
+                    "Check compiler, toolchain, screenshots, and sources as relevant.\n"
+                    "Report findings without changing code.\n"
+                )
+            payload = self._run_json_with_roots(repo, skills)
+        for name in ("swift-concurrency", "hig-navigation"):
+            item = self._find_report_item(payload, name)
+            self.assertEqual(item["merge_target"], "")
+            self.assertEqual(item["merge_shared_keywords"], [])
+            self.assertNotEqual(item["recommended_action"], "merge with another skill")
+
+    def test_shared_invocation_policy_does_not_merge_capture_and_query(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = root / "repo"
+            repo.mkdir()
+            skills = root / "skills"
+            policy = ("Use only when the user explicitly invokes this skill; do not invoke "
+                      "implicitly for natural-language archive requests or ordinary notes.")
+            for name, purpose in (
+                ("context-capture", "Save supplied conversations or manual notes as near-raw Markdown evidence in a local context archive."),
+                ("context-consult", "Search and read local context archives to produce cited context packs from prior near-raw evidence and derived notes."),
+            ):
+                skill = self._write_minimal_skill(skills, name)
+                (skill / "SKILL.md").write_text(
+                    f"---\nname: {name}\ndescription: {purpose} {policy}\n---\n\n"
+                    f"# {name}\n\nReturn findings in concise Japanese.\n"
+                )
+            payload = self._run_json_with_roots(repo, skills)
+        for name in ("context-capture", "context-consult"):
+            self.assertEqual(self._find_report_item(payload, name)["merge_target"], "")
+
+    def test_real_duplicate_keeps_purpose_keywords_as_merge_evidence(self) -> None:
+        payload = self._run_json("without_ci", "prioritization")
+        item = self._find_report_item(payload, "internal-fixture-overview-refresh-skill")
+        self.assertEqual(item["merge_target"], "internal-fixture-overview-sync-skill")
+        self.assertIn("overview", item["merge_shared_keywords"])
+        self.assertIn("notes", item["merge_shared_keywords"])
+
 
 if __name__ == "__main__":
     unittest.main()

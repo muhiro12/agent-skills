@@ -117,6 +117,7 @@ MERGE_STOPWORDS = {
     "convention",
     "conventions",
     "coverage",
+    "create",
     "custom",
     "default",
     "drift",
@@ -124,9 +125,11 @@ MERGE_STOPWORDS = {
     "entrypoints",
     "existing",
     "fixture",
+    "fix",
     "for",
     "from",
     "guidance",
+    "guardian",
     "hook",
     "hooks",
     "implement",
@@ -139,6 +142,7 @@ MERGE_STOPWORDS = {
     "maintenance",
     "multiple",
     "naming",
+    "near",
     "newest",
     "older",
     "only",
@@ -146,6 +150,7 @@ MERGE_STOPWORDS = {
     "polite",
     "prompt",
     "push",
+    "raw",
     "read",
     "repo",
     "report",
@@ -189,6 +194,7 @@ MERGE_STOPWORDS = {
     "update",
     "updates",
     "use",
+    "using",
     "verify",
     "verification",
     "when",
@@ -1440,9 +1446,26 @@ def classify_skill(scores: dict[str, int], status: str) -> str:
 
 
 def extract_skill_keywords(skill: SkillRecord) -> set[str]:
+    # Shared execution/reporting boilerplate is not evidence of shared purpose.
+    # Later description sentences often repeat invocation/privacy policy.
+    purpose_description = re.split(r"[.!?](?:\s|$)", skill.description, maxsplit=1)[0]
+    purpose_text = [skill.name, purpose_description]
+    purpose_level = None
+    for line in skill.instructions.splitlines():
+        heading = re.match(r"^(#{1,6})\s+(.+?)\s*#*\s*$", line)
+        if heading:
+            level = len(heading.group(1))
+            title = heading.group(2).strip().lower()
+            if re.fullmatch(r"purpose|when to use(?: this skill)?|trigger(?: conditions)?", title):
+                purpose_level = level
+            elif purpose_level is not None and level <= purpose_level:
+                purpose_level = None
+            continue
+        if purpose_level is not None:
+            purpose_text.append(line)
     raw_tokens = re.findall(
         r"[a-z0-9][a-z0-9-]{2,}",
-        f"{skill.name} {skill.description} {skill.instructions}".lower(),
+        "\n".join(purpose_text).lower(),
     )
 
     keywords: set[str] = set()
