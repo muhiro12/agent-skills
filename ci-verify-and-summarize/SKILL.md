@@ -68,6 +68,49 @@ and perform the same evidence/diff review. Do not create a compatibility wrapper
 just for this skill. If no reliable verification can be derived, report that
 limit and continue the useful diff review instead of inventing a gate.
 
+## Retained Evidence and Explicit Zero Diagnostics
+
+For a push policy that requires zero errors and warnings, opt in explicitly:
+
+```bash
+bash /path/to/ci-verify-and-summarize/scripts/run_verify_and_summarize.sh \
+  --evidence-dir /private/new-run-directory \
+  --require-clean-diagnostics -- bash ci_scripts/tasks/check_repository_rules.sh
+```
+
+For another documented command form, pass an explicit argv with
+`--tool xcrun xcodebuild <documented arguments>` (or the selected scanner/tool).
+This runs the selected command directly, without shell evaluation or a new
+repository wrapper. Never select formatting, deployment, or mutation as a check.
+
+Use a new directory with an existing parent. The helper retains complete captured
+stdout/stderr, current-run regular diagnostic logs, their hashes, source
+commit/tree and before/after worktree state, command argv/exit, environment,
+and every recognized diagnostic in `result.json`. Files are private (0600,
+directory 0700); the directory is never overwritten. This is execution evidence,
+not a publication receipt or independent proof of authenticity.
+
+The zero-diagnostics option fails on captured errors or warnings, including
+existing and external ones. Ordinary invocation preserves the command's result.
+Brief output remains a summary; retained diagnostics are not limited to samples.
+Diagnostic matching covers textual `warning:`/`error:`, bracketed diagnostics,
+and JSON severity fields. It cannot establish that a tool exposed all native
+issues. Retrieve complete native build/test issues and result bundles separately;
+never infer zero issues from truncated output or a tool's connection state.
+
+A diff-only record says `not_run`. A changed or dirty source snapshot is recorded
+as unsuitable for clean-commit evidence. Test summaries recognize captured
+XCTest, Swift Testing, and unittest completion; missing test counts and skipped
+required tests need separate verification. Do not use a successful lint or
+fixture run as app build or library-test evidence.
+
+Keep retained logs outside committed content, redact sensitive findings in the
+user report, and preserve relevant scheme/destination/toolchain/test-plan and
+resolved-dependency context for native evidence. Reuse evidence only after
+checking the same inputs and environment; publication review must still cover
+new outgoing history. Same-user records and hashes can be forged, so a receipt
+checker detects missing/mismatched evidence rather than proving execution.
+
 ## Current Execution Evidence
 
 Keep shell exit status/output, Xcode build/test results, and runtime/UI evidence

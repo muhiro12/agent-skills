@@ -191,6 +191,12 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
     def _run_helper(self, repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment["TMPDIR"] = str(repo_root)
+        if "--evidence-dir" in args:
+            # Apple's Python launcher may create Xcode lookup files in TMPDIR.
+            # Keep fixture infrastructure outside the verified source tree.
+            private_temporary = repo_root / ".git/helper-tmp"
+            private_temporary.mkdir(exist_ok=True)
+            environment["TMPDIR"] = str(private_temporary)
         return subprocess.run(
             ["bash", str(SCRIPT_PATH), *args],
             capture_output=True,
@@ -659,6 +665,146 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
                 self.assertFalse((root / "verification-ran").exists())
             self.assertEqual(completed.returncode, 1)
             self.assertIn("symlink", completed.stdout)
+
+    def test_full_diagnostics_are_retained_and_strict_mode_rejects_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\nfor n in 1 2 3 4 5 6; do echo \"Sources/A.swift:$n: warning: issue $n\"; done\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--require-clean-diagnostics", "--", "bash", "scripts/check.sh")
+            import json
+            record = json.loads((evidence / "result.json").read_text())
+            raw = (evidence / "output.log").read_text()
+            self.assertEqual(record["diagnostics"]["warning_count"], 6)
+            self.assertEqual(len(record["diagnostics"]["warnings"]), 6)
+            self.assertIn("issue 6", raw)
+            self.assertEqual(record["verification"]["status"], "failed")
+            self.assertEqual((evidence / "result.json").stat().st_mode & 0o777, 0o600)
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+
+    def test_retained_success_records_real_command_source_and_tests(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\necho 'Executed 2 tests, with 0 failures'\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--require-clean-diagnostics", "--", "bash", "scripts/check.sh")
+            import json, hashlib
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertTrue(record["source"]["stable_clean_snapshot"])
+            self.assertEqual(record["verification"]["argv"], ["bash", "scripts/check.sh"])
+            self.assertEqual(record["tests"]["executed"], 2)
+            self.assertEqual(record["artifacts"][0]["sha256"],
+                hashlib.sha256((evidence / "output.log").read_bytes()).hexdigest())
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_mutation_during_check_is_not_clean_source_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_text(root / "source.txt", "before\n")
+            self._write_executable(root / "scripts/check.sh", "#!/bin/bash\necho after >> source.txt\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--", "bash", "scripts/check.sh")
+            import json
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertFalse(record["source"]["stable_clean_snapshot"])
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_successful_run_log_warning_is_not_missed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\nmkdir -p .build/ci/runs/new/logs\n"
+                "echo '{\"result\":\"success\"}' > .build/ci/runs/new/meta.json\n"
+                "echo 'warning: retained build warning' > .build/ci/runs/new/logs/build.log\n")
+            self._commit_all(root, "Initial")
+            completed = self._run_helper(root, "--require-clean-diagnostics", "--", "bash", "scripts/check.sh")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("retained build warning", completed.stdout)
+
+    def test_diff_only_record_is_not_verification_success(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_text(root / "README.md", "base\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence), "--diff-only")
+            import json
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["verification"]["status"], "not_run")
+            self.assertIsNone(record["verification"]["exit_code"])
+            self.assertFalse(record["diagnostics"]["complete_captured_output"])
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_evidence_directory_is_not_overwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", "#!/bin/bash\nexit 0\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            evidence.mkdir()
+            (evidence / "sentinel").write_text("preserve")
+            completed = self._run_helper(root, "--evidence-dir", str(evidence), "--", "bash", "scripts/check.sh")
+            self.assertEqual((evidence / "sentinel").read_text(), "preserve")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+
+    def test_direct_tool_preserves_argv_and_retains_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_text(root / "README.md", "base\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            payload = "$(touch injected); literal argument"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--require-clean-diagnostics", "--tool", "python3", "-c",
+                "import sys; print(sys.argv[1])", payload)
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["verification"]["argv"][-1], payload)
+            self.assertFalse((root / "injected").exists())
+            self.assertIn(payload, (evidence / "output.log").read_text())
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_skipped_tests_are_retained_for_push_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\necho 'Test Case example skipped'\necho 'Executed 2 tests, with 0 failures'\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence), "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["skipped"], 1)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_swift_testing_is_recorded_after_empty_xctest_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\necho 'Executed 0 tests, with 0 failures'\n"
+                "echo 'Test run with 3 tests passed after 0.01 seconds'\n")
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence), "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["executed"], 3)
+            self.assertEqual(record["tests"]["skipped"], 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
 if __name__ == "__main__":
     unittest.main()

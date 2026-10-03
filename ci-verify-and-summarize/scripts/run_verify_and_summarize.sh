@@ -91,23 +91,34 @@ detect_verify_entrypoint() {
 
 }
 
-verify_output="$(mktemp "${TMPDIR:-/tmp}/ci_verify_and_summarize.XXXXXX")"
-
-cleanup_verify_output() {
-  rm -f -- "$verify_output"
-}
-
-trap cleanup_verify_output EXIT
-
 diff_only=false
 explicit_command=false
+explicit_tool=false
+evidence_directory=""
+require_clean_diagnostics=false
 verify_argv=()
 usage() {
-  echo "Usage: bash run_verify_and_summarize.sh [--diff-only | -- bash <repository-script> [args...]]" >&2
+  echo "Usage: bash run_verify_and_summarize.sh [--evidence-dir <new-directory>] [--require-clean-diagnostics] [--diff-only | -- bash <repository-script> [args...] | --tool <command> [args...]]" >&2
 }
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --evidence-dir)
+      [ "$#" -ge 2 ] && [ -n "$2" ] || { usage; exit 2; }
+      evidence_directory="$2"; shift 2 ;;
+    --require-clean-diagnostics) require_clean_diagnostics=true; shift ;;
+    *) break ;;
+  esac
+done
 case "${1:-}" in
   "") ;;
   --diff-only) diff_only=true; shift ;;
+  --tool)
+    shift
+    [ "$#" -ge 1 ] && [ -n "$1" ] || { usage; exit 2; }
+    explicit_tool=true
+    verify_argv=("$@")
+    shift "$#"
+    ;;
   --)
     shift
     if [ "$#" -lt 2 ] || [ "$1" != bash ] || [ -z "$2" ]; then
@@ -126,9 +137,46 @@ fi
 repository_root=$(git rev-parse --show-toplevel) || exit 1
 cd "$repository_root"
 
+source_snapshot() {
+  python3 - "${verify_output:-}" <<'PY'
+import hashlib
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+def git(*args):
+    result = subprocess.run(["git", *args], capture_output=True)
+    return result.stdout if result.returncode == 0 else b""
+
+args = ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."]
+if sys.argv[1]:
+    try:
+        relative = Path(sys.argv[1]).resolve().relative_to(Path.cwd().resolve())
+        args.append(":(exclude,literal)" + str(relative))
+    except ValueError:
+        pass
+status_result = subprocess.run(["git", *args], capture_output=True)
+status = status_result.stdout
+head = git("rev-parse", "HEAD").decode().strip()
+tree = git("rev-parse", "HEAD^{tree}").decode().strip()
+print(json.dumps({"head": head, "tree": tree,
+                  "clean": status_result.returncode == 0 and bool(head and tree) and not status,
+                  "status_sha256": hashlib.sha256(status).hexdigest()}))
+PY
+}
+source_before_json="$(source_snapshot)"
+verify_output="$(mktemp "${TMPDIR:-/tmp}/ci_verify_and_summarize.XXXXXX")"
+cleanup_verify_output() {
+  rm -f -- "$verify_output"
+}
+trap cleanup_verify_output EXIT
+
 run_base=".build/ci/runs"
 verify_entrypoint=""
-if [ "$explicit_command" = true ]; then
+if [ "$explicit_tool" = true ]; then
+  verify_entrypoint="${verify_argv[0]}"
+elif [ "$explicit_command" = true ]; then
   verify_entrypoint="${verify_argv[1]}"
 elif [ "$diff_only" = false ]; then
   verify_entrypoint="$(detect_verify_entrypoint)"
@@ -165,6 +213,8 @@ printf -v verify_command '%q ' "${verify_argv[@]}"
 verify_command="${verify_command% }"
 
 set +e
+verify_exit=0
+if [ "$explicit_tool" = false ]; then
 python3 - "$verify_entrypoint" >"$verify_output" 2>&1 <<'PY'
 import sys
 from pathlib import Path
@@ -181,6 +231,7 @@ except ValueError:
     raise SystemExit(1)
 PY
 verify_exit=$?
+fi
 if [ "$verify_exit" -eq 0 ]; then
   "${verify_argv[@]}" >>"$verify_output" 2>&1
   verify_exit=$?
@@ -216,12 +267,26 @@ fi
 
 fi
 
+source_after_json="$(source_snapshot)"
+verify_argv_json="[]"
+if [ -n "$verify_entrypoint" ]; then
+  verify_argv_json="$(python3 - "${verify_argv[@]}" <<'PYARGV'
+import json
+import sys
+print(json.dumps(sys.argv[1:]))
+PYARGV
+)"
+fi
 set +e
-python3 - "$latest_run" "$run_dir" "$verify_exit" "$verify_command" "$verify_output" "$run_is_new" "$run_base" "$run_selection_error" "$verification_ran" <<'PY'
+python3 - "$latest_run" "$run_dir" "$verify_exit" "$verify_command" "$verify_output" "$run_is_new" "$run_base" "$run_selection_error" "$verification_ran" "$evidence_directory" "$require_clean_diagnostics" "$source_before_json" "$source_after_json" "$verify_argv_json" <<'PY'
 from __future__ import annotations
 
 import json
+import hashlib
+import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -340,29 +405,40 @@ def resolve_failed_log(
     return resolved_candidate, ""
 
 
-def collect_warning_samples(*paths: Path | None) -> list[str]:
-    samples: list[str] = []
-    seen: set[str] = set()
-
+def collect_diagnostics(paths: list[Path]) -> dict[str, list[dict[str, object]]]:
+    result: dict[str, list[dict[str, object]]] = {"warning": [], "error": []}
+    pattern = re.compile(r'\b(warning|error)\s*:|\[(warning|error)\]|"severity"\s*:\s*"(warning|error)"', re.IGNORECASE)
     for path in paths:
-        if path is None or not path.is_file():
-            continue
+        for line_number, line in enumerate(read_text(path).splitlines(), 1):
+            match = pattern.search(line)
+            if match:
+                kind = next(group.lower() for group in match.groups() if group)
+                result[kind].append({"source": path.name, "line": line_number, "text": line})
+    return result
 
-        for raw_line in read_text(path).splitlines():
-            cleaned = " ".join(raw_line.split())
-            lower = cleaned.lower()
-            if "warning" not in lower:
-                continue
-            if "no warning" in lower or "0 warning" in lower:
-                continue
-            if cleaned in seen:
-                continue
-            seen.add(cleaned)
-            samples.append(cleaned[:160])
-            if len(samples) >= 3:
-                return samples
 
-    return samples
+def current_diagnostic_logs(run_dir: Path | None) -> tuple[list[Path], list[str]]:
+    paths: list[Path] = []
+    errors: list[str] = []
+    if run_dir is None:
+        return paths, errors
+    logs = run_dir / "logs"
+    if not logs.exists() and not logs.is_symlink():
+        return paths, errors
+    if logs.is_symlink() or not logs.is_dir():
+        return paths, ["選択RUNのlogsが通常directoryではありません。"]
+    for parent, directories, files in os.walk(logs, followlinks=False):
+        for name in list(directories):
+            if (Path(parent) / name).is_symlink():
+                errors.append("選択RUNのlogsにsymlink directoryがあります。")
+                directories.remove(name)
+        for name in files:
+            path = Path(parent) / name
+            if path.is_symlink() or not path.is_file():
+                errors.append("選択RUNのlogsに通常fileでないentryがあります。")
+            elif path.suffix in {".log", ".txt"}:
+                paths.append(path)
+    return sorted(paths), errors
 
 
 def warning_looks_external(sample: str) -> bool:
@@ -485,6 +561,11 @@ def limit_lines(lines: list[str], limit: int) -> list[str]:
     run_selection_error,
     verification_ran_arg,
 ) = sys.argv[1:10]
+evidence_directory_arg, strict_arg, before_arg, after_arg = sys.argv[10:14]
+verify_argv = json.loads(sys.argv[14])
+require_clean_diagnostics = strict_arg == "true"
+source_before = json.loads(before_arg)
+source_after = json.loads(after_arg)
 verification_ran = verification_ran_arg == "true"
 latest_run = latest_run_arg or "(なし)"
 run_dir, run_dir_error = resolve_run_directory(run_dir_arg, run_base_arg)
@@ -524,7 +605,17 @@ if verify_failed:
         artifact_integrity_errors.append(failed_log_error)
 missing_run = run_dir is None
 
-warning_samples = collect_warning_samples(verify_output, resolved_failed_log)
+diagnostic_paths = [verify_output]
+if resolved_failed_log is not None:
+    diagnostic_paths.append(resolved_failed_log)
+extra_logs, diagnostic_log_errors = current_diagnostic_logs(run_dir)
+artifact_integrity_errors.extend(diagnostic_log_errors)
+diagnostic_paths = list(dict.fromkeys([*diagnostic_paths, *extra_logs]))
+diagnostics = collect_diagnostics(diagnostic_paths)
+warning_samples = list(dict.fromkeys(str(item["text"]) for item in diagnostics["warning"]))
+diagnostics_failed = require_clean_diagnostics and (
+    not verification_ran or bool(diagnostics["warning"] or diagnostics["error"])
+)
 git_state = collect_git_state()
 all_files = git_state.get("all_files", [])
 repo_warning_samples = [
@@ -585,9 +676,77 @@ if not bool(git_state.get("available")):
     evidence_errors.append("git diff / staged diff を確認できません。")
 
 result_label = "✅ success" if verification_ran else "未実行 (diffのみ)"
-if verify_failed or evidence_errors:
+if verify_failed or evidence_errors or diagnostics_failed:
     result_label = "❌ failure"
+report_exit = verify_exit or (1 if meta_says_failure or evidence_errors or diagnostics_failed else 0)
+evidence_path = None
+if evidence_directory_arg:
+    try:
+        directory = Path(evidence_directory_arg).absolute()
+        if directory.exists() or directory.is_symlink():
+            raise ValueError("evidence directory already exists; select a new directory")
+        directory.mkdir(mode=0o700)
+        artifacts = []
+        for index, path in enumerate(diagnostic_paths):
+            name = "output.log" if index == 0 else f"diagnostic-{index}.log"
+            target = directory / name
+            shutil.copyfile(path, target)
+            target.chmod(0o600)
+            artifacts.append({"path": name, "sha256": hashlib.sha256(target.read_bytes()).hexdigest()})
+        record = {
+            "schema_version": 1,
+            "producer": "ci-verify-and-summarize",
+            "source": {"before": source_before, "after": source_after,
+                       "stable_clean_snapshot": source_before == source_after and source_before["clean"]},
+            "environment": {"platform": platform.platform(), "python": platform.python_version(),
+                            "git": (run_command(["git", "--version"]) or "unavailable").strip()},
+            "verification": {"ran": verification_ran, "argv": verify_argv,
+                             "exit_code": verify_exit if verification_ran else None,
+                             "status": "not_run" if not verification_ran else ("passed" if report_exit == 0 else "failed")},
+            "diagnostics": {"scope": "captured stdout/stderr and current-run diagnostic logs; not hidden native issues",
+                            "complete_captured_output": verification_ran and not evidence_errors,
+                            "warning_count": len(diagnostics["warning"]), "error_count": len(diagnostics["error"]),
+                            "warnings": diagnostics["warning"], "errors": diagnostics["error"]},
+            "artifacts": artifacts,
+            "evidence_errors": evidence_errors,
+        }
+        for tool, arguments in (("xcodebuild", ["xcodebuild", "-version"]),
+                                ("swift", ["swift", "--version"])):
+            if shutil.which(tool):
+                record["environment"][tool] = (run_command(arguments) or "unavailable").strip()
+        record["environment"]["developer_dir"] = os.environ.get("DEVELOPER_DIR", "default selection")
+        test_text = "\n".join(read_text(path) for path in diagnostic_paths)
+        summaries = re.findall(r"Executed (\d+) tests?[^\n]*?with (\d+) failures?", test_text)
+        swift_summaries = re.findall(r"Test run with (\d+) tests?[^\n]*?passed", test_text)
+        python_summary = re.search(r"Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", test_text)
+        if summaries:
+            executed, failed = map(int, summaries[-1])
+            if swift_summaries:
+                executed += int(swift_summaries[-1])
+            record["tests"] = {"executed": executed, "failed": failed,
+                               "scope": "captured XCTest and Swift Testing summaries; required targets need separate review"}
+        elif swift_summaries:
+            record["tests"] = {"executed": int(swift_summaries[-1]), "failed": 0,
+                               "scope": "last captured Swift Testing summary; skips require separate review"}
+        elif python_summary:
+            record["tests"] = {"executed": int(python_summary.group(1)), "failed": 0,
+                               "scope": "captured unittest OK summary"}
+        if "tests" in record:
+            skipped = re.findall(r"Test Case[^\n]*\bskipped\b|Test [^\n]*\bskipped after\b|skipped=(\d+)", test_text)
+            record["tests"]["skipped"] = sum(int(value) if value else 1 for value in skipped)
+        evidence_path = directory / "result.json"
+        evidence_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        evidence_path.chmod(0o600)
+    except (OSError, ValueError) as error:
+        print(f"証拠保存の問題: {error}")
+        report_exit = report_exit or 1
+        result_label = "❌ failure"
 print(f"結果: {result_label}")
+print(f"captured diagnostics: errors={len(diagnostics['error'])}, warnings={len(diagnostics['warning'])}; scope=captured output/current RUN logs")
+if evidence_path is not None:
+    print(f"保存した実行証拠: {evidence_path}")
+if diagnostics_failed:
+    print("要求したerror/warningゼロの検証は未完了です。")
 print(f"実行コマンド: {verify_command}; exit={verify_exit if verification_ran else '(未実行)'}")
 print(f"最新RUN: {latest_run}")
 print("要約:")
@@ -608,7 +767,7 @@ if verify_failed:
     for line in load_verify_output_lines(verify_output):
         print(line)
 print("release riskと公開可否はこのhelperの判定対象外です。")
-raise SystemExit(verify_exit or (1 if meta_says_failure or evidence_errors else 0))
+raise SystemExit(report_exit)
 
 PY
 report_exit=$?
