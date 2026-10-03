@@ -94,14 +94,22 @@ The zero-diagnostics option fails on captured errors or warnings, including
 existing and external ones. Ordinary invocation preserves the command's result.
 Brief output remains a summary; retained diagnostics are not limited to samples.
 Diagnostic matching covers textual `warning:`/`error:`, bracketed diagnostics,
-and JSON severity fields. It cannot establish that a tool exposed all native
+and JSON severity fields. Complete Swift Testing start/pass progress records
+are excluded from diagnostic matching because test identifiers/descriptions can
+contain diagnostic words. Their raw output is retained. Failure records and
+runtime logs still require review; expected negative-test logs are not silently
+exempted. Text matching cannot establish that a tool exposed all native
 issues. Retrieve complete native build/test issues and result bundles separately;
 never infer zero issues from truncated output or a tool's connection state.
 
 A diff-only record says `not_run`. A changed or dirty source snapshot is recorded
 as unsuitable for clean-commit evidence. Test summaries recognize captured
-XCTest, Swift Testing, and unittest completion; missing test counts and skipped
-required tests need separate verification. Do not use a successful lint or
+XCTest, Swift Testing, and unittest completion. Counts come from command output
+once, excluding mirrored RUN logs. Independent top-level XCTest and Swift
+Testing completions are added; nested XCTest totals are excluded. A terse
+XCTest output without top-level markers uses only its final summary and says so.
+Required targets, missing counts, failed Swift Testing runs, and skipped tests
+need separate native evidence review. Do not use a successful lint or
 fixture run as app build or library-test evidence.
 
 Keep retained logs outside committed content, redact sensitive findings in the

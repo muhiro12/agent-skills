@@ -408,12 +408,57 @@ def resolve_failed_log(
 def collect_diagnostics(paths: list[Path]) -> dict[str, list[dict[str, object]]]:
     result: dict[str, list[dict[str, object]]] = {"warning": [], "error": []}
     pattern = re.compile(r'\b(warning|error)\s*:|\[(warning|error)\]|"severity"\s*:\s*"(warning|error)"', re.IGNORECASE)
+    # Swift Testing prints function argument labels and descriptions in progress
+    # records. Match only complete start/pass records; failures and other logs
+    # still need diagnostic review, and the original output is always retained.
+    progress = re.compile(
+        r'^[\s\u200b]*[◇✔]\s+(?:Test|Suite)\s+.+\s'
+        r'(?:started\.|passed(?: after [0-9.]+ seconds)?\.)$'
+    )
     for path in paths:
         for line_number, line in enumerate(read_text(path).splitlines(), 1):
+            if progress.fullmatch(line):
+                continue
             match = pattern.search(line)
             if match:
                 kind = next(group.lower() for group in match.groups() if group)
                 result[kind].append({"source": path.name, "line": line_number, "text": line})
+    return result
+
+
+def collect_test_summaries(text: str) -> dict[str, object] | None:
+    # Read command output once: RUN logs can mirror it and would double counts.
+    # XCTest emits nested suite totals; only each top-level All tests completion
+    # is additive. Preserve the legacy final-summary fallback for terse tools.
+    xctest = re.findall(
+        r"Test Suite ['\"]All tests['\"] (?:passed|failed)[^\n]*\n"
+        r"[^\n]*?Executed (\d+) tests?[^\n]*?with (\d+) failures?", text
+    )
+    fallback = False
+    if not xctest:
+        summaries = re.findall(r"Executed (\d+) tests?[^\n]*?with (\d+) failures?", text)
+        xctest = summaries[-1:]
+        fallback = bool(xctest)
+    swift = re.findall(
+        r"^[ \t\u200b]*(?:✔[ \t]+)?Test run with (\d+) tests?[^\n]*?passed", text, re.MULTILINE
+    )
+    python = re.search(r"Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", text)
+    if xctest or swift:
+        result = {
+            "executed": sum(int(count) for count, _ in xctest) + sum(map(int, swift)),
+            "failed": sum(int(count) for _, count in xctest),
+            "summary_count": len(xctest) + len(swift),
+            "scope": "captured command output: top-level XCTest and Swift Testing completions; required targets need separate review",
+        }
+        if fallback:
+            result["scope"] += "; XCTest used only the final terse summary"
+    elif python:
+        result = {"executed": int(python.group(1)), "failed": 0,
+                  "summary_count": 1, "scope": "captured command output: unittest OK summary"}
+    else:
+        return None
+    skipped = re.findall(r"Test Case[^\n]*\bskipped\b|Test [^\n]*\bskipped after\b|skipped=(\d+)", text)
+    result["skipped"] = sum(int(value) if value else 1 for value in skipped)
     return result
 
 
@@ -715,25 +760,9 @@ if evidence_directory_arg:
             if shutil.which(tool):
                 record["environment"][tool] = (run_command(arguments) or "unavailable").strip()
         record["environment"]["developer_dir"] = os.environ.get("DEVELOPER_DIR", "default selection")
-        test_text = "\n".join(read_text(path) for path in diagnostic_paths)
-        summaries = re.findall(r"Executed (\d+) tests?[^\n]*?with (\d+) failures?", test_text)
-        swift_summaries = re.findall(r"Test run with (\d+) tests?[^\n]*?passed", test_text)
-        python_summary = re.search(r"Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", test_text)
-        if summaries:
-            executed, failed = map(int, summaries[-1])
-            if swift_summaries:
-                executed += int(swift_summaries[-1])
-            record["tests"] = {"executed": executed, "failed": failed,
-                               "scope": "captured XCTest and Swift Testing summaries; required targets need separate review"}
-        elif swift_summaries:
-            record["tests"] = {"executed": int(swift_summaries[-1]), "failed": 0,
-                               "scope": "last captured Swift Testing summary; skips require separate review"}
-        elif python_summary:
-            record["tests"] = {"executed": int(python_summary.group(1)), "failed": 0,
-                               "scope": "captured unittest OK summary"}
-        if "tests" in record:
-            skipped = re.findall(r"Test Case[^\n]*\bskipped\b|Test [^\n]*\bskipped after\b|skipped=(\d+)", test_text)
-            record["tests"]["skipped"] = sum(int(value) if value else 1 for value in skipped)
+        tests = collect_test_summaries(read_text(verify_output))
+        if tests is not None:
+            record["tests"] = tests
         evidence_path = directory / "result.json"
         evidence_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         evidence_path.chmod(0o600)

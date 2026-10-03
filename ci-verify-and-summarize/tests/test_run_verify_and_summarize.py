@@ -806,5 +806,129 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self.assertEqual(record["tests"]["skipped"], 0)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
+    def test_multiple_swift_testing_bundles_are_aggregated(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                cat <<'EOF'
+                Test Suite 'All tests' passed at 2026-10-03 10:59:03.
+                 Executed 0 tests, with 0 failures
+                ✔ Test run with 708 tests in 137 suites passed after 15.427 seconds.
+                Test Suite 'All tests' passed at 2026-10-03 10:59:20.
+                 Executed 0 tests, with 0 failures
+                ✔ Test run with 170 tests in 12 suites passed after 34.848 seconds.
+                EOF
+            """)
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--", "bash", "scripts/check.sh")
+            tests = json.loads((evidence / "result.json").read_text())["tests"]
+            self.assertEqual(tests["executed"], 878)
+            self.assertEqual(tests["summary_count"], 4)
+            self.assertEqual(tests["failed"], 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_xctest_top_level_runs_exclude_nested_totals(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                cat <<'EOF'
+                Test Suite 'Nested' passed at 2026-10-03 10:59:03.
+                 Executed 2 tests, with 0 failures
+                Test Suite 'All tests' passed at 2026-10-03 10:59:03.
+                 Executed 2 tests, with 0 failures
+                Test Suite 'Other' failed at 2026-10-03 10:59:20.
+                 Executed 3 tests, with 1 failure
+                Test Suite 'All tests' failed at 2026-10-03 10:59:20.
+                 Executed 3 tests, with 1 failure
+                EOF
+                exit 7
+            """)
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["executed"], 5)
+            self.assertEqual(record["tests"]["failed"], 1)
+            self.assertEqual(record["tests"]["summary_count"], 2)
+            self.assertEqual(record["verification"]["status"], "failed")
+        self.assertEqual(completed.returncode, 7, completed.stdout + completed.stderr)
+
+    def test_mirrored_run_logs_do_not_double_test_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                mkdir -p .build/ci/runs/new/logs
+                echo '{"result":"success"}' > .build/ci/runs/new/meta.json
+                echo 'Test case Example skipped after 0.01 seconds.' > .build/ci/runs/new/logs/tests.log
+                echo '✔ Test run with 3 tests passed after 0.02 seconds.' >> .build/ci/runs/new/logs/tests.log
+                cat .build/ci/runs/new/logs/tests.log
+            """)
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["executed"], 3)
+            self.assertEqual(record["tests"]["skipped"], 1)
+            self.assertEqual(record["tests"]["summary_count"], 1)
+            self.assertEqual(len(record["artifacts"]), 2)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_swift_testing_progress_labels_are_not_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                cat <<'EOF'
+                ◇ Test rejects_version(version:error:) started.
+                \u200b◇ Test case passing 2 arguments to rejects_version(version:error:) started.
+                \u200b✔ Test rejects_version(version:error:) passed after 0.01 seconds.
+                ◇ Test "warning: is expected in this test's name" started.
+                ✔ Test run with 3 tests passed after 0.02 seconds.
+                EOF
+            """)
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--require-clean-diagnostics", "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["diagnostics"]["error_count"], 0)
+            self.assertEqual(record["diagnostics"]["warning_count"], 0)
+            self.assertIn("version:error:", (evidence / "output.log").read_text())
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_runtime_errors_warnings_and_failed_tests_remain_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                cat <<'EOF'
+                CoreData: error: deliberately triggered negative-test runtime log
+                appintentsmetadataprocessor warning: Metadata extraction skipped
+                ✘ Test rejects_version(version:error:) failed after 0.01 seconds.
+                ◇ Test incomplete(error:) started. error: additional diagnostic
+                EOF
+            """)
+            self._commit_all(root, "Initial")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                "--require-clean-diagnostics", "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["diagnostics"]["error_count"], 3)
+            self.assertEqual(record["diagnostics"]["warning_count"], 1)
+            self.assertEqual(record["verification"]["status"], "failed")
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+
 if __name__ == "__main__":
     unittest.main()
