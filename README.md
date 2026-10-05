@@ -14,6 +14,14 @@ Codex settings and global instructions remain in `~/.codex/config.toml` and
 `~/.codex/AGENTS.md`. Bundled system skills and plugin caches are owned by Codex
 and should remain in their provider-managed locations.
 
+## Development Tools
+
+Source search uses rg; passive publication scans use Betterleaks. Setup,
+supported versions, missing-tool behavior and private scanning commands belong
+to [the publication tools reference](git-publication-review/references/publication-tools.md).
+Install and check these tools on each execution host; installing skills alone
+supplies no binaries. This does not enable hooks or complete a repository's QA.
+
 ## Included Skills
 
 - `app-store-release-notes-writer`: Generates App Store Connect-ready release notes across supported locales from a git range and project localization settings.

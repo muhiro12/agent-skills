@@ -54,6 +54,18 @@ protected. Preserve active tool permissions and repository requirements.
   outgoing history. They are not sent by pushing existing commits. Ignored
   private directories are not a reason to inspect unrelated local data.
 
+## Mechanical Tools
+
+Use [the publication tools reference](references/publication-tools.md) for
+portable rg/Betterleaks setup, supported versions and the passive scanner helper.
+Run the relevant preflight before claiming that search or mechanical scanning
+was available. Missing/unsupported tools or execution errors leave evidence
+incomplete; do not silently substitute a different scanner or a regex search.
+The helper records the exact immutable outgoing commit set and scans added text
+in patches, including merge changes. It supplies limited evidence for the
+contextual review below, not a full-tree audit or an application QA receipt.
+Do not enable live credential validation or install a hook through this workflow.
+
 ## Inspect What Will Be Exposed
 
 Review the final content and intermediate history; a later deletion does not
