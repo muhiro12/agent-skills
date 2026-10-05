@@ -25,7 +25,7 @@ and should remain in their provider-managed locations.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and reports verification evidence and gaps from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
-- `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality.
+- `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality; owns optional Claude adapter guidance.
 - `git-publication-review`: Audits destination visibility and outgoing history, pushes reviewed commits when checks pass, and verifies the remote result; honors explicit review-only requests.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.

@@ -1,6 +1,6 @@
 interface:
   display_name: "Codex and Claude Coordination"
-  short_description: "Delegate to Claude or review existing unpushed work"
-  default_prompt: "Use $coordinate-codex-claude to delegate new implementation or review existing unpushed Claude or manual work, checking behavior, development contracts, and commit quality before Codex acceptance."
+  short_description: "Coordinate work or maintain optional Claude adapters"
+  default_prompt: "Use $coordinate-codex-claude to delegate new implementation or review existing unpushed Claude or manual work, checking behavior, development contracts, and commit quality before Codex acceptance, or maintain requested Claude adapter setup."
 policy:
   allow_implicit_invocation: false

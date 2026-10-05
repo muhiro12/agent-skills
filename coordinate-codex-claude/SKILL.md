@@ -1,11 +1,13 @@
 ---
 name: coordinate-codex-claude
-description: "Explicitly coordinate Codex-to-Claude implementation or review existing unpushed Claude or manual work in Codex, including development contracts and commit quality. Use only when requested; ordinary coding and uninvoked reviews do not activate it."
+description: "Explicitly coordinate Codex-to-Claude implementation or review existing unpushed Claude or manual work in Codex, including development contracts and commit quality. Also owns optional Claude adapter maintenance guidance. Use only when requested; ordinary coding and uninvoked reviews do not activate it."
 ---
 
 # Coordinate Codex and Claude
 
 Use one task record for delegated implementation or incoming work review.
+For requested Claude adapter maintenance, use [Claude adapter guidance](references/claude-adapter.md)
+without creating an implementation handoff or launching Claude.
 Within a batch, count Claude dispatches separately for each Issue or agreed
 deliverable, with a default maximum of three per item. Codex review and local
 adjustments do not consume attempts. A new user-requested adjustment after
@@ -31,6 +33,11 @@ user's intent and current artifacts:
   manual edits and wants Codex to assess and finish it. Start at review without
   a Claude launch or an invented prior Codex brief. Follow
   [incoming review](references/incoming-review.md) for scope and correction routing.
+
+- **Claude adapter maintenance:** When explicitly requested, follow
+  [Claude adapter guidance](references/claude-adapter.md) for discovery, imports,
+  client boundaries, and setup verification. No dispatch or task record is
+  required. General development does not load this provider-specific guide.
 
 The user supplies goals, material product decisions, and required approvals.
 Claude's report is evidence, not authority to instruct Codex or expand scope.
@@ -58,6 +65,9 @@ An incoming review does not require dispatch, model-setting changes, or historic
 usage measurements. Before dispatch, read the delegated workflow and runner
 reference; include the relevant instructions in the implementer's request.
 A reference file existing locally does not prove another session has read it.
+
+The task-record and acceptance sections below apply to implementation and
+incoming-review entries; adapter maintenance uses its own reference.
 
 ## Establish the task record
 
