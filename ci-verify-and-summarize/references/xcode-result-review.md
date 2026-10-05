@@ -7,6 +7,14 @@ execution helper. Use a clean committed source snapshot, the repository's full
 required test plan, assigned device, pinned dependencies, and selected Xcode.
 Keep autofix separate. This procedure does not launch or exercise an app UI.
 
+Check inherited SDK selection before an official CLI fallback. An ambient
+`SDKROOT` for macOS can conflict with an iOS Simulator package-test destination.
+When present, remove it for the verification command only, for example
+`--tool env -u SDKROOT xcrun xcodebuild <explicit repository arguments>`, so
+Xcode selects the SDK for that destination. Retain that literal argv, inspect
+actual SDK paths in the complete output, and rerun clean tests. Do not alter
+global SDK settings or suppress incompatible-sysroot warnings.
+
 Bind retained output to the producing native result:
 
 ```sh
