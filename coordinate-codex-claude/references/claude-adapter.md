@@ -47,8 +47,12 @@ list or make an explicit-only skill implicit to repair discovery.
 
 Resolve the installed reconciler from the host's adapter configuration before
 running it. Its implementation can remain host-local; this reference owns the
-maintained procedure. Inspect only the needed configuration keys. Use its existing
-dry-run and check modes first:
+maintained procedure. Inspect only the needed configuration keys. On an existing
+host, find the command in `~/.claude/settings.json` under
+`hooks.SessionStart[].hooks[].command`. The installed `hook_reconcile.sh` calls
+its sibling `link_skills.py`; both files are required setup assets outside this
+skill checkout. Confirm the resolved paths and read the helper before use.
+Use its existing dry-run and check modes first:
 
 ```sh
 python3 <resolved-reconciler-path>
@@ -61,6 +65,17 @@ permissions, and hooks. Keep generated state generated. For an authorized source
 relocation, use the helper's explicit previous-source option and conflict checks.
 Serialize reconciliation with shared skill/record edits. Reuse the existing Xcode
 skill sync; do not create another export pipeline for Claude.
+
+A shared-skill clone alone does not restore this adapter. Preserve the external
+setup directory and the relevant Claude-owned import/SessionStart settings in a
+private host backup. For restoration on the same host, recover those files and
+paths, inspect the dry run, and apply only the authorized reconciliation. On a
+new host, first restore or deliberately install that helper pair, adapt the
+configured command to its actual location, and review the generated links and
+explicit-only overrides before starting a local Code session. Do not copy account
+state or permissions as part of this procedure. A missing helper is a setup
+blocker; do not substitute a second policy generator or claim restoration complete.
+Static checks and isolated fixtures need no Claude login or paid model run.
 
 An existing SessionStart reconciler is a Claude-owned adapter. Leave it alone
 unless that hook is part of the requested change. The reconciler must preserve

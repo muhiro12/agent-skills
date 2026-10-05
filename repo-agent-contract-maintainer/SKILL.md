@@ -1,6 +1,6 @@
 ---
 name: repo-agent-contract-maintainer
-description: "Create or maintain concise, clone-ready AGENTS.md contracts. Use to align repository instructions or place policy in the right layer: repository rules, architecture docs, skills, issues, or private principles."
+description: "Maintain concise, clone-ready repository instructions and optional AGENTS.md contracts. Use to align repository instructions or place policy in the right layer: repository rules, architecture docs, skills, issues, or private principles."
 ---
 
 # Repo Agent Contract Maintainer
@@ -16,8 +16,10 @@ copy this skill's meta-rationale into every repository.
 
 ## Core Rule
 
-Keep each shared repository's `AGENTS.md` clone-ready and
-action-focused. Do not remove an actionable repository-local instruction only
+Keep repository instructions clone-ready and action-focused. An absent repository
+`AGENTS.md` is valid: start at the README and relevant durable docs, and do not
+create an AGENTS file merely to repeat them. When present, keep it practical.
+Do not remove an actionable repository-local instruction only
 because it repeats global policy, but also do not add repeated explanations
 about why duplication is acceptable. Keep rationale in the appropriate
 maintained policy source.
@@ -26,9 +28,10 @@ Move information to the narrowest durable layer that can carry it forward:
 
 - Global `AGENTS.md`: local Codex environment routing, principle lookup,
   skill routing, and cross-repository storage boundaries for this machine.
-- Repository `AGENTS.md`: commands, schemes, package names, verification
-  entrypoints, language/style rules, and repository-specific boundaries needed
-  to work safely from a fresh clone.
+- Repository README and durable docs: commands, schemes, package names,
+  verification entrypoints, language/style rules, and product-specific boundaries.
+  An optional repository `AGENTS.md` can route to these or carry otherwise
+  missing agent-specific instructions needed to work safely from a fresh clone.
 - Developer principles: reusable judgment, rationale, priority, exceptions,
   and history.
 - Personal principles: private personal operating preferences and environment
@@ -44,8 +47,8 @@ Move information to the narrowest durable layer that can carry it forward:
 
 1. Inspect current evidence.
 - Read the current repository `AGENTS.md` when present.
-- Read nearby `ci_scripts/`, project or package manifests, and durable
-  architecture docs that the existing AGENTS file references.
+- Read nearby `ci_scripts/`, project or package manifests, and task-relevant
+  durable docs reached from the README or existing instructions.
 - Read the global Codex `AGENTS.md` under the active Codex home
   (`$CODEX_HOME/AGENTS.md`, or `~/.codex/AGENTS.md` when `CODEX_HOME` is unset)
   when changing local environment routing or cross-repository boundaries.
@@ -62,8 +65,11 @@ Move information to the narrowest durable layer that can carry it forward:
 - Keep private personal context and raw context archives out of product
   repositories unless the user explicitly asks otherwise.
 
-3. Preserve or add clone-ready repository content.
-- Keep repository `AGENTS.md` concise, self-contained, and practical.
+3. Preserve clone-ready repository content in its owning docs.
+- Use the README and durable contracts when AGENTS is absent. Preserve actionable
+  existing instructions; add an AGENTS file only for a demonstrated missing need.
+- Keep an existing repository `AGENTS.md` concise and practical, with references
+  to the owning docs rather than duplicated procedures.
 - Include language and documentation rules when they affect public repository
   quality.
 - Include Swift style rules when they are part of the repository's review or
@@ -105,8 +111,9 @@ Move information to the narrowest durable layer that can carry it forward:
   global contract.
 - Search for repeated meta-rationale that belongs in this skill or developer
   principles instead of the repository file.
-- For Xcode-native Apple repositories, confirm `AGENTS.md` names the project or
-  workspace, concrete schemes and destination families, the required evidence
+- For Xcode-native Apple repositories, confirm the README, relevant contracts, or
+  existing `AGENTS.md` identify the project or workspace, concrete schemes
+  and destination families, the required evidence
   capabilities (build, test, run/log, Preview, or live UI interaction), and
   retained repository-rule scripts separately. Require runtime agents to
   resolve current actions from the available tool inventory, record the
