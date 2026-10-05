@@ -182,7 +182,7 @@ def native_quality_record(store: Path, relative: str, record: dict, kind: str) -
         tree = load_object(private_file(store, str(directory / "native-test-tree.json")))
         bundles = {}
         def visit(node):
-            if node.get("nodeType") == "Unit test bundle":
+            if node.get("nodeType") in {"Unit test bundle", "UI test bundle"}:
                 bundles[node.get("name")] = node.get("result")
             for child in node.get("children", []):
                 visit(child)

@@ -554,5 +554,26 @@ class PushVerificationTests(unittest.TestCase):
         path.write_text(json.dumps(record))
         self.assert_rejected("required native project")
 
+    def test_required_ui_bundles_are_checked_like_unit_bundles(self):
+        path = self.store / self.receipt["quality"][self.tip]["checks"]["tests"]["evidence"]
+        record = json.loads(path.read_text())
+        tree_path = path.parent / "native-test-tree.json"
+        tree = json.loads(tree_path.read_text())
+        for node in tree["testNodes"]:
+            node["nodeType"] = "UI test bundle"
+        tree_path.write_text(json.dumps(tree))
+        for artifact in record["artifacts"]:
+            if artifact["path"] == tree_path.name:
+                artifact["sha256"] = hashlib.sha256(tree_path.read_bytes()).hexdigest()
+        path.write_text(json.dumps(record))
+        self.assertEqual(self.run_check().returncode, 0)
+        tree["testNodes"][0]["result"] = "Failed"
+        tree_path.write_text(json.dumps(tree))
+        for artifact in record["artifacts"]:
+            if artifact["path"] == tree_path.name:
+                artifact["sha256"] = hashlib.sha256(tree_path.read_bytes()).hexdigest()
+        path.write_text(json.dumps(record))
+        self.assert_rejected("Required native test bundles")
+
 if __name__ == "__main__":
     unittest.main()

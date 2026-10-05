@@ -26,7 +26,7 @@ python3 /path/to/ci-verify-and-summarize/scripts/review_xcode_evidence.py \
 
 The adapter exports full native build issues, test summary, and test tree with
 the selected Xcode's `xcresulttool`. It requires successful execution, zero native
-build/analyzer issues, zero captured warnings, successful required test bundles,
+build/analyzer issues, zero captured warnings, successful required unit or UI test bundles,
 positive matching test totals, zero failures/skips/expected failures, and no
 native runtime warnings. The original execution record and full output remain
 unchanged as hash-bound artifacts in the new private directory. No result is
@@ -43,7 +43,8 @@ Provide `--review /private/exact-negative-output-review.json` only after that
 inspection. Its `source_head` must match the producing source. Its `errors` array
 must cover every captured candidate exactly once, with `artifact`, one-based
 `line`, `text_sha256` of the exact raw line, native `test_id` URL, tracked Swift
-test `source_path`, Git blob `source_sha256`, and a concrete `reason`. Record the
+test `source_path`, Git blob `source_sha256`, and a concrete `reason`. Package test sources use
+`Tests/`; an Xcode-owned test directory must match a required native target. Record the
 test's start/pass `progress_span` as supporting review context. The adapter checks
 line/source hashes, complete coverage, and the passed native case. It preserves
 the original candidate count and records the explicit classifications separately.

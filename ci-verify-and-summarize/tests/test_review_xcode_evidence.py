@@ -120,5 +120,28 @@ class ReviewTests(unittest.TestCase):
             REVIEW.fixture_directories(raw, data)
 
 
+    def test_ui_bundle_and_required_target_source_are_supported(self):
+        self.tree["testNodes"][0]["nodeType"] = "UI test bundle"
+        path = self.repo / "RequiredTests/FailureTests.swift"
+        path.parent.mkdir()
+        path.write_bytes((self.repo / self.source_path).read_bytes())
+        subprocess.run(["git", "-C", str(self.repo), "add", "RequiredTests"], check=True)
+        subprocess.run(["git", "-C", str(self.repo), "commit", "-qm", "Add synthetic UI test source"], check=True)
+        head = subprocess.check_output(["git", "-C", str(self.repo), "rev-parse", "HEAD"], text=True).strip()
+        self.record["source"]["before"]["head"] = head
+        self.review["source_head"] = head
+        self.review["errors"][0]["source_path"] = "RequiredTests/FailureTests.swift"
+        native, expected = self.assess()
+        self.assertEqual(native["test_targets"], {"RequiredTests": "Passed"})
+        self.assertEqual(len(expected), 1)
+        self.tree["testNodes"][0]["result"] = "Failed"
+        with self.assertRaises(REVIEW.Incomplete):
+            self.assess()
+
+    def test_non_test_source_cannot_classify_error_candidates(self):
+        self.review["errors"][0]["source_path"] = "Sources/FailureTests.swift"
+        with self.assertRaises(REVIEW.Incomplete):
+            self.assess()
+
 if __name__ == "__main__":
     unittest.main()

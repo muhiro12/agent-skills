@@ -69,7 +69,7 @@ def assess(record, build, tests, tree, review, repo, raw_outputs, required_targe
             for node in native_nodes(root):
                 if node.get("nodeType") == "Test Case":
                     cases[node.get("nodeIdentifierURL")] = node.get("result")
-                if node.get("nodeType") == "Unit test bundle":
+                if node.get("nodeType") in {"Unit test bundle", "UI test bundle"}:
                     bundles[node.get("name")] = node.get("result")
         require(required_targets and all(bundles.get(name) == "Passed" for name in required_targets),
                 "A required native test bundle was not executed successfully.")
@@ -100,7 +100,8 @@ def assess(record, build, tests, tree, review, repo, raw_outputs, required_targe
                 "Expected output lacks a passed native test case and contextual explanation.")
         path = Path(entry.get("source_path", ""))
         require(not path.is_absolute() and ".." not in path.parts and path.suffix == ".swift"
-                and "Tests" in path.parts, "Expected output must cite tracked test source.")
+                and ("Tests" in path.parts or path.parts[0] in required_targets),
+                "Expected output must cite tracked test source in a required test target.")
         source = subprocess.run(["git", "-C", str(repo), "show", head + ":" + str(path)],
                                 capture_output=True)
         require(source.returncode == 0 and digest(source.stdout) == entry.get("source_sha256"),
