@@ -32,6 +32,15 @@ native runtime warnings. The original execution record and full output remain
 unchanged as hash-bound artifacts in the new private directory. No result is
 issued when exports, required scope, or exact source evidence are unavailable.
 
+For out-of-process AppIntentsTesting, preserve normal Simulator code signing
+and the repository's development-team configuration. Apple requires the app
+and UI test runner to use the same development team. Do not carry
+`CODE_SIGNING_ALLOWED=NO` from a build-only check into these integration tests;
+an unsigned test run can fail with AppIntentsServicesSecurityErrorDomain 803
+before the product intent executes. Retain that failure and rerun the full
+bundle with signing rather than skipping tests or treating library success as
+system evidence. See Apple's [AppIntentsTesting workflow](https://developer.apple.com/videos/play/wwdc2026/295/).
+
 ## Expected Negative-Test Output
 
 Error words in a deliberately failing operation are candidates for review, not
@@ -53,13 +62,17 @@ Never regenerate a ledger solely to make changed output pass without reviewing i
 ## Persistent Fixture Lifetime
 
 Do not unlink a persistent SQLite fixture while Core Data still owns its store
-handles. For Incomes' marked fixtures, retain the roots until the test process
-has exited. After confirming ownership and shutting down only its assigned
-Simulator, optionally add `--cleanup-fixture-device <producing-device-UUID>`.
-The adapter compares that UUID with the actual destination and native device
-inventory, requires `Shutdown`, and handles only the exact emitted
-`data/tmp/IncomesLibraryTests-<UUID>` directories. It rejects links and unrelated
-paths. Roots already removed by Simulator temporary-directory cleanup are
+handles. Retain marked disposable fixture roots until the test process has
+exited. After confirming ownership and shutting down only its assigned
+Simulator, optionally add `--cleanup-fixture-device <producing-device-UUID>`
+and `--cleanup-fixture-target <required-native-test-target>`. The latter defaults
+to `IncomesLibraryTests` for existing callers and must be one of the successfully
+required native bundles. For `StallyLibraryTests`, tests emit
+`StallyLibrary persistent fixture directory: <path>`; cleanup selects only the
+corresponding `data/tmp/StallyLibraryTests-<UUID>` roots. The adapter compares the
+device UUID with the actual destination and native inventory, requires
+`Shutdown`, and rejects links, other target namespaces, and unrelated paths.
+Roots already removed by Simulator temporary-directory cleanup are
 recorded separately. It never erases the device or sweeps other temporary data.
 Cleanup is an explicit implementation task, not a side effect of ordinary review.
 

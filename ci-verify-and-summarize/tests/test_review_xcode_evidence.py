@@ -120,6 +120,25 @@ class ReviewTests(unittest.TestCase):
             REVIEW.fixture_directories(raw, data)
 
 
+    def test_fixture_cleanup_keeps_native_target_namespaces_separate(self):
+        data = self.repo / "device" / "data"
+        tmp = data / "tmp"
+        tmp.mkdir(parents=True)
+        roots = {}
+        raw = []
+        for target in ("IncomesLibraryTests", "StallyLibraryTests"):
+            root = tmp / (target + "-12345678-1234-1234-1234-123456789ABC")
+            root.mkdir()
+            roots[target] = root
+            raw.append(target[:-5] + " persistent fixture directory: " + str(root))
+        for target, root in roots.items():
+            self.assertEqual(REVIEW.fixture_directories({"output.log": "\n".join(raw)}, data, target), [root])
+        for target in ("../StallyLibraryTests", "StallyLibrary", ""):
+            with self.assertRaises(REVIEW.Incomplete):
+                REVIEW.fixture_directories({"output.log": "\n".join(raw)}, data, target)
+        with self.assertRaises(REVIEW.Incomplete):
+            REVIEW.fixture_directories({"output.log": raw[0]}, data, "StallyLibraryTests")
+
     def test_ui_bundle_and_required_target_source_are_supported(self):
         self.tree["testNodes"][0]["nodeType"] = "UI test bundle"
         path = self.repo / "RequiredTests/FailureTests.swift"

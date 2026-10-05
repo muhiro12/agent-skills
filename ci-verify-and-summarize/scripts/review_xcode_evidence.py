@@ -113,16 +113,18 @@ def assess(record, build, tests, tree, review, repo, raw_outputs, required_targe
 
 
 
-def fixture_directories(raw_outputs, data_path):
+def fixture_directories(raw_outputs, data_path, target="IncomesLibraryTests"):
     """Select only exact emitted, UUID-named persistent test fixture roots."""
+    require(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*Tests", target),
+            "Fixture cleanup requires a named native test target.")
+    marker = target[:-5] + " persistent fixture directory: "
     roots = set()
     for output in raw_outputs.values():
         for line in output.splitlines():
-            marker = "IncomesLibrary persistent fixture directory: "
             if line.startswith(marker):
                 path = Path(line[len(marker):])
                 require(path.parent == data_path / "tmp" and
-                        re.fullmatch(r"IncomesLibraryTests-[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}", path.name),
+                        re.fullmatch(re.escape(target) + r"-[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}", path.name),
                         "A fixture marker points outside the assigned test temporary directory.")
                 require((not path.exists() or path.is_dir())
                         and all(not part.is_symlink() for part in (path, *path.parents)),
@@ -134,7 +136,7 @@ def fixture_directories(raw_outputs, data_path):
     return sorted(roots)
 
 
-def cleanup_fixtures(argv, raw_outputs, device):
+def cleanup_fixtures(argv, raw_outputs, device, target="IncomesLibraryTests"):
     require(argv.count("-destination") == 1 and
             re.search(r"(?:^|,)id=" + re.escape(device) + r"(?:,|$)",
                       argv[argv.index("-destination") + 1]),
@@ -150,7 +152,7 @@ def cleanup_fixtures(argv, raw_outputs, device):
     data_path = Path(devices[0]["dataPath"])
     require(data_path.is_absolute() and data_path.name == "data" and data_path.parent.name == device,
             "The assigned device data path is inconsistent.")
-    roots = fixture_directories(raw_outputs, data_path)
+    roots = fixture_directories(raw_outputs, data_path, target)
     removed, absent = [], []
     for path in roots:
         if path.exists():
@@ -178,6 +180,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--review", type=Path)
     parser.add_argument("--cleanup-fixture-device", help="Owned, shutdown Simulator UUID; remove only emitted test fixture roots")
+    parser.add_argument("--cleanup-fixture-target", default="IncomesLibraryTests",
+                        help="Required native target owning the emitted fixture namespace")
     parser.add_argument("--required-test-target", action="append", default=[])
     args = parser.parse_args()
     try:
@@ -219,7 +223,10 @@ def main():
                                   args.required_test_target)
         if args.cleanup_fixture_device:
             require(tests is not None, "Only a completed native test run can own fixture cleanup.")
-            cleanup = cleanup_fixtures(argv, raw_outputs, args.cleanup_fixture_device)
+            require(args.cleanup_fixture_target in args.required_test_target,
+                    "Fixture cleanup target must be a successfully required native bundle.")
+            cleanup = cleanup_fixtures(argv, raw_outputs, args.cleanup_fixture_device,
+                                       args.cleanup_fixture_target)
             cleanup_path = args.output / "fixture-cleanup.json"
             cleanup_path.write_text(json.dumps(cleanup, indent=2) + "\n")
             cleanup_path.chmod(0o600)
