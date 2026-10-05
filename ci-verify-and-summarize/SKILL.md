@@ -120,6 +120,8 @@ resolved-dependency context for native evidence. Reuse evidence only after
 checking the same inputs and environment; publication review must still cover
 new outgoing history. Same-user records and hashes can be forged, so a receipt
 checker detects missing/mismatched evidence rather than proving execution.
+For an explicitly authorized local receipt policy, use the optional
+[shared push matcher and lint provenance adapters](references/push-verification.md).
 
 ## Current Execution Evidence
 
