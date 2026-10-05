@@ -101,6 +101,8 @@ runtime logs still require review; expected negative-test logs are not silently
 exempted. Text matching cannot establish that a tool exposed all native
 issues. Retrieve complete native build/test issues and result bundles separately;
 never infer zero issues from truncated output or a tool's connection state.
+For complete official Xcode result exports and explicitly reviewed negative-test
+output, follow [Complete Xcode Result Review](references/xcode-result-review.md).
 
 A diff-only record says `not_run`. A changed or dirty source snapshot is recorded
 as unsuitable for clean-commit evidence. Test summaries recognize captured
