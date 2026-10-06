@@ -20,11 +20,14 @@ batch. A bounded investigation can settle an unfamiliar integration first.
 Choose checkpoints by the rework they can avoid relative to coordination and
 repeated-context costs; do not assume extra review cycles improve every metric.
 
-Normally use the user's strongest available Codex model; the current Astra
-baseline is medium reasoning effort. The user's selection or expressed intent
-at session start or in the current prompt takes precedence over this default,
-including an explicitly chosen lower effort. Never downgrade the user's chosen
-model or reasoning effort on your own to save usage or because work seems easy.
+When choosing Codex settings for a new task, select the latest available Sol or
+Astra at high reasoning effort or above according to the task's judgment needs.
+Without an explicit choice, default to the latest available Sol at high effort.
+Resolve exact model IDs and supported effort levels from the active runtime
+catalog; do not invent a rolling alias or silently select a lower effort.
+The user's current selection or expressed intent takes precedence over this
+default. Never downgrade the user's chosen model or reasoning effort merely
+to save usage or because work seems easy.
 
 When a concrete quality need warrants deeper reasoning, increasing Codex's
 reasoning effort is allowed unless the user explicitly fixed or capped it.
