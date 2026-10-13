@@ -59,18 +59,21 @@ Do not close or reopen an Issue merely to make Project presentation consistent.
 - **Project Status:** independently configured workflow metadata. Do not infer
   In Progress or Waiting from an open Issue or incomplete context.
 
-An activity-only public Project displays repository facts; leave its project-only
-status and planning fields untouched. In managed work, initialize only an unset
-status on an open Issue to the configured not-started option when authorized.
-Preserve existing values. Account for reverse workflows before status writes;
-Project Done is not permission to close the source Issue.
+An activity-only public Project displays repository facts. Update a configured
+state-derived field only from the source Issue state, within the same authorized
+Issue operation and association read-back; leave independent planning fields
+untouched. In managed work, initialize only an unset status on an open Issue to
+the configured not-started option when authorized, preserving existing values.
+Check reverse workflows before status writes. Project Status is not permission
+to change source Issue state or its close reason.
 
 ## Resume and Reconcile
 
 Inventory unfinished Issues first and compare their existing Project relations.
 Add only missing authorized associations and permitted unset defaults. Preserve
-closed reasons and existing status; do not reopen cancelled work or overwrite
-ongoing work as Todo. Include older closed work only when requested.
+closed reasons and managed-work status. Reconcile a configured state-derived
+field with source facts only when authorized; do not reopen cancelled work or
+overwrite ongoing work as Todo. Include older closed work only when requested.
 Report the actual Issue/Project links and read-back state, with any pending step.
 Installing this local profile does not establish activation or API access in
 another host, dot conversation, or ordinary mobile ChatGPT session.
