@@ -1,6 +1,6 @@
 ---
 name: mh-issue-workflow
-description: "Apply the owner's GitHub Issue and Project workflow across repositories, including non-development requests. Use for requested Issue creation or updates, Project association, and resumption inventories; implementation planning belongs to issue-implementation-planner."
+description: "Apply the owner's GitHub Issue and Project workflow across repositories, including non-development requests. Use for requested Issue operations, linked work lifecycle updates, Project association, and resumption inventories; implementation planning belongs to issue-implementation-planner."
 ---
 
 # MH Issue Workflow
@@ -66,6 +66,13 @@ untouched. In managed work, initialize only an unset status on an open Issue to
 the configured not-started option when authorized, preserving existing values.
 Check reverse workflows before status writes. Project Status is not permission
 to change source Issue state or its close reason.
+
+For configured managed progress, update status within the same linked Issue task:
+active only as actual scoped work or verification begins, paused only on a
+confirmed unfinished stop, and finished only with completion evidence. Queue
+remaining work without claiming it is unimplemented. For closure without
+completion, follow the configured clear/archive policy instead of marking work
+finished. Keep private reasons and context out of public progress updates.
 
 ## Resume and Reconcile
 
