@@ -18,6 +18,10 @@ results concisely. Keep repository artifacts in the required language.
 
 ## Choose Guidance for the Actual Decision
 
+For requested Issue creation, updates, or Project reconciliation in this personal
+workflow, use `mh-issue-workflow`. Keep code-grounded plans in
+`issue-implementation-planner`.
+
 - Use current Apple and Swift official guidance, native APIs, and official tools
   as the platform baseline. Verify version-sensitive behavior against the app's
   actual SDK and release toolchain. A newer installed beta is not automatically

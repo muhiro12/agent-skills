@@ -1,0 +1,4 @@
+interface:
+  display_name: "MH Issue Workflow"
+  short_description: "MH GitHub Issue and Project operations"
+  default_prompt: "Use $mh-issue-workflow for the requested Issue operation or Project reconciliation in this personal workflow."

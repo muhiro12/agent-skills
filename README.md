@@ -36,6 +36,7 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality; owns optional Claude adapter guidance.
 - `git-publication-review`: Audits destination visibility and outgoing history, pushes reviewed commits when checks pass, and verifies the remote result; honors explicit review-only requests.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
+- `mh-issue-workflow`: Applies the owner's GitHub Issue and Project workflow across repositories, including non-development work, privacy-aware routing, association read-back, and resumption reconciliation.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.
 - `organize-photos-for-line-sharing`: Applies the owner's source-aware monthly Photos workflow to build outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
 - `product-overview-syncer`: Conservatively syncs an existing product or architecture overview Markdown document with the current codebase reality.
@@ -73,7 +74,8 @@ intended audience; they do not imply dependence on one owner's environment.
 General specialists receive constraints from the current task and repository.
 They must not select a particular owner's personal profile or private records.
 
-`mh-swift-style`, `respect-incomes-architecture`, `apple-ios-dev-flow`, and
+`mh-issue-workflow`, `mh-swift-style`, `respect-incomes-architecture`,
+`apple-ios-dev-flow`, and
 `organize-photos-for-line-sharing` intentionally encode personal choices. These
 profiles can travel with their user and depend on reusable specialists; the
 reverse dependency is avoided. Private records are separate from the reusable
@@ -120,6 +122,7 @@ are not traversed.
 
 - `.system/`, `codex-primary-runtime/`, and `ci_scripts/` are not part of this repository because they are system/runtime/local-workflow managed rather than portable custom skill content.
 - `track-developer-principles/records/` and `track-personal-principles/records/` are kept out of git because they hold private local principle history.
+- `mh-issue-workflow/records/` is kept out of git because it holds private routing configuration.
 - `context-capture/archives/` is kept out of git because it holds private or work-local evidence captures.
 - `apple-sample-code-advisor/cache/` is kept out of git because cached Apple sample projects are disposable local evidence.
 - `organize-photos-for-line-sharing/work/` is kept out of git because inventories, media exports, contact sheets, and run reports are private task artifacts.
