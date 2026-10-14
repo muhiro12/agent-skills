@@ -46,9 +46,18 @@ association/state.
 For routine linked work, limit reads and writes to the target Issue and its
 configured item. Apply only the required Status transition supported by current
 work evidence; skip unchanged fields. Do not inventory unrelated repositories,
-reconcile private aggregate themes, or change layouts, views, workflows, or
-priorities. If Project updates are unavailable, report the specific pending
-update without opening a GUI or adding authentication.
+reconcile private aggregate themes, change layouts, views or workflows, or
+independently reprioritize work. If Project updates are unavailable, report the
+specific pending update without opening a GUI or adding authentication.
+
+For an explicitly requested Priority change, the configured public Project is
+canonical for a public Issue; the private Project is canonical for a private
+Issue. A private mirror may copy the same public Issue's canonical value for
+display, without independent ranking or inheritance from private aggregate
+themes. Copy the value only when its approved option exists in the mirror;
+otherwise report that target copy as pending. Update only that target and any
+required display copy in the same task, then read back both; do not add continuous
+synchronization or a routine inventory.
 
 Associate the same Issue with the configured Project rather than duplicating it.
 Manual/API item-add is separate from auto-add workflow quotas; ordinary item,
@@ -64,8 +73,9 @@ Do not close or reopen an Issue merely to make Project presentation consistent.
 
 - **Issue state:** `open` or `closed`, changed only as authorized.
 - **Close reason:** `completed` means finished; `not_planned` means closed without
-  proceeding. It is not an open state or a Project option. Preserve other supported
-  reasons, such as `duplicate`, and use the provider's current API contract.
+  proceeding. This is distinct from Issue state and configured Project Status.
+  Preserve other supported reasons, such as `duplicate`, using the provider's
+  current API contract.
 - **Project Status:** independently configured workflow metadata. Do not infer
   In Progress or Paused from an open Issue or incomplete context.
 
@@ -85,14 +95,20 @@ Issue close reason is authoritative for outcomes. A configured Completed option
 mirrors only an Issue closed as completed, with completion evidence; finishing
 one phase of an open Issue is not full completion. Closure without completion,
 including not_planned, must not become Completed. In the authorized close task,
-clear the target progress value and retain its association for reason-filtered
-history; do not archive or delete it merely for presentation. Preserve other
-supported reasons, including duplicate, using the provider's current contract.
+map completed to Completed and not_planned to the configured Not planned option.
+On reopening, replace a terminal outcome with an appropriate unfinished Status
+supported by current work evidence; leave unknown progress unset and do not infer
+In Progress from reopening alone. Preserve other supported close reasons without
+inventing a mapping. Retain the association for History; do not archive or delete
+it merely for presentation. Read back the source reason and target Status.
 
-Unfinished boards use source open state; completed and not-planned histories use
-source closed state and close reason. Display-only filters do not authorize
-closing, reopening, or reclassifying source Issues. Verify reverse-workflow safety
-when establishing routing or when its configuration changes; reuse that verified
+Use the configured Work view for unfinished Issues and History for all closed
+Issues. Work uses source open state; History preserves source close reasons and
+keeps completion distinct from closure without completion. Do not claim grouping
+or removal of obsolete views until configured and verified. Display-only filters
+do not authorize closing, reopening, or reclassifying source Issues. Verify
+reverse-workflow safety when establishing routing or when its configuration
+changes; reuse that verified
 result within the task. Project Status is not permission to change source state.
 Keep private reasons and context out of public progress updates.
 
