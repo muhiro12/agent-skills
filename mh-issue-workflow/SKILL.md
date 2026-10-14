@@ -24,11 +24,11 @@ field/default. Actual private URLs, IDs, mappings, personal context, and Issue
 content stay out of this public skill, examples, metadata, and commit history.
 Public procedural knowledge can be used even when learned from private work.
 
-Use English for repository names, titles, headings, labels, and status/field names.
+Use English for classification labels, tags, and status/field names.
 Prefer GitHub's recommended/default names and adapt only for a concrete workflow
-need. Use English for public explanations and Japanese for private explanations
-and status summaries, unless the requested locale or current instructions require
-otherwise.
+need. Use English for public Issue titles and explanations. Use Japanese for
+private task titles, bodies, and status summaries, unless the requested locale or
+current instructions require otherwise.
 Keep private planning and background out of public Issue bodies, comments, and
 Project fields. A private Project does not make its source public Issue private.
 
