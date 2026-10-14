@@ -15,7 +15,10 @@ or automatic captures of conversations, personal records, or local archives.
 Use the current task's approved routing or this skill's optional ignored
 `records/configuration.json`. Its `configuration_url` points to the private
 operating document; that document is the single source of truth, not a second
-mapping embedded in the skill. Resolve live repository/project IDs and visibility.
+mapping embedded in the skill. Resolve the selected routing and visibility once
+for the task; reuse verified routing within that task, and re-resolve when
+configuration changes or access errors require it. Use official CLI selectors
+when available; resolve node/option IDs only when the chosen API requires them.
 Missing private configuration must not cause a guess or a public fallback.
 
 The routing document supplies repository/project selectors, expected visibility,
@@ -38,7 +41,15 @@ Use an available GitHub connection, official API, or `gh`; do not add credential
 permissions, auto-add workflows, GitHub Actions, or a resident process for this flow.
 Check existing Issues and associations before creating or adding another copy.
 Execute only the requested Issue changes. Re-read after a timeout or ambiguous
-write before retrying. Read back the Issue and each Project association/state.
+write before retrying. Read back the Issue and each affected Project
+association/state.
+
+For routine linked work, limit reads and writes to the target Issue and its
+configured item. Apply only the required Status transition supported by current
+work evidence; skip unchanged fields. Do not inventory unrelated repositories,
+reconcile private aggregate themes, or change layouts, views, workflows, or
+priorities. If Project updates are unavailable, report the specific pending
+update without opening a GUI or adding authentication.
 
 Associate the same Issue with the configured Project rather than duplicating it.
 Manual/API item-add is separate from auto-add workflow quotas; ordinary item,
@@ -62,10 +73,11 @@ Do not close or reopen an Issue merely to make Project presentation consistent.
 An activity-only public Project displays repository facts. Update a configured
 state-derived field only from the source Issue state, within the same authorized
 Issue operation and association read-back; leave independent planning fields
-untouched. In managed work, initialize only an unset status on an open Issue to
-the configured not-started option when authorized, preserving existing values.
-Check reverse workflows before status writes. Project Status is not permission
-to change source Issue state or its close reason.
+untouched. In managed work, initialize an unset status only for an open Issue
+confirmed not started, using the configured option when authorized and preserving
+existing values. Verify reverse-workflow safety when establishing routing or when its
+configuration changes; reuse that verified result within the task.
+Project Status is not permission to change source Issue state or its close reason.
 
 For configured managed progress, update status within the same linked Issue task:
 active only as actual scoped work or verification begins, paused only on a
@@ -75,6 +87,10 @@ completion, follow the configured clear/archive policy instead of marking work
 finished. Keep private reasons and context out of public progress updates.
 
 ## Resume and Reconcile
+
+Use this section only for an explicitly requested resumption inventory, initial
+backfill, or reconciliation. Ordinary single-Issue work needs no cross-repository
+inventory.
 
 Inventory unfinished Issues first and compare their existing Project relations.
 Add only missing authorized associations and permitted unset defaults. Preserve
