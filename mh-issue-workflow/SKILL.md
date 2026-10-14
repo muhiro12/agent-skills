@@ -22,8 +22,7 @@ when available; resolve node/option IDs only when the chosen API requires them.
 Missing private configuration must not cause a guess or a public fallback.
 
 The routing document supplies repository/project selectors, expected visibility,
-content language, activity-only versus managed-work mode, and any allowed status
-field/default. Actual private URLs, IDs, mappings, personal context, and Issue
+content language, approved progress options, and any verified status default. Actual private URLs, IDs, mappings, personal context, and Issue
 content stay out of this public skill, examples, metadata, and commit history.
 Public procedural knowledge can be used even when learned from private work.
 
@@ -68,23 +67,34 @@ Do not close or reopen an Issue merely to make Project presentation consistent.
   proceeding. It is not an open state or a Project option. Preserve other supported
   reasons, such as `duplicate`, and use the provider's current API contract.
 - **Project Status:** independently configured workflow metadata. Do not infer
-  In Progress or Waiting from an open Issue or incomplete context.
+  In Progress or Paused from an open Issue or incomplete context.
 
-An activity-only public Project displays repository facts. Update a configured
-state-derived field only from the source Issue state, within the same authorized
-Issue operation and association read-back; leave independent planning fields
-untouched. In managed work, initialize an unset status only for an open Issue
-confirmed not started, using the configured option when authorized and preserving
-existing values. Verify reverse-workflow safety when establishing routing or when its
-configuration changes; reuse that verified result within the task.
-Project Status is not permission to change source Issue state or its close reason.
+For the configured Issue-based workflow, use Backlog for explicitly unselected
+ideas or candidate work, Todo only for selected work with an agreed next action,
+In Progress only as actual scoped work or verification begins, and Paused only
+on a confirmed unfinished stop. A queued task may already have implementation.
+Leave unknown progress unset; do not bulk classify existing unset or Todo items
+from their status alone.
 
-For configured managed progress, update status within the same linked Issue task:
-active only as actual scoped work or verification begins, paused only on a
-confirmed unfinished stop, and finished only with completion evidence. Queue
-remaining work without claiming it is unimplemented. For closure without
-completion, follow the configured clear/archive policy instead of marking work
-finished. Keep private reasons and context out of public progress updates.
+Use a verified native Backlog default when available. If it is unavailable, leave
+unknown new items unset. Read back additions for automatic defaults; clear an
+unconfirmed automatic Todo only on the newly added target item. Preserve existing
+values and never treat automatic initialization as evidence of selection.
+
+Issue close reason is authoritative for outcomes. A configured Completed option
+mirrors only an Issue closed as completed, with completion evidence; finishing
+one phase of an open Issue is not full completion. Closure without completion,
+including not_planned, must not become Completed. In the authorized close task,
+clear the target progress value and retain its association for reason-filtered
+history; do not archive or delete it merely for presentation. Preserve other
+supported reasons, including duplicate, using the provider's current contract.
+
+Unfinished boards use source open state; completed and not-planned histories use
+source closed state and close reason. Display-only filters do not authorize
+closing, reopening, or reclassifying source Issues. Verify reverse-workflow safety
+when establishing routing or when its configuration changes; reuse that verified
+result within the task. Project Status is not permission to change source state.
+Keep private reasons and context out of public progress updates.
 
 ## Resume and Reconcile
 
