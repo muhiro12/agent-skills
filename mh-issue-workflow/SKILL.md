@@ -43,21 +43,25 @@ Execute only the requested Issue changes. Re-read after a timeout or ambiguous
 write before retrying. Read back the Issue and each affected Project
 association/state.
 
-For routine linked work, limit reads and writes to the target Issue and its
-configured item. Apply only the required Status transition supported by current
-work evidence; skip unchanged fields. Do not inventory unrelated repositories,
-reconcile private aggregate themes, change layouts, views or workflows, or
-independently reprioritize work. If Project updates are unavailable, report the
-specific pending update without opening a GUI or adding authentication.
+For routine repository work, limit reads and writes to the source Issue and its
+configured repository-facing Project item. Apply only the required Status
+transition supported by current work evidence; skip unchanged fields. A separate
+coordinator owns any private overview of activity themes. Do not add or synchronize
+overview copies or translated summaries during repository development; overview
+changes require an explicitly requested coordinator task. Do not inventory
+unrelated repositories, change layouts, views or workflows, or independently
+reprioritize work. If Project updates are unavailable, report the specific pending
+update without opening a GUI or adding authentication.
 
 For an explicitly requested Priority change, the configured public Project is
-canonical for a public Issue; the private Project is canonical for a private
-Issue. A private mirror may copy the same public Issue's canonical value for
-display, without independent ranking or inheritance from private aggregate
-themes. Copy the value only when its approved option exists in the mirror;
-otherwise report that target copy as pending. Update only that target and any
-required display copy in the same task, then read back both; do not add continuous
-synchronization or a routine inventory.
+canonical for a public Issue; the configured private Project is canonical for a
+private Issue. Update that canonical target and read it back. Do not copy values
+to another Project as part of ordinary repository development. Translation or
+aggregation does not establish a separate product priority. In an explicitly
+requested coordinator task, rank genuine private work or aggregate activity
+themes from their own scope and source evidence; never inherit a theme's ranking
+into public originals or fill unknown priorities with a default. Do not add
+continuous synchronization or a routine inventory.
 
 Associate the same Issue with the configured Project rather than duplicating it.
 Manual/API item-add is separate from auto-add workflow quotas; ordinary item,
@@ -99,12 +103,12 @@ map completed to Completed and not_planned to the configured Not planned option.
 On reopening, replace a terminal outcome with an appropriate unfinished Status
 supported by current work evidence; leave unknown progress unset and do not infer
 In Progress from reopening alone. Preserve other supported close reasons without
-inventing a mapping. Retain the association for History; do not archive or delete
-it merely for presentation. Read back the source reason and target Status.
+inventing a mapping. Retain the canonical association for History; do not archive
+or delete it merely for presentation. Read back the source reason and target Status.
 
-Use the configured Work view for unfinished Issues and History for all closed
-Issues. Work uses source open state; History preserves source close reasons and
-keeps completion distinct from closure without completion. Do not claim grouping
+Use the configured repository-facing Work view for unfinished Issues and History
+for all closed Issues. Work uses source open state; History preserves source close
+reasons and keeps completion distinct from closure without completion. Do not claim grouping
 or removal of obsolete views until configured and verified. Display-only filters
 do not authorize closing, reopening, or reclassifying source Issues. Verify
 reverse-workflow safety when establishing routing or when its configuration
@@ -124,5 +128,11 @@ closed reasons and managed-work status. Reconcile a configured state-derived
 field with source facts only when authorized; do not reopen cancelled work or
 overwrite ongoing work as Todo. Include older closed work only when requested.
 Report the actual Issue/Project links and read-back state, with any pending step.
+
+Draft activity cards have no source Issue close reason. Their coordinator may
+maintain the overview's configured Status and presentation when explicitly
+requested, preserving linked originals and independent private work. Overview
+reconciliation is a separate scope from routine repository development.
+
 Installing this local profile does not establish activation or API access in
 another host, dot conversation, or ordinary mobile ChatGPT session.
