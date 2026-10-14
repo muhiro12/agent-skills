@@ -21,6 +21,9 @@ results concisely. Keep repository artifacts in the required language.
 For requested Issue creation, updates, or Project reconciliation in this personal
 workflow, use `mh-issue-workflow`. Keep code-grounded plans in
 `issue-implementation-planner`.
+For implementation or QA already linked to an Issue, also use
+`mh-issue-workflow` at actual work start, a confirmed unfinished pause, or
+completion with evidence.
 
 - Use current Apple and Swift official guidance, native APIs, and official tools
   as the platform baseline. Verify version-sensitive behavior against the app's
