@@ -33,13 +33,14 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and reports verification evidence and gaps from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
-- `coordinate-codex-claude`: Explicitly delegates implementation to Claude or reviews existing unpushed Claude or manual work in Codex, including development contracts and commit quality; owns optional Claude adapter guidance.
+- `coordinate-codex-claude`: Explicitly coordinates Claude implementation or incoming work, reuses shared development-change refinement, and owns optional Claude adapter guidance.
 - `git-publication-review`: Audits destination visibility and outgoing history, pushes reviewed commits when checks pass, and verifies the remote result; honors explicit review-only requests.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
 - `mh-issue-workflow`: Applies the owner's GitHub Issue and Project workflow across repositories, including non-development work, privacy-aware routing, association read-back, and resumption reconciliation.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.
 - `organize-photos-for-line-sharing`: Applies the owner's source-aware monthly Photos workflow to build outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
 - `product-overview-syncer`: Conservatively syncs an existing product or architecture overview Markdown document with the current codebase reality.
+- `refine-development-changes`: Inspects and actively improves selected commits and working changes against applicable development rules and intended behavior, through necessary reimplementation and verification.
 - `release-risk-analyzer`: Concisely assesses new contracts, their appropriateness, preservation of existing contracts, and primary-data risk between a public release and a candidate.
 - `repo-agent-contract-maintainer`: Maintains concise, clone-ready repository `AGENTS.md` contracts and routes longer guidance to the correct durable layer.
 - `repo-and-app-footprint-inspector`: Diagnoses repository and app size, concentration, maintenance burden, and structural hotspots without modifying source code.

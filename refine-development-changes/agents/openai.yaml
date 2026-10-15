@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refine Development Changes"
+  short_description: "Inspect, improve, and verify existing development work"
+  default_prompt: "Use $refine-development-changes to inspect the selected commits and working-tree changes against applicable development rules and intended behavior, make needed corrections or reimplementation, and verify the finished result."

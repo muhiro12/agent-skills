@@ -33,8 +33,9 @@ Inspect the current code and applicable contracts, then write:
   decisions already documented elsewhere.
 - Included work, excluded work, and implementation choices Claude can make.
 - Relevant development contracts, principle sources, and commit conventions
-  from [the common review](review-and-close.md). Name the required files and
-  sections with a reason; distinguish initial reading from conditional references.
+  from [shared development-change refinement](../../refine-development-changes/SKILL.md).
+  Name the required files and sections with a reason; distinguish initial
+  reading from conditional references.
   Do not ask Claude to recursively read every linked skill or reference.
 - For a batch, the ordered items, dependencies, acceptance per item, and any
   necessary decision checkpoint. Keep them in the same task record.

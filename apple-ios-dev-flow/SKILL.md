@@ -63,6 +63,11 @@ repositories. Weigh change cost, tests, release coupling, and demonstrated reuse
 
 ## Implement and Verify
 
+For a requested review and refinement of existing changes, use
+`refine-development-changes` for scope, development-contract inspection, active
+correction, and closure. This workflow still guides Apple implementation and
+evidence selection; an independent review does not require Claude coordination.
+
 Choose the smallest complete change and verify it against the repository contract.
 When editing code covered by a documented formatter/autofix, run it before
 the final non-destructive checks.

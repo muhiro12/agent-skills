@@ -19,6 +19,9 @@ through a complete reviewable deliverable. After return, Codex reviews, makes
 bounded final adjustments, and closes the task. Delegate substantial rework only
 when a grouped follow-up is justified. The
 task record is shared state, not a requirement for the user to relay messages.
+Use [shared development-change refinement](../refine-development-changes/SKILL.md)
+for the common inspection, correction, and verification criteria; this skill
+owns delegation, handoff state, correction routing, and acceptance by Codex.
 
 ## Choose the entry
 
