@@ -55,7 +55,11 @@ must cover every captured candidate exactly once, with `artifact`, one-based
 test `source_path`, Git blob `source_sha256`, and a concrete `reason`. Package test sources use
 `Tests/`; an Xcode-owned test directory must match a required native target. Record the
 test's start/pass `progress_span` as supporting review context. The adapter checks
-line/source hashes, complete coverage, and the passed native case. It preserves
+artifact identity, line/source hashes, complete coverage, and the passed native case.
+Use the candidate's retained `artifact` name; the original `source` basename is
+only context. Identical lines in different artifacts need separate entries.
+Older captures without artifact provenance must be recaptured before classifying
+error candidates. The adapter preserves
 the original candidate count and records the explicit classifications separately.
 Never regenerate a ledger solely to make changed output pass without reviewing it.
 

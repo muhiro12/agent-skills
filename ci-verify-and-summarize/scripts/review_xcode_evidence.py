@@ -85,11 +85,15 @@ def assess(record, build, tests, tree, review, repo, raw_outputs, required_targe
             "Expected diagnostic review belongs to a different source or lacks native tests.")
     seen = set()
     for error in errors:
-        candidates = [entry for entry in entries if entry.get("line") == error.get("line")
+        artifact = error.get("artifact")
+        require(artifact in raw_outputs,
+                "Diagnostic artifact provenance is missing; recapture execution evidence.")
+        candidates = [entry for entry in entries if entry.get("artifact") == artifact
+                      and entry.get("line") == error.get("line")
                       and entry.get("text_sha256") == digest(error.get("text", "").encode())]
         require(len(candidates) == 1, "A diagnostic review is missing, duplicated or stale.")
         entry = candidates[0]
-        key = (entry["line"], entry["text_sha256"])
+        key = (artifact, entry["line"], entry["text_sha256"])
         require(key not in seen, "Duplicated diagnostic review.")
         seen.add(key)
         output = raw_outputs.get(entry.get("artifact"), "").splitlines()

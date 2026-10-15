@@ -415,14 +415,16 @@ def collect_diagnostics(paths: list[Path]) -> dict[str, list[dict[str, object]]]
         r'^[\s\u200b]*[◇✔]\s+(?:Test|Suite)\s+.+\s'
         r'(?:started\.|passed(?: after [0-9.]+ seconds)?\.)$'
     )
-    for path in paths:
+    for index, path in enumerate(paths):
+        artifact = "output.log" if index == 0 else f"diagnostic-{index}.log"
         for line_number, line in enumerate(read_text(path).splitlines(), 1):
             if progress.fullmatch(line):
                 continue
             match = pattern.search(line)
             if match:
                 kind = next(group.lower() for group in match.groups() if group)
-                result[kind].append({"source": path.name, "line": line_number, "text": line})
+                result[kind].append({"source": path.name, "artifact": artifact,
+                                     "line": line_number, "text": line})
     return result
 
 

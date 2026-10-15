@@ -733,6 +733,30 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("retained build warning", completed.stdout)
 
+    def test_retained_diagnostics_identify_each_raw_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh",
+                "#!/bin/bash\nmkdir -p .build/ci/runs/new/logs/other\n"
+                "echo '{\"result\":\"success\"}' > .build/ci/runs/new/meta.json\n"
+                "echo 'error: synthetic expected refusal' > .build/ci/runs/new/logs/build.log\n"
+                "cp .build/ci/runs/new/logs/build.log .build/ci/runs/new/logs/other/build.log\n"
+                "cat .build/ci/runs/new/logs/build.log\n")
+            self._commit_all(root, "Add diagnostic provenance fixture")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                                         "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            errors = record["diagnostics"]["errors"]
+            self.assertEqual(len(errors), 3)
+            self.assertEqual({error["artifact"] for error in errors},
+                             {"output.log", "diagnostic-1.log", "diagnostic-2.log"})
+            for error in errors:
+                lines = (evidence / error["artifact"]).read_text().splitlines()
+                self.assertEqual(lines[error["line"] - 1], error["text"])
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_diff_only_record_is_not_verification_success(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

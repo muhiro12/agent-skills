@@ -37,7 +37,8 @@ class ReviewTests(unittest.TestCase):
                        "evidence_errors": [], "tests": {"executed": 1},
                        "diagnostics": {"complete_captured_output": True, "warning_count": 0,
                                        "warnings": [], "error_count": 1,
-                                       "errors": [{"line": 1, "text": "CoreData: error: synthetic refused save"}]}}
+                                       "errors": [{"artifact": "output.log", "line": 1,
+                                                   "text": "CoreData: error: synthetic refused save"}]}}
         self.build = {"status": "succeeded", "errorCount": 0, "warningCount": 0,
                       "analyzerWarningCount": 0, "errors": [], "warnings": [], "analyzerWarnings": []}
         self.tests = {"result": "Passed", "passedTests": 1, "totalTestCount": 1,
@@ -63,6 +64,27 @@ class ReviewTests(unittest.TestCase):
         self.assertTrue(native["complete_scope"])
         self.assertEqual(len(expected), 1)
         self.assertEqual(self.record["diagnostics"]["error_count"], 1)
+
+    def test_identical_diagnostics_in_separate_artifacts_need_separate_reviews(self):
+        self.raw["diagnostic-1.log"] = self.raw["output.log"]
+        error = dict(self.record["diagnostics"]["errors"][0], artifact="diagnostic-1.log")
+        self.record["diagnostics"]["errors"].append(error)
+        self.record["diagnostics"]["error_count"] = 2
+        self.review["errors"].append(dict(self.review["errors"][0], artifact="diagnostic-1.log"))
+        native, expected = self.assess()
+        self.assertTrue(native["complete_scope"])
+        self.assertEqual({entry["artifact"] for entry in expected}, set(self.raw))
+
+    def test_review_cannot_substitute_another_artifact_with_identical_output(self):
+        self.raw["diagnostic-1.log"] = self.raw["output.log"]
+        self.review["errors"][0]["artifact"] = "diagnostic-1.log"
+        with self.assertRaises(REVIEW.Incomplete):
+            self.assess()
+
+    def test_missing_diagnostic_artifact_provenance_is_incomplete(self):
+        del self.record["diagnostics"]["errors"][0]["artifact"]
+        with self.assertRaises(REVIEW.Incomplete):
+            self.assess()
 
     def test_real_captured_or_native_warning_cannot_be_exempted(self):
         for target, key in ((self.record["diagnostics"], "warning_count"), (self.build, "warningCount")):
