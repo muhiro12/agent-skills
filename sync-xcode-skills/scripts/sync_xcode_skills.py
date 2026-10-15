@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+from dataclasses import dataclass
 import hashlib
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
 import shutil
 import subprocess
@@ -35,7 +37,7 @@ IGNORED_EXPORT_TREE_NAMES = {
 
 
 class SyncError(Exception):
-    """Raised when syncing would overwrite unmanaged local state."""
+    """Raised when a source cannot be verified or syncing would overwrite unmanaged state."""
 
 
 class CommandResult:
@@ -111,9 +113,13 @@ def run_command(
         return CommandResult(124, stdout, stderr)
     except PermissionError as error:
         return CommandResult(126, "", f"{command[0]}: {error}")
+    except FileNotFoundError as error:
+        return CommandResult(127, "", f"{command[0]}: {error}")
 
 
 def selected_developer_dir() -> Path | None:
+    if os.environ.get("DEVELOPER_DIR"):
+        return Path(os.environ["DEVELOPER_DIR"]).expanduser()
     result = run_command(["xcode-select", "-p"])
     if result.returncode != 0:
         return None
@@ -121,12 +127,141 @@ def selected_developer_dir() -> Path | None:
     return Path(text) if text else None
 
 
-def xcode_version_text() -> str:
-    result = run_command(["xcodebuild", "-version"])
+@dataclass(frozen=True)
+class XcodeInstallation:
+    app: Path
+    version: str
+    bundle_version: str
+    build: str
+
+    @property
+    def developer_dir(self) -> Path:
+        return self.app / "Contents" / "Developer"
+
+    @property
+    def sort_key(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
+        return numeric_version(self.version), numeric_version(self.bundle_version)
+
+
+def numeric_version(value: str) -> tuple[int, ...]:
+    if not re.fullmatch(r"\d+(?:\.\d+)*", value):
+        raise ValueError(f"Invalid numeric version: {value!r}")
+    parts = [int(part) for part in value.split(".")]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def xcode_installation(path: Path) -> XcodeInstallation | None:
+    try:
+        app = path.expanduser().resolve()
+        if app.name == "Developer" and app.parent.name == "Contents":
+            app = app.parent.parent
+        with (app / "Contents" / "Info.plist").open("rb") as stream:
+            info = plistlib.load(stream)
+        if info.get("CFBundleIdentifier") != "com.apple.dt.Xcode":
+            return None
+        with (app / "Contents" / "version.plist").open("rb") as stream:
+            version = plistlib.load(stream)
+        installation = XcodeInstallation(
+            app=app,
+            version=version["CFBundleShortVersionString"],
+            bundle_version=version["CFBundleVersion"],
+            build=version["ProductBuildVersion"],
+        )
+        numeric_version(installation.version)
+        numeric_version(installation.bundle_version)
+        if not os.access(installation.developer_dir / "usr/bin/xcodebuild", os.X_OK):
+            return None
+        return installation
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, AttributeError, plistlib.InvalidFileException):
+        return None
+
+
+def discover_xcodes() -> list[XcodeInstallation]:
+    candidates: list[Path] = []
+    for root in (Path("/Applications"), Path.home() / "Applications"):
+        candidates.extend(root.glob("*.app"))
+    spotlight = run_command(
+        ["mdfind", "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'"], timeout=15
+    )
+    if spotlight.returncode == 0:
+        candidates.extend(Path(line) for line in spotlight.stdout.splitlines() if line)
+    selected = selected_developer_dir()
+    if selected is not None:
+        candidates.append(selected)
+    installations: dict[Path, XcodeInstallation] = {}
+    for candidate in candidates:
+        installation = xcode_installation(candidate)
+        if installation is not None:
+            installations[installation.app] = installation
+    # The bundle build distinguishes newer betas and releases with the same version.
+    return sorted(
+        installations.values(),
+        key=lambda item: (item.sort_key, str(item.app)),
+        reverse=True,
+    )
+
+
+def resolve_xcode(developer_dir: Path | None, *, install_only: bool) -> XcodeInstallation:
+    if developer_dir is None and install_only:
+        developer_dir = Path(os.environ["DEVELOPER_DIR"]) if os.environ.get("DEVELOPER_DIR") else None
+        if developer_dir is None:
+            raise SyncError(
+                "--install-only requires --developer-dir (or DEVELOPER_DIR) for the "
+                "verified export source; do not infer an existing export's Xcode version."
+            )
+    if developer_dir is not None:
+        installation = xcode_installation(developer_dir)
+        if installation is None:
+            raise SyncError(f"Not a complete Xcode installation: {developer_dir}")
+        return installation
+    installations = discover_xcodes()
+    if not installations:
+        raise SyncError("No complete local Xcode found; specify --developer-dir explicitly.")
+    return installations[0]
+
+
+def xcode_environment(developer_dir: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["DEVELOPER_DIR"] = str(developer_dir)
+    return env
+
+
+def xcode_version_text(developer_dir: Path) -> str:
+    result = run_command(["xcodebuild", "-version"], env=xcode_environment(developer_dir))
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
 
-def export_direct(output_dir: Path, timeout: int) -> CommandResult:
+def export_environment(developer_dir: Path) -> dict[str, str]:
+    env = xcode_environment(developer_dir)
+    help_result = run_command(["xcrun", "mcpbridge", "--help"], env=env, timeout=15)
+    if help_result.returncode != 0 or "MCP_XCODE_PID" not in help_result.combined_output:
+        raise SyncError(f"Cannot verify per-process bridge selection for {developer_dir}.")
+    processes = run_command(["ps", "-axo", "pid=,comm="], timeout=15)
+    if processes.returncode != 0:
+        raise SyncError("Cannot inspect running Xcode processes; verify the source and export standalone.")
+    executable = developer_dir.parent / "MacOS" / "Xcode"
+    pids = []
+    for line in processes.stdout.splitlines():
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) == 2 and parts[0].isdigit() and Path(parts[1]).resolve() == executable:
+            pids.append(parts[0])
+    requested_pid = os.environ.get("MCP_XCODE_PID")
+    if requested_pid:
+        if requested_pid not in pids:
+            raise SyncError("MCP_XCODE_PID does not belong to the chosen Xcode; refresh its live PID.")
+        pids = [requested_pid]
+    if len(pids) != 1:
+        raise SyncError(
+            f"Expected one running instance of {developer_dir.parent.parent}; found {len(pids)}. "
+            "Open that app and retry, or verify its live MCP_XCODE_PID when multiple instances run."
+        )
+    env["MCP_XCODE_PID"] = pids[0]
+    return env
+
+
+def export_direct(output_dir: Path, timeout: int, *, developer_dir: Path) -> CommandResult:
     command = [
         "xcrun",
         "mcpbridge",
@@ -137,7 +272,7 @@ def export_direct(output_dir: Path, timeout: int) -> CommandResult:
         str(output_dir),
         "--replace-existing",
     ]
-    return run_command(command, timeout=timeout)
+    return run_command(command, env=export_environment(developer_dir), timeout=timeout)
 
 
 def parse_frontmatter(skill_md: Path) -> tuple[dict[str, str], str]:
@@ -765,12 +900,15 @@ def write_catalog(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--list-xcodes", action="store_true", help="List discovered local Xcodes as JSON, newest first; do not export or install.")
+    parser.add_argument("--developer-dir", type=Path, help="Use this verified Xcode app or Contents/Developer directory instead of the newest local Xcode.")
     parser.add_argument("--export-dir", type=Path, default=DEFAULT_EXPORT_DIR)
     parser.add_argument("--skills-root", type=Path, default=Path.home() / ".agents" / "skills")
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE_DIR)
     parser.add_argument("--name-prefix", default="xcode-skill-")
-    parser.add_argument("--export-only", action="store_true", help="Export but do not install into the skills root.")
-    parser.add_argument("--install-only", action="store_true", help="Install from an existing export directory without invoking Xcode.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--export-only", action="store_true", help="Export but do not install into the skills root.")
+    mode.add_argument("--install-only", action="store_true", help="Install from an existing export directory using an explicitly verified Xcode source.")
     parser.add_argument("--direct-only", action="store_true", help="Compatibility no-op; direct mcpbridge export is always used.")
     parser.add_argument("--timeout", type=int, default=180)
     return parser.parse_args()
@@ -778,14 +916,31 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.list_xcodes:
+        installations = discover_xcodes()
+        print(json.dumps([
+            {
+                "app": str(item.app),
+                "developer_dir": str(item.developer_dir),
+                "version": item.version,
+                "bundle_version": item.bundle_version,
+                "build": item.build,
+            }
+            for item in installations
+        ], indent=2))
+        return 0 if installations else 2
     try:
         validate_safe_slug(args.name_prefix, label="name prefix")
+        installation = resolve_xcode(args.developer_dir, install_only=args.install_only)
+        developer_dir = installation.developer_dir
+        xcode_version = xcode_version_text(developer_dir)
+        expected_version = f"Xcode {installation.version}\nBuild version {installation.build}"
+        if xcode_version != expected_version:
+            raise SyncError(f"Could not verify Xcode version for {developer_dir}: {xcode_version}")
     except SyncError as error:
         print(str(error))
         return 2
     args.export_dir.mkdir(parents=True, exist_ok=True)
-    developer_dir = selected_developer_dir()
-    xcode_version = xcode_version_text()
 
     print(f"Selected developer directory: {developer_dir or 'unknown'}")
     print(f"Xcode version: {xcode_version}")
@@ -793,7 +948,11 @@ def main() -> int:
     print(f"Export directory: {args.export_dir}")
 
     if not args.install_only:
-        export_result = export_direct(args.export_dir, args.timeout)
+        try:
+            export_result = export_direct(args.export_dir, args.timeout, developer_dir=developer_dir)
+        except SyncError as error:
+            print(str(error))
+            return 2
         if export_result.returncode == 0:
             print("Direct export succeeded.")
         else:

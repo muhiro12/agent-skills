@@ -52,7 +52,7 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `swift-code-guardian`: Audits and repairs Swift code against official Swift guidance, API design conventions, and concurrency safety expectations.
 - `swiftdata-dev`: Implements and troubleshoots SwiftData using Apple guidance, scoped incident reports, and persistence verification.
 - `swiftdata-schema-auditor`: Reviews SwiftData schema definitions and explains entities, relationships, persistence, and migration risk.
-- `sync-xcode-skills`: Exports Xcode-provided agent Skills and installs Codex-compatible local copies.
+- `sync-xcode-skills`: Exports agent Skills from the newest usable local Xcode and installs Codex-compatible local copies.
 - `track-developer-principles`: Maintains a personal cross-repository principle system; the private record files themselves are intentionally not tracked here.
 - `track-personal-principles`: Maintains private weighted personal operating principles while keeping the record files out of git.
 - `verify-contract-maintainer`: Creates, audits, and maintains minimal verification contracts, with Apple bootstrap guidance and compatible existing-entrypoint maintenance.

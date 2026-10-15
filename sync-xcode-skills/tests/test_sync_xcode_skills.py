@@ -4,6 +4,7 @@ import json
 import hashlib
 import io
 from pathlib import Path
+import plistlib
 import sys
 import tempfile
 import unittest
@@ -14,6 +15,191 @@ SCRIPT_DIRECTORY = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIRECTORY))
 
 import sync_xcode_skills  # noqa: E402
+
+
+class XcodeSourceSelectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.root = Path(self.temporary_directory.name)
+
+    def write_xcode(
+        self, name: str, version: str, bundle_version: str, build: str = "TEST123"
+    ) -> Path:
+        app = self.root / f"{name}.app"
+        contents = app / "Contents"
+        contents.mkdir(parents=True)
+        for filename, data in (
+            ("Info.plist", {"CFBundleIdentifier": "com.apple.dt.Xcode"}),
+            ("version.plist", {
+                "CFBundleShortVersionString": version,
+                "CFBundleVersion": bundle_version,
+                "ProductBuildVersion": build,
+            }),
+        ):
+            with (contents / filename).open("wb") as stream:
+                plistlib.dump(data, stream)
+        executable = contents / "Developer/usr/bin/xcodebuild"
+        executable.parent.mkdir(parents=True)
+        executable.touch()
+        executable.chmod(0o755)
+        return app.resolve()
+
+    def discover(self, apps: list[Path], *, selected: Path | None = None):
+        with mock.patch.object(Path, "glob", return_value=[]), mock.patch.object(
+            sync_xcode_skills, "selected_developer_dir", return_value=selected
+        ), mock.patch.object(sync_xcode_skills, "run_command", return_value=(
+            sync_xcode_skills.CommandResult(0, "\n".join(str(app) for app in apps), "")
+        )):
+            return sync_xcode_skills.discover_xcodes()
+
+    def test_discovery_ranks_numeric_versions_instead_of_names_or_selected_xcode(self) -> None:
+        old = self.write_xcode("Xcode Latest", "27.2", "500")
+        middle = self.write_xcode("Xcode", "27.9", "600")
+        newest = self.write_xcode("Xcode beta", "27.10", "100")
+        discovered = self.discover([old, newest, middle], selected=old / "Contents/Developer")
+        self.assertEqual([item.app for item in discovered], [newest, middle, old])
+        with mock.patch.object(sync_xcode_skills, "discover_xcodes", return_value=discovered):
+            chosen = sync_xcode_skills.resolve_xcode(None, install_only=False)
+        self.assertEqual(chosen.app, newest)
+
+    def test_discovery_ranks_builds_with_equal_marketing_versions(self) -> None:
+        beta = self.write_xcode("Beta", "27.2", "25400.9")
+        newer_beta = self.write_xcode("Beta Two", "27.2.0", "25400.10")
+        release = self.write_xcode("Release", "27.2", "25400.10.1")
+        discovered = self.discover([release, newer_beta, beta])
+        self.assertEqual([item.app for item in discovered], [release, newer_beta, beta])
+
+    def test_discovery_deduplicates_paths_and_ignores_incomplete_installations(self) -> None:
+        app = self.write_xcode("Xcode", "27.2", "100")
+        alias = self.root / "Alias.app"
+        alias.symlink_to(app, target_is_directory=True)
+        incomplete = self.write_xcode("Incomplete", "99.0", "999")
+        (incomplete / "Contents/Developer/usr/bin/xcodebuild").unlink()
+        discovered = self.discover([app, alias, incomplete], selected=app / "Contents/Developer")
+        self.assertEqual([item.app for item in discovered], [app])
+
+    def test_standard_directories_work_when_spotlight_is_unavailable(self) -> None:
+        app = self.write_xcode("Xcode", "27.2", "100")
+        with mock.patch.object(Path, "glob", return_value=[app]), mock.patch.object(
+            sync_xcode_skills, "selected_developer_dir", return_value=None
+        ), mock.patch.object(sync_xcode_skills, "run_command", return_value=(
+            sync_xcode_skills.CommandResult(1, "", "Spotlight unavailable")
+        )):
+            discovered = sync_xcode_skills.discover_xcodes()
+        self.assertEqual([item.app for item in discovered], [app])
+
+    def test_explicit_source_overrides_newest_discovery(self) -> None:
+        app = self.write_xcode("Requested", "27.0", "100")
+        with mock.patch.object(sync_xcode_skills, "discover_xcodes") as discover:
+            chosen = sync_xcode_skills.resolve_xcode(app, install_only=False)
+        discover.assert_not_called()
+        self.assertEqual(chosen.app, app)
+
+    def test_existing_export_requires_its_source_instead_of_guessing_newest(self) -> None:
+        with mock.patch.dict(sync_xcode_skills.os.environ, {}, clear=True), mock.patch.object(
+            sync_xcode_skills, "discover_xcodes"
+        ) as discover:
+            with self.assertRaisesRegex(sync_xcode_skills.SyncError, "requires --developer-dir"):
+                sync_xcode_skills.resolve_xcode(None, install_only=True)
+        discover.assert_not_called()
+
+    def test_existing_export_accepts_explicit_per_command_source(self) -> None:
+        app = self.write_xcode("Export Source", "27.0", "100")
+        developer_dir = app / "Contents/Developer"
+        with mock.patch.dict(sync_xcode_skills.os.environ, {"DEVELOPER_DIR": str(developer_dir)}):
+            chosen = sync_xcode_skills.resolve_xcode(None, install_only=True)
+        self.assertEqual(chosen.developer_dir, developer_dir)
+
+    def test_no_local_xcode_produces_actionable_error(self) -> None:
+        with mock.patch.object(sync_xcode_skills, "discover_xcodes", return_value=[]):
+            with self.assertRaisesRegex(sync_xcode_skills.SyncError, "No complete local Xcode"):
+                sync_xcode_skills.resolve_xcode(None, install_only=False)
+
+    def test_install_cli_records_the_export_source_instead_of_the_default_toolchain(self) -> None:
+        app = self.write_xcode("Export Source", "27.0", "100")
+        developer_dir = app / "Contents/Developer"
+        export_dir = self.root / "export"
+        skill_dir = export_dir / "alpha"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: alpha\ndescription: Test skill.\n---\n# Alpha\n", encoding="utf-8"
+        )
+        skills_root = self.root / "skills"
+        state_dir = self.root / "state"
+
+        def version(command, **kwargs):
+            self.assertEqual(command, ["xcodebuild", "-version"])
+            source = kwargs.get("env", {}).get("DEVELOPER_DIR")
+            text = "Xcode 27.0\nBuild version TEST123" if source == str(developer_dir) else "Xcode 27.2"
+            return sync_xcode_skills.CommandResult(0, text, "")
+
+        with mock.patch.object(sys, "argv", [
+            "sync_xcode_skills.py", "--install-only", "--developer-dir", str(app),
+            "--export-dir", str(export_dir), "--skills-root", str(skills_root),
+            "--state-dir", str(state_dir),
+        ]), mock.patch.object(sync_xcode_skills, "run_command", side_effect=version), mock.patch(
+            "sys.stdout", new_callable=io.StringIO
+        ):
+            self.assertEqual(sync_xcode_skills.main(), 0)
+        marker = json.loads((skills_root / "xcode-skill-alpha" / sync_xcode_skills.MARKER_FILE).read_text())
+        catalog = json.loads((state_dir / "catalog.json").read_text())
+        self.assertEqual(marker["xcode_version"], "Xcode 27.0\nBuild version TEST123")
+        self.assertEqual(catalog["xcode_version"], marker["xcode_version"])
+        self.assertEqual(catalog["selected_developer_dir"], str(developer_dir))
+
+    def test_export_pins_bridge_and_running_app_to_the_same_source(self) -> None:
+        app = self.write_xcode("Xcode Beta", "27.2", "100")
+        developer_dir = app / "Contents/Developer"
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command == ["xcrun", "mcpbridge", "--help"]:
+                return sync_xcode_skills.CommandResult(0, "MCP_XCODE_PID", "")
+            if command[0] == "ps":
+                return sync_xcode_skills.CommandResult(
+                    0, f"111 /Applications/Older.app/Contents/MacOS/Xcode\n"
+                    f"222 {app}/Contents/MacOS/Xcode\n", ""
+                )
+            return sync_xcode_skills.CommandResult(0, "success", "")
+
+        with mock.patch.dict(sync_xcode_skills.os.environ, {}, clear=True), mock.patch.object(
+            sync_xcode_skills, "run_command", side_effect=run
+        ):
+            result = sync_xcode_skills.export_direct(self.root / "export", 30, developer_dir=developer_dir)
+            sync_xcode_skills.xcode_version_text(developer_dir)
+        self.assertEqual(result.returncode, 0)
+        for command, kwargs in calls:
+            if command[0] != "ps":
+                self.assertEqual(kwargs["env"]["DEVELOPER_DIR"], str(developer_dir))
+            if "export" in command:
+                self.assertEqual(kwargs["env"]["MCP_XCODE_PID"], "222")
+
+    def test_wrong_inherited_pid_cannot_redirect_export_to_an_older_xcode(self) -> None:
+        app = self.write_xcode("Xcode", "27.2", "100")
+        with mock.patch.dict(sync_xcode_skills.os.environ, {"MCP_XCODE_PID": "111"}), mock.patch.object(
+            sync_xcode_skills, "run_command", side_effect=[
+                sync_xcode_skills.CommandResult(0, "MCP_XCODE_PID", ""),
+                sync_xcode_skills.CommandResult(0, f"222 {app}/Contents/MacOS/Xcode\n", ""),
+            ]
+        ):
+            with self.assertRaisesRegex(sync_xcode_skills.SyncError, "does not belong"):
+                sync_xcode_skills.export_direct(self.root / "export", 30, developer_dir=app / "Contents/Developer")
+
+    def test_export_stops_when_newest_is_not_running_or_process_access_is_denied(self) -> None:
+        app = self.write_xcode("Xcode", "27.2", "100")
+        for processes, message in (
+            (sync_xcode_skills.CommandResult(0, "111 /Applications/Older.app/Contents/MacOS/Xcode", ""), "found 0"),
+            (sync_xcode_skills.CommandResult(1, "", "Operation not permitted"), "Cannot inspect"),
+        ):
+            with self.subTest(message=message), mock.patch.dict(
+                sync_xcode_skills.os.environ, {}, clear=True
+            ), mock.patch.object(sync_xcode_skills, "run_command", side_effect=[
+                sync_xcode_skills.CommandResult(0, "MCP_XCODE_PID", ""), processes
+            ]):
+                with self.assertRaisesRegex(sync_xcode_skills.SyncError, message):
+                    sync_xcode_skills.export_direct(self.root / "export", 30, developer_dir=app / "Contents/Developer")
 
 
 class SyncXcodeSkillsTests(unittest.TestCase):

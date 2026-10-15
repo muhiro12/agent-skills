@@ -1,55 +1,84 @@
 ---
 name: sync-xcode-skills
-description: "Export Xcode-provided skills and install normalized, managed copies in the shared user skill root. Use to discover, import, refresh, or synchronize bundled Apple guidance."
+description: "Export skills from the newest usable local Xcode and install managed copies in the shared user skill root. Use to discover, import, refresh, or synchronize bundled Apple guidance."
 ---
 
 # Sync Xcode Skills
 
 ## Overview
 
-Use this skill to keep Codex's local skill set aligned with the Skills that Xcode exposes through its agent integration.
+Use this skill to keep Codex's local skill set aligned with the Skills that the
+newest usable local Xcode exposes through its agent integration, including beta
+releases. Honor an explicitly requested source Xcode.
 Use the conversation's language for explanations.
 
 The default installation root is `~/.agents/skills`, Codex's user skill location.
 Use `--skills-root` for an explicitly selected alternate installation; changing
 `CODEX_HOME` does not redirect shared user skills.
 
-From Codex, run Xcode export as a standalone command first:
+Discover installed Xcodes from this skill directory before exporting:
 
 ```bash
-xcrun mcpbridge run-agent skills export --output-dir /tmp/xcode-exported-skills --replace-existing
+python3 scripts/sync_xcode_skills.py --list-xcodes
 ```
 
-Then run the Python installer from this skill directory:
+The inventory checks `/Applications`, `~/Applications`, Spotlight, and the
+current developer directory. It sorts by numeric Xcode version, then numeric
+bundle build, newest first; app names, modification dates, the globally selected
+Xcode, and which app is already running do not determine priority. For an
+unindexed installation elsewhere, verify it and use `--developer-dir` explicitly.
 
-```bash
-python3 scripts/sync_xcode_skills.py --install-only --export-dir /tmp/xcode-exported-skills
-```
-
-Prefer a standalone export command in Codex; nested Python or shell wrappers have
-failed to connect in some environments. Use automatic selection for the selected
-Xcode. When a specific different Xcode is requested or multiple versions run,
-inspect the installed bridge's help and identify the intended application's live
-process before using its supported per-command `MCP_XCODE_PID` selector. A bridge
-binary's path alone does not establish which running Xcode answered. Do not retain
-a PID or change global selection as a convenience.
+Prefer a standalone export command in Codex; nested Python or shell wrappers
+have failed to connect in some environments. Select both the command's developer
+directory and the intended running Xcode; a bridge binary's path alone does not
+establish which Xcode answered. Keep all selection local to the invocation.
 
 ## Workflow
 
-1. Confirm the selected Xcode with `xcode-select -p` and `xcodebuild -version`.
-   If the requested export source differs, verify its app version and live process
-   and use the bridge's supported selection mechanism for that invocation.
-2. Run `xcrun mcpbridge run-agent skills export --output-dir /tmp/xcode-exported-skills --replace-existing` as a standalone command.
-- If export cannot find a running Xcode while the native integration can list its workspaces, distinguish the shell access boundary from an application failure. Use the current approval mechanism for the same standalone export when additional access is required; do not invent wrappers or persistent permission exceptions. Do not install from an incomplete or failed export.
-3. Run `python3 scripts/sync_xcode_skills.py --install-only --export-dir /tmp/xcode-exported-skills` from the `sync-xcode-skills` directory.
-   The installer records the version returned by `xcodebuild`; for a deliberately
-   selected alternate Xcode, use a per-command `DEVELOPER_DIR` pointing to that
-   verified app's `Contents/Developer` and confirm its version before installation.
-   Do not label an alternate export with the default CLI's version. If provenance
-   cannot be established, keep the export for inspection without installing it.
-4. Report the exported and installed skill names, then mention the catalog path when surrounding Apple skills may need to route to the generated Xcode-provided skills.
+1. Choose the first inventory entry unless the user requests another Xcode.
+   Verify its version with per-command `DEVELOPER_DIR` and `xcodebuild -version`.
+   Open that exact app if needed and allow initialization to finish. Do not change
+   global `xcode-select` or switch the app build toolchain for this guidance sync.
+2. Inspect that installation's bridge help and identify its live application
+   process. Set `xcode_developer_dir` to its verified `Contents/Developer` path,
+   `xcode_pid` to its current PID, and `xcode_export_dir` to a fresh temporary
+   directory for this attempt. With the supported per-process selector, run the
+   export as a standalone command:
 
-The script exports with `xcrun mcpbridge run-agent skills export --replace-existing`, then installs Codex-compatible copies into the skills root. By default, installed skill names are prefixed with `xcode-skill-` to avoid collisions with local custom skills.
+   ```bash
+   DEVELOPER_DIR="$xcode_developer_dir" MCP_XCODE_PID="$xcode_pid" xcrun mcpbridge run-agent skills export --output-dir "$xcode_export_dir" --replace-existing
+   ```
+
+   If export cannot find a running Xcode while the native integration can list
+   its workspaces, distinguish shell access from an application failure. Use the
+   current approval mechanism for the same standalone export when additional
+   access is required; do not invent wrappers or persistent permission exceptions.
+3. If the newest installation cannot export after resolving ordinary startup or
+   access requirements, record the reason and try the next newest usable entry.
+   Missing export support, an unusable installation, or a persistent connection
+   failure can justify fallback; an older app already running cannot. Use a fresh
+   export directory for each attempt. Do not silently substitute another version
+   for an explicitly requested Xcode. If none succeeds, preserve installed skills.
+4. Install only the successful, complete export with the same verified source:
+
+   ```bash
+   python3 scripts/sync_xcode_skills.py --install-only --developer-dir "$xcode_developer_dir" --export-dir "$xcode_export_dir"
+   ```
+
+   The installer requires an explicit source (`--developer-dir` or per-command
+   `DEVELOPER_DIR`) for existing exports, verifies its version, and records that
+   version consistently. Never infer an existing export's source from whichever
+   Xcode is newest or globally selected. If provenance cannot be established,
+   keep the export for inspection without installing it.
+5. Report the source app, Xcode version/build, any fallback reason, exported and
+   installed skill names, and the generated catalog path.
+
+For Python-driven export, the script selects the newest discovered Xcode by
+default, verifies its running process, and pins both `DEVELOPER_DIR` and
+`MCP_XCODE_PID`. It stops on failure so fallback remains an explicit, reported
+workflow decision. `--developer-dir` accepts an app or developer directory to
+override discovery. By default, installed skill names are prefixed with
+`xcode-skill-` to avoid collisions with local custom skills.
 Treat the `xcode-skill-*` namespace as reserved for this sync output.
 
 ## Design Position
@@ -93,7 +122,8 @@ current selection rather than reopening the catalog through every specialist.
 ## Useful Options
 
 ```bash
-python3 scripts/sync_xcode_skills.py --install-only --export-dir /tmp/xcode-exported-skills
+python3 scripts/sync_xcode_skills.py --list-xcodes
+python3 scripts/sync_xcode_skills.py --install-only --developer-dir "$xcode_developer_dir" --export-dir "$xcode_export_dir"
 python3 scripts/sync_xcode_skills.py --name-prefix xcode-skill-
 python3 scripts/sync_xcode_skills.py --state-dir state
 ```
