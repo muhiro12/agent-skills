@@ -2,8 +2,7 @@
 
 ## Complete the work across both accounts
 
-Apply delegation guidance when Claude is actually assigned work; an incoming
-review does not need a delegation cycle solely to use this skill.
+Apply this reference while coordinating work actually assigned to Claude.
 
 Keep Codex work focused on decisions, independent acceptance, and bounded final
 adjustments. Evaluate total coordination and completion across both accounts;
@@ -82,8 +81,8 @@ not reread model context; a wait that returns control to Codex can create anothe
 Codex inference, even with no useful output. Neither is automatically another
 Codex-to-Claude conversation.
 
-Aim for one implementation exchange and one independent Codex review with bounded
-final adjustments. Use a grouped correction exchange for substantial rework, not
+Aim for one implementation exchange and one Codex refinement pass. Use a grouped
+correction exchange for substantial rework, not
 for every finding. Do not acknowledge each checkpoint or periodically inspect
 diffs while Claude owns the work. With no notification support, use the longest
 host-permitted responsive wait without adding a status/log query afterward.

@@ -1,16 +1,17 @@
 # <Task name>
 
-- Entry: delegated implementation | incoming work review
-- Origin: <Codex brief, direct Claude work, manual edits, or mixed; known evidence>
+- Entry: delegated implementation
+- Origin: <accepted Codex brief and any existing work included in its scope>
 - Stage: design | implement | review | done
 - Next owner: Codex | Claude
 - Brief revision: <number>
+- Refinement skill: <resolved path to refine-development-changes/SKILL.md; shared with Claude>
 - Updated: <date and time>
 - Repository: <absolute path>
 - Execution checkout: <actual absolute path; confirm after session start>
 - Branch / base commit: <branch or detached HEAD / full SHA>
 - Existing unrelated changes: <none or exact paths and ownership>
-- Dispatch: not needed | automated
+- Dispatch: pending | automated | blocked
 - Execution route: <verified executable or adapter reference>
 - Implementation session: <explicit session ID; optional until started>
 - Run limits: <effective time/turn/budget limits per invocation, sized for the batch; default maximum three calls per work item; inspect plan before dispatch>
@@ -18,14 +19,6 @@
 - Codex model / effort: <user-selected baseline; observed or user-reported; actual quality-driven increases and reasons, if any>
 - Claude model / effort: <actual launch flags and returned model; distinguish requested from observed settings>
 - Reserved Codex operations: <none, or exact operation and tool/authority reason>
-
-## Incoming review scope (omit for delegated implementation)
-
-- User outcome and authority: <requested review/fixes; commit or rewrite authority>
-- Frozen input: <base..head SHAs plus staged/unstaged patch hashes and relevant untracked files>
-- Publication baseline: <confirmed remote/ref and observed tip, or unresolved>
-- Original writer: <stopped; session identity if known, otherwise unavailable>
-- Existing evidence: <exact revision, checks and gaps; no prior brief required>
 
 ## Brief — Codex
 
@@ -68,11 +61,9 @@ they affect. Default: return once the whole batch is implemented and checked.>
 
 ## Review and final result — Codex
 
-- Reviewed input: <exact revision/diff and brief revision or reconstructed incoming scope>
-- Development-contract review: <behavior, architecture/style, verification, scope/public artifacts; governing sources>
-- Commit review: <messages, semantic units, author metadata, publication status; authorized corrections>
-- Findings / disposition: <acceptance, bounded Codex adjustments, or grouped Claude rework; entry and reason>
-- Final adjustments and verification: <changes and evidence, if any>
+- Refinement input: <exact revision/diff and accepted brief revision>
+- Refinement result: <result and evidence from refine-development-changes>
+- Correction routing: <Codex adjustments, grouped Claude rework, or takeover; reason>
 - Final revision and outcome: <Codex acceptance of every item and their integration>
 - Accepted limitations: <none or explicitly accepted remaining limitations>
 - Remaining integration / release work: <only what applies>

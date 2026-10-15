@@ -33,7 +33,7 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `ci-verify-and-summarize`: Runs the repository's standard verify flow, reviews only the newest CI run artifacts, and reports verification evidence and gaps from the current diff.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
-- `coordinate-codex-claude`: Explicitly coordinates Claude implementation or incoming work, reuses shared development-change refinement, and owns optional Claude adapter guidance.
+- `coordinate-codex-claude`: Explicitly coordinates Claude implementation and return handoffs, applies `refine-development-changes` before acceptance, and owns optional Claude adapter guidance.
 - `git-publication-review`: Audits destination visibility and outgoing history, pushes reviewed commits when checks pass, and verifies the remote result; honors explicit review-only requests.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
 - `mh-issue-workflow`: Applies the owner's GitHub Issue and Project workflow across repositories, including non-development work, privacy-aware routing, association read-back, and resumption reconciliation.

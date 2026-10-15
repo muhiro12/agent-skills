@@ -9,6 +9,11 @@ Bring the selected work to a correct, verified state under the current developme
 contracts. This workflow owns inspection, active correction, and completion;
 platform specialists supply the implementation and verification methods.
 
+When called by another workflow, inherit its agreed outcome, scope,
+authorization, input revisions, and valid evidence. Reuse its existing brief or
+task record. The calling workflow retains responsibility for dispatch, session
+management, and correction routing.
+
 ## Resolve the Requested Outcome
 
 A refinement or finish request includes necessary fixes, cleanup, refactoring,

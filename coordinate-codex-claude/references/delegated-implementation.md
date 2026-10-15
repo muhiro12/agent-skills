@@ -32,10 +32,11 @@ Inspect the current code and applicable contracts, then write:
 - The chosen design and why its important constraints exist; link durable
   decisions already documented elsewhere.
 - Included work, excluded work, and implementation choices Claude can make.
-- Relevant development contracts, principle sources, and commit conventions
-  from [shared development-change refinement](../../refine-development-changes/SKILL.md).
-  Name the required files and sections with a reason; distinguish initial
-  reading from conditional references.
+- The resolved path to
+  [refine-development-changes](../../refine-development-changes/SKILL.md) and the
+  task-relevant governing sources it selects. Ask Claude to read that skill as
+  shared implementation and verification criteria. Name required source sections
+  with a reason and distinguish initial reading from conditional references.
   Do not ask Claude to recursively read every linked skill or reference.
 - For a batch, the ordered items, dependencies, acceptance per item, and any
   necessary decision checkpoint. Keep them in the same task record.
@@ -60,10 +61,10 @@ forward; the process does not require another approval for settled decisions.
 Increment the brief revision when the agreed scope or design changes. Set
 `Stage: implement` and `Next owner: Claude` only when the brief is actionable.
 Start or resume Claude through the verified automated route with this skill,
-the task-record path, and the recorded checkout. Explicitly include the shared
-skill instructions in that task's request so Claude participates in the already
-invoked workflow without relying on automatic skill discovery. Collect the
-result directly for Codex review.
+the task-record path, and the recorded checkout. Include this coordination skill
+and the resolved refinement-skill path in that request, carrying the brief's
+scope and authority rather than relying on automatic discovery. Collect the
+result directly for Codex to apply refinement and coordinate acceptance.
 
 ## Automated dispatch
 
@@ -87,7 +88,7 @@ An automatic run must not bypass approval controls or silently switch to a
 separately billed provider to make progress.
 
 Collect structured results and execution errors, confirm Claude has stopped
-writing, then perform [independent review](review-and-close.md). The coordinator may
+writing, then follow [return and closure](review-and-close.md). The coordinator may
 re-delegate grouped corrections when justified below, within the agreed limits.
 State whether coordination requires an active Codex task; a skill or task record
 alone does not provide a background runner or wake either client.
@@ -100,10 +101,10 @@ Use this route after its preflight succeeds; do not substitute a manual handoff.
 
 ## Claude: implement and return
 
-Read the current brief revision, applicable repository contracts, and the
-specified relevant principle sections. Follow conditional references when their
-trigger applies; a link is not a requirement to read its entire reference tree. Apply the common review criteria to your own work, including commit
-messages and boundaries when committing is authorized. Confirm the checkout
+Read the current brief revision, its resolved refinement skill, and the named
+governing sources. Apply that skill's relevant development and verification
+criteria to your work. Follow conditional references when their trigger applies;
+a link does not require reading its entire reference tree. Confirm the checkout
 and baseline, then implement the agreed behavior using the relevant shared
 domain skills when available. Runtime tool availability must be checked in
 Claude; a shared skill does not supply Codex-only tools. Complete the ordered

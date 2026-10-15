@@ -1,51 +1,40 @@
-# Independent review and closure
+# Returned Work and Closure
 
-## Apply Shared Refinement
+## Apply the Refinement Skill
 
-Use [shared development-change refinement](../../refine-development-changes/SKILL.md)
-for behavior and development-contract review, active correction, commit and
-history safeguards, verification coverage, and publication routing. Carry the
-applicable portable source links and task constraints in the Claude brief so
-both agents work to the same criteria without copying private records.
+Confirm that Claude has stopped edits and stateful verification and that the
+returned checkout and brief revision match the task record. Keep the returned
+commit range or dirty-diff artifacts identifiable before Codex takes ownership.
+Set `Stage: review` and `Next owner: Codex`.
 
-## Codex: review and close
+Read and apply
+[refine-development-changes](../../refine-development-changes/SKILL.md) to the
+returned work, carrying the agreed outcome, governing sources, exact input,
+existing evidence, and user authority from the brief. Reuse the current handoff;
+do not ask the user to invoke another skill or create a separate task record.
+The refinement skill is the source of review, correction, and verification
+requirements. Record its result instead of maintaining another review checklist
+here. A successful runner return alone does not complete this step.
 
-Confirm the brief revision or reconstructed incoming scope and actual checkout
-still match the frozen input. The implementer's result is evidence to assess
-independently against acceptance. Apply the shared workflow to the actual diff
-and relevant surrounding code after the prior writer releases ownership.
+## Coordinate Follow-up Work
 
-For findings, name the behavior or contract violation, code/commit location,
-impact, governing source, and expected correction. In both entries, Codex handles
-bounded final adjustments and their relevant verification after confirming the
-prior writer has stopped. A new implementation exchange is not required for
-small corrections, metadata, or a check Codex can complete directly.
+Codex can finish local corrections directly. When substantial rework benefits
+from Claude's implementation context, group the refinement findings, desired
+outcome, evidence, and any Codex edits into one follow-up within the agreed
+session and attempt limits. Resolve material scope or product decisions before
+dependent work; the return does not expand the original authority.
 
-For substantial rework or a change best handled with the implementer's detailed
-context, group findings into one scoped follow-up using the same Claude session
-within agreed limits. Carry changed requirements and evidence, then review the
-returned correction. The normal target is one implementation exchange, with one
-additional correction exchange if necessary. If another is needed, identify why
-the prior cycle did not settle it and revise the remaining plan; do not silently
-repeat a review loop or stop with required work unfinished.
+After another Claude return, confirm it has released write ownership and apply
+the refinement skill to the new result. Avoid automatic correction loops: explain
+why an additional exchange is needed and revise the remaining plan. Codex may take over
+when Claude is unavailable or limits are exhausted; record the reason and
+remaining work without weakening acceptance or increasing the limits silently.
 
-Codex owns final acceptance and can take over when Claude is unavailable or has
-exhausted agreed limits. State the remaining scope and reason. Preserve one
-writer per checkout and all approval and verification gates. Review authority
-does not authorize commits or history rewrites; follow the shared refinement
-history safeguards whenever rewriting. Do not extend caps or weaken review
-quality merely to claim usage savings.
+## Close the Coordinated Task
 
-Record the final revision and outcome in the handoff; a later diff invalidates
-that review until assessed. Set `Stage: done` only when acceptance is met,
-stating any explicitly accepted limitations and remaining release steps.
-Summarize actual work by agent, correction rounds or takeovers, and observed
-usage-limit changes with attribution limits. When coordination overhead or
-Codex reimplementation was substantial, identify the specific next adjustment
-instead of claiming successful savings without comparative evidence.
-Review acceptance is not itself permission to push, merge, or release.
-
-Keep durable architecture decisions in their repository documents and private
-cross-repository principles in their existing archive when recording them is
-authorized. Link those sources from the task record; do not maintain parallel
-copies of the rules in both clients.
+Record the refinement result, final revision, correction routing, and remaining
+limitations in the handoff. Set `Stage: done` only when all requested items and
+their integration are accepted through refinement, including any explicitly
+accepted limitations. A later change requires reassessment of the affected
+result. Keep actual agent work and coordination evidence separate from the
+development result, following the usage reference when applicable.

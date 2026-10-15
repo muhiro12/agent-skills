@@ -1,15 +1,15 @@
 # Automatic dispatch
 
 Use `scripts/claude_runner.py` when an explicitly invoked workflow actually
-needs Claude implementation or substantial incoming-review corrections. An
-incoming review with bounded Codex fixes does not require runner preflight.
-The active Codex task is the coordinator: it runs Claude, inspects the returned
-code, makes bounded final adjustments, and accepts the result. Substantial
-rework can return as one grouped request using the session policy below. The helper makes
+needs Claude implementation or a grouped correction. The active Codex task is
+the coordinator: it runs Claude and follows
+[return and closure](review-and-close.md), applying `refine-development-changes`
+before accepting the result. Substantial rework can return as one grouped request
+using the session policy below. The helper makes
 one bounded implementation call; it neither calls a second Codex model nor
 provides a daemon, scheduler, or a wake-up mechanism after Codex finishes.
 
-For incoming work created outside this runner, do not fabricate a saved runner
+For correction work created outside this runner, do not fabricate a saved runner
 state or replace its session UUID with an external session ID. Resume only a
 matching runner-managed task whose identity and checkout have been verified.
 Otherwise create a new bounded correction task with the exact incoming diff,
@@ -186,8 +186,9 @@ Keep these private. The helper writes no product-repository process documents.
 
 Read `summary.json`, the final result and actual Git diff. Successful transport
 means implementation returned; it does not mean Codex accepted the behavior.
-Codex reviews every item and their integration. Complete bounded final adjustments in Codex. For substantial rework, group
-findings into one correction request and call `run` with the same task directory
+Apply `refine-development-changes` through the return-and-closure procedure
+before acceptance. For substantial rework, group findings into one correction
+request and call `run` with the same task directory
 and checkout within the existing limits. Include the current brief revision, changes since the
 last return, and any Codex edits; link evidence rather than repeating transcripts.
 For a new work scope, add `--new-session` to both `plan` and `run`. Otherwise the
