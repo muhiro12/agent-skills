@@ -444,7 +444,7 @@ def collect_test_summaries(text: str) -> dict[str, object] | None:
     swift = re.findall(
         r"^[ \t\u200b]*(?:✔[ \t]+)?Test run with (\d+) tests?[^\n]*?passed", text, re.MULTILINE
     )
-    python = re.search(r"Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", text)
+    python = re.findall(r"^Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", text, re.MULTILINE)
     if xctest or swift:
         result = {
             "executed": sum(int(count) for count, _ in xctest) + sum(map(int, swift)),
@@ -455,8 +455,8 @@ def collect_test_summaries(text: str) -> dict[str, object] | None:
         if fallback:
             result["scope"] += "; XCTest used only the final terse summary"
     elif python:
-        result = {"executed": int(python.group(1)), "failed": 0,
-                  "summary_count": 1, "scope": "captured command output: unittest OK summary"}
+        result = {"executed": sum(map(int, python)), "failed": 0,
+                  "summary_count": len(python), "scope": "captured command output: unittest OK completions"}
     else:
         return None
     skipped = re.findall(r"Test Case[^\n]*\bskipped\b|Test [^\n]*\bskipped after\b|skipped=(\d+)", text)

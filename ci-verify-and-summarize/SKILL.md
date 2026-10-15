@@ -108,7 +108,8 @@ A diff-only record says `not_run`. A changed or dirty source snapshot is recorde
 as unsuitable for clean-commit evidence. Test summaries recognize captured
 XCTest, Swift Testing, and unittest completion. Counts come from command output
 once, excluding mirrored RUN logs. Independent top-level XCTest and Swift
-Testing completions are added; nested XCTest totals are excluded. A terse
+Testing completions are added; nested XCTest totals are excluded. Multiple
+unittest completions are also added once each from command output. A terse
 XCTest output without top-level markers uses only its final summary and says so.
 Required targets, missing counts, failed Swift Testing runs, and skipped tests
 need separate native evidence review. Do not use a successful lint or

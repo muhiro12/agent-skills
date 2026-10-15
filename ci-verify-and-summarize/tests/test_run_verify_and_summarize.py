@@ -705,6 +705,34 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
                 hashlib.sha256((evidence / "output.log").read_bytes()).hexdigest())
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
+    def test_multiple_unittest_completions_are_counted_once_each(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                mkdir -p .build/ci/runs/new/logs
+                echo '{"result":"success"}' > .build/ci/runs/new/meta.json
+                python3 - <<'PY' 2>&1 | tee .build/ci/runs/new/logs/tests.log
+                import unittest
+                for count in (2, 3):
+                    suite = unittest.TestSuite(unittest.FunctionTestCase(lambda: None)
+                                               for _ in range(count))
+                    result = unittest.TextTestRunner().run(suite)
+                    if not result.wasSuccessful():
+                        raise SystemExit(1)
+                PY
+            """)
+            self._commit_all(root, "Add aggregate unittest fixture")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                                         "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["executed"], 5)
+            self.assertEqual(record["tests"]["summary_count"], 2)
+            self.assertEqual(record["tests"]["failed"], 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_mutation_during_check_is_not_clean_source_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
