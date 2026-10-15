@@ -1,6 +1,6 @@
 ---
 name: refine-development-changes
-description: "Inspect and actively improve existing commits and working-tree changes against applicable development rules and intended behavior. Use when asked to finish or bring existing work into shape, including refactoring, reimplementation, and verification; honor review-only requests."
+description: "Inspect and actively improve existing commits and working-tree changes against applicable development rules and intended behavior. Use when asked to audit changes against AGENTS.md, skills, or developer principles, or to finish existing work through refactoring, reimplementation, and verification; honor review-only requests."
 ---
 
 # Refine Development Changes
@@ -41,8 +41,11 @@ result; a later deletion does not remove earlier content from history. Review
 author/committer metadata and semantic commit boundaries against the applicable
 policy. For uncommitted work, assess useful commit units without inventing prior
 commits. Confirm write ownership before modifying a checkout another writer may
-be using. Keep a compact record of the input and existing evidence; a private
-scratch note is useful for a long task, but no handoff scaffold is required.
+be using. Keep a compact record of the input and existing evidence. For a long
+task, track the selected changes, applicable rules, review results, corrections,
+verification, and unverified work with its reason. Reuse a private scratch note
+or the caller's task record as useful; no fixed template or new handoff scaffold
+is required.
 
 ## Judge Against Applicable Sources
 
@@ -93,6 +96,12 @@ Choose evidence for the important original changes as well as the new fixes.
 Relate the changed behavior and failure paths to checks that actually exercise
 them. Repair missing behavior coverage where it is needed; do not add tests
 that only mirror implementation or impose exhaustive UI testing on a small edit.
+
+Before expensive checks, confirm that required tools and runtimes are available,
+identify a usable verification route, and assess whether existing evidence is
+reusable for the current inputs and environment. Distinguish environment
+failures from failures in the changed behavior. Use the relevant specialists
+for platform-specific preflight and fallback procedures.
 
 Follow the real repository contract and relevant platform guidance. Separate
 logic tests, affected consumer/surface builds, repository rules, runtime/UI
