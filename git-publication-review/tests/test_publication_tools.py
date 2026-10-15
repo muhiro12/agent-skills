@@ -20,6 +20,25 @@ SECRET = "gh" + "p_" + "Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv3Wx4"
 
 
 class PreflightTests(unittest.TestCase):
+    def test_supported_ripgrep_with_and_without_build_revision(self):
+        for version in ("ripgrep 15.2.0", "ripgrep 15.2.0 (rev e89fff89ac)"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                binary = Path(directory) / "rg"
+                binary.write_text(f"#!{sys.executable}\nprint({version!r})\n")
+                binary.chmod(0o700)
+                with patch.dict(os.environ, {"PATH": directory}):
+                    self.assertEqual(TOOLS.check_tool("rg")["version"], "15.2.0")
+
+    def test_unsupported_ripgrep_versions_remain_incomplete(self):
+        for version in ("ripgrep 14.1.1", "ripgrep 15.2.0-rc.1", "ripgrep 16.0.0"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                binary = Path(directory) / "rg"
+                binary.write_text(f"#!{sys.executable}\nprint({version!r})\n")
+                binary.chmod(0o700)
+                with patch.dict(os.environ, {"PATH": directory}):
+                    with self.assertRaises(TOOLS.Incomplete):
+                        TOOLS.check_tool("rg")
+
     def test_missing_tool_is_incomplete(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch.dict(os.environ, {"PATH": directory}):

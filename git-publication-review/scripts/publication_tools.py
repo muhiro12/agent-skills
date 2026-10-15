@@ -44,7 +44,7 @@ def check_tool(name):
     if result.returncode:
         raise Incomplete(f"Required tool '{name}' did not report its version.")
     if name == "rg":
-        match = re.fullmatch(r"ripgrep (15\.2\.\d+)", first)
+        match = re.fullmatch(r"ripgrep (15\.2\.\d+)(?: \(rev [0-9a-f]+\))?", first)
     elif name == "betterleaks":
         match = re.fullmatch(r"(1\.9\.0)", first)
     else:
