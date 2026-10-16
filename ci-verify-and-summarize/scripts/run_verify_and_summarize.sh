@@ -238,7 +238,17 @@ if [ "$verify_exit" -eq 0 ]; then
 fi
 set -e
 
-post_runs="$(list_run_ids "$run_base")"
+post_runs=""
+post_root_error=""
+for run_component in ".build" ".build/ci" "$run_base"; do
+  if [ -L "$run_component" ]; then
+    post_root_error="$run_component がverify中にsymlinkへ変わったため、CI成果物を参照しません。"
+    break
+  fi
+done
+if [ -z "$post_root_error" ]; then
+  post_runs="$(list_run_ids "$run_base")"
+fi
 latest_run=""
 run_is_new="false"
 run_selection_error=""
@@ -250,7 +260,10 @@ while IFS= read -r run_id; do
   new_run_count=$((new_run_count + 1))
 done < <(printf '%s\n' "$new_runs")
 
-if has_unsafe_run_entry "$run_base"; then
+if [ -n "$post_root_error" ]; then
+  latest_run=""
+  run_selection_error="$post_root_error"
+elif has_unsafe_run_entry "$run_base"; then
   latest_run=""
   run_selection_error="CI成果物rootにsymlink entryがあるため、新しいRUNを安全に選択できません。"
 elif [ "$new_run_count" -eq 1 ]; then
@@ -304,7 +317,8 @@ def resolve_run_directory(raw_path: str, raw_run_base: str) -> tuple[Path | None
 
     run_base = Path(raw_run_base)
     candidate = Path(raw_path)
-    if run_base.is_symlink() or candidate.is_symlink() or not candidate.is_dir():
+    if (any(path.is_symlink() for path in (candidate, *candidate.parents))
+            or not candidate.is_dir()):
         return None, "選択したCI RUNが通常directoryではありません。"
 
     resolved_run_base = run_base.resolve()
@@ -445,18 +459,19 @@ def collect_test_summaries(text: str) -> dict[str, object] | None:
         r"^[ \t\u200b]*(?:✔[ \t]+)?Test run with (\d+) tests?[^\n]*?passed", text, re.MULTILINE
     )
     python = re.findall(r"^Ran (\d+) tests? in [^\n]+\n\s*\nOK\b", text, re.MULTILINE)
-    if xctest or swift:
+    if xctest or swift or python:
+        frameworks = [name for name, completions in (
+            ("top-level XCTest", xctest), ("Swift Testing", swift), ("unittest OK", python)
+        ) if completions]
         result = {
-            "executed": sum(int(count) for count, _ in xctest) + sum(map(int, swift)),
+            "executed": sum(int(count) for count, _ in xctest) + sum(map(int, swift)) + sum(map(int, python)),
             "failed": sum(int(count) for _, count in xctest),
-            "summary_count": len(xctest) + len(swift),
-            "scope": "captured command output: top-level XCTest and Swift Testing completions; required targets need separate review",
+            "summary_count": len(xctest) + len(swift) + len(python),
+            "scope": "captured command output: " + ", ".join(frameworks)
+                     + " completions; required targets need separate review",
         }
         if fallback:
             result["scope"] += "; XCTest used only the final terse summary"
-    elif python:
-        result = {"executed": sum(map(int, python)), "failed": 0,
-                  "summary_count": len(python), "scope": "captured command output: unittest OK completions"}
     else:
         return None
     skipped = re.findall(r"Test Case[^\n]*\bskipped\b|Test [^\n]*\bskipped after\b|skipped=(\d+)", text)
@@ -747,7 +762,7 @@ if evidence_directory_arg:
                        "stable_clean_snapshot": source_before == source_after and source_before["clean"]},
             "environment": {"platform": platform.platform(), "python": platform.python_version(),
                             "git": (run_command(["git", "--version"]) or "unavailable").strip()},
-            "verification": {"ran": verification_ran, "argv": verify_argv,
+            "verification": {"ran": verification_ran, "argv": verify_argv, "cwd": str(Path.cwd()),
                              "exit_code": verify_exit if verification_ran else None,
                              "status": "not_run" if not verification_ran else ("passed" if report_exit == 0 else "failed")},
             "diagnostics": {"scope": "captured stdout/stderr and current-run diagnostic logs; not hidden native issues",

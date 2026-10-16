@@ -13,6 +13,10 @@ and optional tracked resolution file, and an exact optional prose-reuse list.
 Retain repository-specific scopes: a library test does not cover system tests.
 Require full test execution; subsets, missing bundles, skips, native issues,
 captured warnings, and unreviewed error candidates remain incomplete.
+Match a required project by its full repository-relative path, not its basename.
+Absolute command paths must be inside the captured execution working directory
+and resolve to that same relative path. Older absolute-path captures without a
+working directory need recapture; a same-named project elsewhere is not evidence.
 
 `scripts/swiftlint_evidence.py` API version 1 accepts the contract followed by
 `select|run`, repository, the two explicitly configured package roots, and for

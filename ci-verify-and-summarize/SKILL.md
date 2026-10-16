@@ -85,7 +85,7 @@ repository wrapper. Never select formatting, deployment, or mutation as a check.
 
 Use a new directory with an existing parent. The helper retains complete captured
 stdout/stderr, current-run regular diagnostic logs, their hashes, source
-commit/tree and before/after worktree state, command argv/exit, environment,
+commit/tree and before/after worktree state, command argv/working directory/exit, environment,
 and every recognized diagnostic in `result.json`. Files are private (0600,
 directory 0700); the directory is never overwritten. This is execution evidence,
 not a publication receipt or independent proof of authenticity.
@@ -109,8 +109,9 @@ as unsuitable for clean-commit evidence. Test summaries recognize captured
 XCTest, Swift Testing, and unittest completion. Counts come from command output
 once, excluding mirrored RUN logs. Independent top-level XCTest and Swift
 Testing completions are added; nested XCTest totals are excluded. Multiple
-unittest completions are also added once each from command output. A terse
-XCTest output without top-level markers uses only its final summary and says so.
+unittest completions are also added once each, including commands that mix these
+test frameworks. A terse XCTest output without top-level markers uses only its
+final summary and says so.
 Required targets, missing counts, failed Swift Testing runs, and skipped tests
 need separate native evidence review. Do not use a successful lint or
 fixture run as app build or library-test evidence.
@@ -134,6 +135,7 @@ The shell helper compares direct child RUN directories before and after executio
 Only one new regular directory may supply current-run artifacts. Do not select
 an old successful run when the current command failed or produced no artifacts.
 Multiple new runs or symlinked roots/entries are ambiguous and must be reported.
+Recheck root components after execution before reading any current-run artifacts.
 
 For a valid current run, read `summary.md`, `meta.json`, the failed log only when
 needed, and `commands.txt` only for diagnosis. Artifacts must be regular,

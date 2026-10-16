@@ -686,6 +686,37 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             self.assertEqual((evidence / "result.json").stat().st_mode & 0o777, 0o600)
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
 
+    def test_artifact_root_replaced_during_check_is_not_read(self) -> None:
+        for component, suffix in ((".build", "ci/runs/new"), (".build/ci", "runs/new"),
+                                  (".build/ci/runs", "new")):
+            with self.subTest(component=component), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory) / "repo"
+                root.mkdir()
+                self._init_git_repo(root)
+                self._write_executable(root / "scripts/check.sh", f"""
+                    #!/bin/bash
+                    python3 - <<'PY'
+                    from pathlib import Path
+                    outside = Path('../outside').resolve()
+                    run = outside / {suffix!r}
+                    run.mkdir(parents=True)
+                    (run / 'summary.md').write_text('UNRELATED_EXTERNAL_ARTIFACT\\n')
+                    (run / 'meta.json').write_text('{{}}')
+                    link = Path({component!r})
+                    link.parent.mkdir(parents=True, exist_ok=True)
+                    link.symlink_to(outside, target_is_directory=True)
+                    PY
+                """)
+                self._commit_all(root, "Add artifact root replacement fixture")
+                evidence = root / ".git/evidence"
+                completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                                             "--", "bash", "scripts/check.sh")
+                record = json.loads((evidence / "result.json").read_text())
+                self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+                self.assertIn("symlink", completed.stdout)
+                self.assertNotIn("UNRELATED_EXTERNAL_ARTIFACT", completed.stdout)
+                self.assertFalse(record["diagnostics"]["complete_captured_output"])
+
     def test_retained_success_records_real_command_source_and_tests(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -700,6 +731,7 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             record = json.loads((evidence / "result.json").read_text())
             self.assertTrue(record["source"]["stable_clean_snapshot"])
             self.assertEqual(record["verification"]["argv"], ["bash", "scripts/check.sh"])
+            self.assertEqual(Path(record["verification"]["cwd"]), root.resolve())
             self.assertEqual(record["tests"]["executed"], 2)
             self.assertEqual(record["artifacts"][0]["sha256"],
                 hashlib.sha256((evidence / "output.log").read_bytes()).hexdigest())
@@ -730,6 +762,33 @@ class RunVerifyAndSummarizeTests(unittest.TestCase):
             record = json.loads((evidence / "result.json").read_text())
             self.assertEqual(record["tests"]["executed"], 5)
             self.assertEqual(record["tests"]["summary_count"], 2)
+            self.assertEqual(record["tests"]["failed"], 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    def test_mixed_test_framework_completions_are_added_without_mirrored_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self._init_git_repo(root)
+            self._write_executable(root / "scripts/check.sh", """
+                #!/bin/bash
+                mkdir -p .build/ci/runs/new/logs
+                echo '{}' > .build/ci/runs/new/meta.json
+                cat <<'OUTPUT' | tee .build/ci/runs/new/logs/tests.log
+                Ran 2 tests in 0.01s
+
+                OK
+                Test Suite 'All tests' passed at 2026-10-16 10:00:00.
+                Executed 4 tests, with 0 failures in 0.01 seconds
+                Test run with 3 tests passed after 0.01 seconds.
+                OUTPUT
+            """)
+            self._commit_all(root, "Add mixed test framework fixture")
+            evidence = root / ".git/evidence"
+            completed = self._run_helper(root, "--evidence-dir", str(evidence),
+                                         "--", "bash", "scripts/check.sh")
+            record = json.loads((evidence / "result.json").read_text())
+            self.assertEqual(record["tests"]["executed"], 9)
+            self.assertEqual(record["tests"]["summary_count"], 3)
             self.assertEqual(record["tests"]["failed"], 0)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 

@@ -539,20 +539,46 @@ class PushVerificationTests(unittest.TestCase):
         self.receipt = self.make_receipt([update])
         self.assert_rejected("Required intents evidence", [update])
 
-    def test_repository_project_cannot_be_replaced_by_another_project(self):
+    def set_recorded_build_project(self, project, cwd=None):
         path = self.store / self.receipt["quality"][self.tip]["checks"]["build"]["evidence"]
         record = json.loads(path.read_text())
         argv = record["verification"]["argv"]
-        argv[argv.index("-project") + 1] = "Other.xcodeproj"
+        argv[argv.index("-project") + 1] = project
+        record["verification"].pop("cwd", None)
+        if cwd is not None:
+            record["verification"]["cwd"] = cwd
         original = path.parent / "original-result.json"
         data = json.loads(original.read_text())
-        data["verification"]["argv"] = argv
+        data["verification"] = copy.deepcopy(record["verification"])
         original.write_text(json.dumps(data))
         for artifact in record["artifacts"]:
             if artifact["path"] == original.name:
                 artifact["sha256"] = hashlib.sha256(original.read_bytes()).hexdigest()
         path.write_text(json.dumps(record))
+
+    def test_repository_project_cannot_be_replaced_by_another_project(self):
+        for project in ("Other.xcodeproj", "../other/Incomes.xcodeproj", "nested/Incomes.xcodeproj"):
+            with self.subTest(project=project):
+                self.set_recorded_build_project(project)
+                self.assert_rejected("required native project")
+
+    def test_absolute_project_needs_the_captured_checkout_directory(self):
+        project = str(self.root / "Incomes.xcodeproj")
+        self.set_recorded_build_project(project)
+        self.assert_rejected("captured execution directory")
+        self.set_recorded_build_project(project, str(self.root))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.set_recorded_build_project(str(self.root.parent / "other/Incomes.xcodeproj"), str(self.root))
         self.assert_rejected("required native project")
+
+    def test_review_cannot_change_the_captured_checkout_directory(self):
+        self.set_recorded_build_project(str(self.root / "Incomes.xcodeproj"), str(self.root))
+        path = self.store / self.receipt["quality"][self.tip]["checks"]["build"]["evidence"]
+        record = json.loads(path.read_text())
+        record["verification"]["cwd"] = str(self.root.parent)
+        path.write_text(json.dumps(record))
+        self.assert_rejected("producing execution do not match")
 
     def test_required_ui_bundles_are_checked_like_unit_bundles(self):
         path = self.store / self.receipt["quality"][self.tip]["checks"]["tests"]["evidence"]

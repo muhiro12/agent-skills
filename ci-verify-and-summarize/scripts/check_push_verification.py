@@ -148,7 +148,8 @@ def native_quality_record(store: Path, relative: str, record: dict, kind: str) -
             and original["verification"].get("exit_code") == 0
             and original.get("source") == record.get("source")
             and original.get("environment") == record.get("environment")
-            and original["verification"].get("argv") == record["verification"]["argv"],
+            and original["verification"].get("argv") == record["verification"]["argv"]
+            and original["verification"].get("cwd") == record["verification"].get("cwd"),
             "Native exports or producing execution do not match the quality record.")
     expected = record["diagnostics"].get("expected_test_output", [])
     require(record["diagnostics"].get("expected_test_output_count", 0) == len(expected)
@@ -168,8 +169,20 @@ def native_quality_record(store: Path, relative: str, record: dict, kind: str) -
     action = "build" if spec["kind"] == "build" else "test"
     require(argv.count(action) == 1, "The required native action was not executed.")
     if spec.get("project"):
-        require(argv.count("-project") == 1 and
-                Path(argv[argv.index("-project") + 1]).name == spec["project"],
+        require(argv.count("-project") == 1 and argv.index("-project") + 1 < len(argv),
+                "The required native project was not verified.")
+        project = Path(argv[argv.index("-project") + 1])
+        if project.is_absolute():
+            cwd = record["verification"].get("cwd")
+            require(isinstance(cwd, str) and Path(cwd).is_absolute(),
+                    "Absolute native project paths need a captured execution directory; recapture evidence.")
+            try:
+                project = project.resolve().relative_to(Path(cwd).resolve())
+            except ValueError:
+                raise IncompleteVerification("The required native project was not verified.") from None
+        required_project = Path(spec["project"])
+        require(not required_project.is_absolute() and ".." not in required_project.parts
+                and ".." not in project.parts and project == required_project,
                 "The required native project was not verified.")
     if spec["kind"] == "tests":
         plan = spec.get("test_plan")
