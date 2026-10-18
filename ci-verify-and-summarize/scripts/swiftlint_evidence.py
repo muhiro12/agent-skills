@@ -27,19 +27,58 @@ def version_tuple(value: str) -> tuple[int, ...]:
     return tuple(map(int, value.split(".")))
 
 
-def select(repository: Path, roots: list[Path]) -> dict | None:
-    project = repository / CONTRACT["project"] / "project.pbxproj"
+def project_configuration(repository: Path) -> Path:
+    relative = Path(CONTRACT["project"])
+    if relative.is_absolute() or ".." in relative.parts or relative.suffix != ".xcodeproj":
+        raise ValueError("The project must be a repository-relative .xcodeproj bundle.")
+    candidates = [repository / relative / name for name in ("project.pbxproj", "project.xcproj")]
+    candidates = [path for path in candidates if path.exists() or path.is_symlink()]
+    if len(candidates) != 1:
+        raise ValueError("The project must contain exactly one supported configuration.")
+    project = candidates[0]
+    parts = project.relative_to(repository).parts
+    if not project.is_file() or any((repository.joinpath(*parts[:end])).is_symlink()
+                                    for end in range(1, len(parts) + 1)):
+        raise ValueError("The project configuration must be a regular, non-symlink repository file.")
+    return project
+
+
+def swiftlint_minimum(project: Path) -> tuple[int, ...]:
+    # Native normalization preserves strings while accepting Xcode's comments and trailing commas.
     parsed = subprocess.run(["plutil", "-convert", "json", "-o", "-", str(project)],
                             check=True, capture_output=True, text=True)
-    objects = json.loads(parsed.stdout)["objects"]
-    references = [v for v in objects.values() if v.get("isa") == "XCRemoteSwiftPackageReference"
-                  and v.get("repositoryURL", "").removesuffix(".git") == REMOTE]
+    document = json.loads(parsed.stdout)
+    if not isinstance(document, dict):
+        raise ValueError("The project configuration must be an object.")
+    if project.suffix == ".pbxproj":
+        objects = document["objects"]
+        root = objects[document["rootObject"]]
+        if root.get("isa") != "PBXProject":
+            raise ValueError("The legacy project root must reference a PBXProject.")
+        packages = [objects[identifier] for identifier in root.get("packageReferences", [])]
+        references = [value for value in packages if value.get("isa") == "XCRemoteSwiftPackageReference"
+                      and value.get("repositoryURL", "").removesuffix(".git") == REMOTE]
+    else:
+        if "objects" in document or not isinstance(document.get("packages"), list):
+            raise ValueError("The JSON project must declare its packages in the JSON project model.")
+        references = [value for value in document["packages"] if value.get("kind") == "remote"
+                      and value.get("repository", "").removesuffix(".git") == REMOTE]
     if len(references) != 1:
         raise ValueError("The project must declare one canonical SwiftLintPlugins dependency.")
-    requirement = references[0]["requirement"]
-    if requirement.get("kind") != "upToNextMajorVersion":
-        raise ValueError("Review the adapter for the project's SwiftLint version requirement.")
-    minimum = version_tuple(requirement["minimumVersion"])
+    if project.suffix == ".pbxproj":
+        requirement = references[0]["requirement"]
+        if requirement.get("kind") == "upToNextMajorVersion":
+            return version_tuple(requirement["minimumVersion"])
+    else:
+        requirement = references[0]["version"]
+        if isinstance(requirement, dict) and set(requirement) == {"up-to-next-major-version"}:
+            return version_tuple(requirement["up-to-next-major-version"])
+    raise ValueError("Review the adapter for the project's SwiftLint version requirement.")
+
+
+def select(repository: Path, roots: list[Path]) -> dict | None:
+    project = project_configuration(repository)
+    minimum = swiftlint_minimum(project)
     override = os.environ.get("CI_SWIFTLINT_BIN")
     for root in roots:
         root = root.resolve()
@@ -90,6 +129,7 @@ def select(repository: Path, roots: list[Path]) -> dict | None:
                 "package_version": package_version, "package_revision": revision, "package_remote": REMOTE,
                 "package_manifest_sha256": sha256(package / "Package.swift"),
                 "workspace_state_sha256": sha256(workspace), "artifact_checksum": source["checksum"],
+                "project_path": project.relative_to(repository).as_posix(),
                 "project_sha256": sha256(project), "source_packages": str(root), "override": bool(override)}
         if resolved:
             selected["resolved_sha256"] = sha256(repository / resolved)
@@ -141,6 +181,6 @@ def main(argv=None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as error:
         print("SwiftLint verification incomplete: " + str(error), file=sys.stderr)
         raise SystemExit(2)
