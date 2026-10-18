@@ -87,6 +87,11 @@ class PushVerificationTests(unittest.TestCase):
     def tuple(self, oid, ref, old):
         return {"local_ref": oid, "local_oid": oid, "remote_ref": ref, "remote_oid": old}
 
+    def source_project(self, oid):
+        files = self.git("ls-tree", "-r", "--name-only", oid).splitlines()
+        return next(("Incomes.xcodeproj/" + name for name in ("project.pbxproj", "project.xcproj")
+                     if "Incomes.xcodeproj/" + name in files), None)
+
     def record(self, name, oid=None, kind=None):
         oid = oid or self.tip
         directory = self.store / name
@@ -112,7 +117,8 @@ class PushVerificationTests(unittest.TestCase):
             proof = {"schema_version": 1, "mode": "lint", "exit_code": 0, "source_head": oid,
                      "binary": binary, "version": "0.65.1", "package_version": "0.65.1",
                      "package_remote": "https://github.com/SimplyDanny/SwiftLintPlugins",
-                     "package_revision": "a" * 40, "project_sha256": source_hash("Incomes.xcodeproj/project.pbxproj"),
+                     "package_revision": "a" * 40,
+                     "project_sha256": source_hash(self.source_project(oid)) if self.source_project(oid) else "a" * 64,
                      "config_sha256": source_hash(".swiftlint.yml"), "files": files,
                      "argv": [binary, "lint", "--quiet", "--no-cache", "--strict", *files]}
             proof.update({key: "a" * 64 for key in ("binary_sha256", "package_manifest_sha256",
@@ -219,6 +225,76 @@ class PushVerificationTests(unittest.TestCase):
         q = self.run_check()
         self.assertEqual(q.returncode, 0, q.stdout + q.stderr)
         self.assertIn("not independently proved", q.stdout)
+
+    def recommit_project(self):
+        self.commit("Change project configuration fixture")
+        self.tip = self.git("rev-parse", "HEAD")
+        self.update = self.tuple(self.tip, "refs/heads/main", self.base)
+        self.receipt = self.make_receipt([self.update])
+        self.save()
+
+    def change_lint_proof(self, **changes):
+        path = self.store / self.receipt["quality"][self.tip]["checks"]["lint"]["evidence"]
+        output = path.parent / "output.log"
+        lines = output.read_text().splitlines()
+        proof = json.loads(lines[0].removeprefix("SwiftLint execution: "))
+        proof.update(changes)
+        output.write_text("SwiftLint execution: " + json.dumps(proof) + "\nRepository rules check passed.\n")
+        record = json.loads(path.read_text())
+        record["artifacts"][0]["sha256"] = hashlib.sha256(output.read_bytes()).hexdigest()
+        path.write_text(json.dumps(record))
+
+    def test_json_project_and_additive_proof_path_match(self):
+        self.git("mv", "Incomes.xcodeproj/project.pbxproj", "Incomes.xcodeproj/project.xcproj")
+        self.write("Incomes.xcodeproj/project.xcproj", '{"packages": []}\n')
+        self.recommit_project()
+        self.change_lint_proof(project_path="Incomes.xcodeproj/project.xcproj")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.change_lint_proof(project_path="Other.xcodeproj/project.xcproj")
+        self.assert_rejected("SwiftLint execution")
+
+    def test_legacy_project_accepts_proof_path_and_preserves_old_proofs(self):
+        self.assertEqual(self.run_check().returncode, 0)
+        self.change_lint_proof(project_path="Incomes.xcodeproj/project.pbxproj")
+        self.assertEqual(self.run_check().returncode, 0)
+        self.change_lint_proof(project_path="Incomes.xcodeproj/project.xcproj")
+        self.assert_rejected("SwiftLint execution")
+
+    def test_configuration_is_selected_from_source_commit_in_both_directions(self):
+        # Uncommitted conversion must not change which historical file is verified.
+        original = self.root / "Incomes.xcodeproj/project.pbxproj"
+        modern = self.root / "Incomes.xcodeproj/project.xcproj"
+        original.rename(modern)
+        self.assertEqual(self.run_check().returncode, 0)
+        self.recommit_project()
+        modern.rename(original)
+        original.write_text("Uncommitted legacy configuration\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.change_lint_proof(project_sha256=hashlib.sha256(original.read_bytes()).hexdigest())
+        self.assert_rejected("SwiftLint execution")
+
+    def test_missing_and_ambiguous_source_configurations_reject(self):
+        self.write("Incomes.xcodeproj/project.xcproj", "Synthetic second configuration\n")
+        self.recommit_project()
+        self.assert_rejected("exactly one supported project")
+        self.git("rm", "Incomes.xcodeproj/project.pbxproj", "Incomes.xcodeproj/project.xcproj")
+        self.recommit_project()
+        self.assert_rejected("exactly one supported project")
+
+    def test_symlinked_source_configuration_rejects(self):
+        path = self.root / "Incomes.xcodeproj/project.pbxproj"
+        path.unlink()
+        path.symlink_to("../Sources/value.swift")
+        self.recommit_project()
+        self.assert_rejected("regular Git file")
+
+    def test_json_configuration_hash_tampering_rejects(self):
+        self.git("mv", "Incomes.xcodeproj/project.pbxproj", "Incomes.xcodeproj/project.xcproj")
+        self.recommit_project()
+        self.change_lint_proof(project_sha256="0" * 64)
+        self.assert_rejected("SwiftLint execution")
 
     def test_scanner_success_cannot_replace_lint_execution(self):
         checks = self.receipt["quality"][self.tip]["checks"]

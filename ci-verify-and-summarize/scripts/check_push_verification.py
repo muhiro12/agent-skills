@@ -228,12 +228,19 @@ def lint_quality_record(store: Path, relative: str, record: dict) -> None:
         result = subprocess.run(["git", "show", head + ":" + path], capture_output=True, env=git_environment())
         require(result.returncode == 0, "A lint input is missing from its source commit.")
         return digest(result.stdout)
-    files = git("ls-tree", "-r", "--name-only", head, "--").splitlines()
-    files = [path for path in files if path.endswith(".swift")]
+    entries = [entry.split("\t", 1) for entry in git("ls-tree", "-r", "-z", head, "--").split("\0") if entry]
+    configurations = {str(Path(CONTRACT["project"]) / name) for name in ("project.pbxproj", "project.xcproj")}
+    projects = [(metadata, path) for metadata, path in entries if path in configurations]
+    require(len(projects) == 1, "The lint source commit must contain exactly one supported project configuration.")
+    metadata, project = projects[0]
+    require(metadata.split()[0] in {"100644", "100755"} and metadata.split()[1] == "blob",
+            "The lint source project configuration must be a regular Git file.")
+    files = [path for _, path in entries if path.endswith(".swift")]
     binary = proof.get("binary", "")
     require(proof.get("schema_version") == 1 and proof.get("mode") == "lint"
             and proof.get("exit_code") == 0 and proof.get("source_head") == head
-            and proof.get("project_sha256") == file_hash(CONTRACT["project"] + "/project.pbxproj")
+            and proof.get("project_sha256") == file_hash(project)
+            and proof.get("project_path", project) == project
             and proof.get("config_sha256") == file_hash(".swiftlint.yml")
             and proof.get("files") == files and bool(files)
             and proof.get("argv") == [binary, "lint", "--quiet", "--no-cache", "--strict", *files]
@@ -450,6 +457,7 @@ def load_contract(path: str) -> None:
     require(CONTRACT.get("schema_version") == CHECKER_API_VERSION
             and isinstance(CONTRACT.get("project"), str)
             and CONTRACT["project"].endswith(".xcodeproj")
+            and not Path(CONTRACT["project"]).is_absolute() and ".." not in Path(CONTRACT["project"]).parts
             and isinstance(CONTRACT.get("checks"), dict) and CONTRACT["checks"]
             and isinstance(CONTRACT.get("lint", {}).get("argv"), list)
             and CONTRACT["lint"]["argv"], "Unsupported repository verification contract.")
