@@ -26,6 +26,8 @@ from the runtime inventory. Follow the repository's project/scheme/destination/
 test-plan contract; preserve and restore changed Xcode selection. Use
 available platform guidance when Apple evidence selection needs clarification.
 A retained static-rule script is only one part of a mixed contract.
+For project-format migration or format-dependent checks, read
+[Xcode project-format verification](references/xcode-project-format.md).
 For Simulator runtime checks, follow [device-session ownership](../xcode-ui-smoke-auditor/references/device-session-ownership.md);
 build-only checks do not need an interaction session.
 

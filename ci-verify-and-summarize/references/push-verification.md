@@ -27,6 +27,24 @@ single `SwiftLint execution:` JSON line with the normal execution helper.
 Only successful strict lint belongs in a push receipt. Never use autofix as QA.
 Do not resolve arbitrary global caches or executable overrides as evidence.
 
+Both adapters support exactly one `project.pbxproj` or `project.xcproj` inside
+the contract's repository-relative `.xcodeproj` bundle. SwiftLint selection
+normalizes either format with Apple's `plutil`, follows legacy package references
+from the project root or JSON `packages`, and retains canonical remote and
+version-range validation. JSON comments and trailing commas need no text repair
+or Swift compiler cache. Missing, ambiguous, malformed, or symlinked working
+configurations cannot establish lint provenance.
+
+API version 1, contract schema 1, proof schema 1, and receipt schema 2 remain
+compatible. New lint proofs add `project_path` alongside `project_sha256`.
+The matcher derives the authoritative configuration from the evidence source
+commit, requires a regular Git file, checks its hash, and checks the path when
+present. Earlier proofs without `project_path` still match their source-commit
+configuration. An arbitrary supplied path or a different working-tree format
+cannot select the hash input. The existing checker hash binding requires a
+new compatibility review and receipt after the helper changes; do not edit an
+old receipt's helper hash to relabel it as a new review.
+
 Receipts use schema version 2 in the common Git directory's private
 `push-verification/destinations/<sha256-of-location>/receipt.json`. They bind the
 common directory, destination, exact sorted proposed updates, complete outgoing
