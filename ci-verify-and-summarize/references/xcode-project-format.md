@@ -36,10 +36,9 @@ configuration against its supported options and actual schemes/targets; static
 configuration review does not establish that its external parser or scan works.
 
 Xcode output can contain comments and trailing commas. The shared adapters use
-`plutil -convert json -o - <configuration>` before strict JSON parsing. This
-native normalization read the actual Stally, Cookle, and Incomes converter
-output and preserved escaped strings and URL content in local probes. It avoids
-custom text repair, extra parser dependencies, and Swift interpreter caches.
+`plutil -convert json -o - <configuration>` before strict JSON parsing. Native
+normalization preserves escaped strings and URL content while avoiding custom
+text repair, extra parser dependencies, and Swift interpreter caches.
 If it fails on a future format or environment, retain the original input and
 diagnostic and report the unsupported boundary; do not strip syntax with regex
 or silently fall back to an unrelated file. Reject missing or ambiguous files
@@ -61,10 +60,10 @@ phases, embedding, signing, entitlements, and deployment targets. Review
 regenerated IDs through their references and preserve IDs used by schemes.
 
 Separate declaration or navigator normalization from ordered build behavior.
-Incomes conversion changed Frameworks input order even though membership and
-evaluated settings matched. Do not sort executable build phases, scripts, or
-linker inputs merely to eliminate a diff. State the actual comparison scope and
-use relevant app/companion builds and tests to bound the observed behavior.
+Frameworks input order can change even when membership and evaluated settings
+match. Do not sort executable build phases, scripts, or linker inputs merely to
+eliminate a diff. State the actual comparison scope and use relevant app/companion
+builds and tests to bound the observed behavior.
 
 Distinguish converter failures from permission/cache errors, service connection
 errors, inherited SDK selection, shell-wrapper failures, and package-plugin
