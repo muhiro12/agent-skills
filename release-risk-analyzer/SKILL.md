@@ -1,17 +1,19 @@
 ---
 name: release-risk-analyzer
-description: "Review release risk from a public release to a candidate, focusing on new contracts, their appropriateness, and preservation of existing contracts. Report compact conclusions and prioritize primary-data loss; do not implement fixes or perform release operations."
+description: "Review release risk from a public release to the next candidate. Prioritize primary-data loss, deliver a readable HTML report, and supplement the risk judgment with important hard-to-change contracts and short source diffs. Review only; no fixes or release operations."
 ---
 
 # Release Risk Analyzer
 
 ## Purpose and boundaries
 
-Help the user see what publication makes difficult to change, whether those
-commitments are appropriate, and whether existing users' contracts are preserved.
-The skill's value is a compact judgment that would be buried in a full diff.
-Investigate broadly; report selectively. Finding many matching literals is not
-the result.
+Assess the next release's risks, prioritizing loss or corruption of existing
+users' primary data. Preserve the review's breadth: persistence, destructive
+operations, shared behavior, external integration, permissions, packaging, and
+other changed release surfaces. Supplement that judgment with important contracts
+that publication makes irreversible or costly to change, whether they are
+appropriate, and whether existing commitments are preserved. Investigate broadly;
+report selectively. Finding many matching literals is not the result.
 
 This skill reviews and reports only. Do not edit the reviewed repository, run
 migrations, change versions, commit, push, or distribute a build. Recommend checks
@@ -24,6 +26,8 @@ probability, permission to ship, or an operation-approval gate.
 
 - Compare the requested public release with the candidate. The latest reachable
   tag is a source-range fallback, not proof of public distribution.
+- Default to this single upcoming-release comparison. A historical multi-release
+  report requires an explicit request; a prior example does not change the scope.
 - Use `--base-ref`, `--head-ref`, or `--tag-pattern` for the intended sources.
   Identify the distributed version/build and its source when available; disclose
   an unknown build-to-tag correspondence without a generic warning list.
@@ -37,8 +41,9 @@ probability, permission to ship, or an operation-approval gate.
 python3 scripts/review_release_risk.py --repo /path/to/repository --format json
 ```
 
-Keep the JSON as working evidence rather than pasting it into the answer. Default
-Markdown is a compact candidate overview; `--verbose` expands diagnostic detail.
+Keep the JSON as working evidence rather than pasting it into the answer. The
+script's default Markdown is a compact detector overview; `--verbose` expands
+diagnostic detail. Neither is the final contextual review or the HTML deliverable.
 Read [references/risk-rules.md](references/risk-rules.md) for contract inspection
 and scoring. The script reads the selected refs, not the working-tree version.
 Its matches are candidates, not proof of a contract, harm, or safety. Inspect
@@ -47,7 +52,11 @@ coverage record for each applicable contract surface in the reference: added,
 changed, removed, unchanged, or unverified, with supporting evidence. Do not infer
 coverage from the score or let a database-only review stand for all contracts.
 
-### Answer the three contract questions
+### Inspect publication contracts
+
+Inspect the applicable contract surfaces alongside the ordinary release risks.
+Use these questions to establish the evidence, then select only material,
+hard-to-change commitments for the supplemental report:
 
 1. **What is new?** Check actual stored, serialized, externally registered, and
    published values. Include UserDefaults raw keys and stored value formats,
@@ -89,18 +98,27 @@ consequences from primary data.
   Zero means no scored signal, not verified safety. Unknown evidence or a new
   contract alone does not prohibit release.
 
-## Compact report
+## Human-readable report
 
-Respond in the conversation's language. Lead with answers, not the score or a
-chronological account of the investigation. Default to a short paragraph and
-roughly three to five bullets, or a small table if comparison is clearer:
+Default to a self-contained HTML artifact in the conversation's language, saved
+outside the reviewed repository and opened in an available preview. Honor an
+explicit requested format; if HTML creation or delivery is unavailable, explain
+the limitation and use readable Markdown. Read
+[references/reporting.md](references/reporting.md) when composing the deliverable.
 
-- **New contracts and appropriateness:** what was added, whether it is appropriate,
-  and the reason or concrete unresolved decision.
-- **Existing contracts:** what is preserved and any actual change, retirement,
-  broken interpretation, or required fallback.
-- **Attention needed:** only material risk or missing evidence that affects those
-  judgments. Put a serious primary-data finding first if present.
+Lead with the overall release-risk judgment and its decisive reasons, putting
+serious primary-data findings first. Keep this summary to a short paragraph and
+roughly three to five points or a small table. Include material verification gaps
+and practical attention needed; show the score/band as supporting information.
+The contract supplement must not replace or bury this assessment.
+
+Then highlight important contract additions, changes, or retirements, including
+appropriate commitments with a low or zero score when future change would still
+be costly. For each, explain its purpose, exact significant value or format,
+what would break or be lost, compatibility handling, and actual support lifetime.
+Show a short, real source diff directly with the explanation, using GitHub-style
+addition/deletion colors or markers and verified source references. Keep full
+files and classes out of the report.
 
 Use `none found in the reviewed scope` or `unverified` where supported; do not
 claim absence from a detector miss. Group unchanged areas in one sentence. Include
@@ -108,18 +126,19 @@ only decisive raw values and a few direct source links; retain the rest as worki
 evidence. Name unfamiliar technology and explain its consequence in one plain
 sentence. For a format change, briefly identify what old and new data represent;
 distinguish transport dictionary keys from actual persisted keys. Keep scope to one
-line and a score/band, if reporting one, to one supporting line. Honor a request
+line. Honor a request
 limited to contracts without adding general build, UI, or CI summaries.
 
 Do not paste the detector report, exhaustive key/schema/path lists, score
 breakdowns, all commits/files, repeated unverified boilerplate, or every possible
 confirmation item. Brevity comes from grouping and selecting evidence, not from
-skipping investigation or hiding an independent serious finding. Report
-independent contract additions or retirements even when their score is low or zero;
-group related details rather than silently omitting them. The user should not need
-to ask about UserDefaults or routes to discover an omitted contract surface, or
-read a full diff to find the conclusion. Expand only the requested detail on
-follow-up; do not replace the compact judgment with a full dump.
+skipping investigation or hiding an independent serious finding. Select contracts
+by consequence and reversal cost, not by the presence of a key, enum, or literal.
+Routine UI state and easily regenerated caches usually stay in working evidence;
+group unchanged surfaces briefly. Do not omit a material UserDefaults, route, or
+other commitment merely because its detector score is low. A contract-free
+candidate needs no artificial contract inventory. Keep the chat response to the
+artifact link and a few decisive conclusions rather than repeating the report.
 
 Separate technical evidence from personal acknowledgment. Do not infer the
 user's approval from ADR status or authorship, or turn awareness into mandatory
@@ -132,7 +151,10 @@ questions. Mention acknowledgment only when it affects the requested judgment.
 - Separate detection candidates, confirmed defects, completed checks, and
   material uncertainty. A source review does not prove distribution readiness.
 - Preserve JSON evidence and `risk_diff_snippets`; use short relevant excerpts
-  only when needed to explain a conclusion.
+  in the final report after checking the selected refs and actual consumers.
+- Verify the HTML renders, source links and excerpt line numbers match the frozen
+  refs, and each displayed diff is real. Keep detection candidates distinct from
+  reviewed conclusions; presentation alone does not validate them.
 - When maintaining this skill, run its Git-fixture behavior tests and the
   repository verification contract. Verify observable behavior and read-only
   invariants rather than expected prose.

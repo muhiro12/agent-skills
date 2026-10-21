@@ -1,4 +1,4 @@
 interface:
   display_name: "Release Risk Analyzer"
-  short_description: "Review new and existing contracts with concise conclusions"
-  default_prompt: "Use $release-risk-analyzer to compare the public release with the candidate and concisely judge new contracts, their appropriateness, and preservation of existing contracts, surfacing serious primary-data risks."
+  short_description: "Assess release risk visually with important contract diffs"
+  default_prompt: "Use $release-risk-analyzer to compare the public release with the next candidate, prioritize primary-data risks, and deliver a concise HTML review with short source diffs for important hard-to-change contracts."

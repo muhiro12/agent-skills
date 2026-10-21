@@ -41,7 +41,7 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `organize-photos-for-line-sharing`: Applies the owner's source-aware monthly Photos workflow to build outbound LINE-sharing albums from self-captured originals, preserves their dates, actively corrects their orientation, normalizes dates only for confirmed LINE downloads, rotates LINE media conservatively, never deletes media, and produces a visual HTML report.
 - `product-overview-syncer`: Conservatively syncs an existing product or architecture overview Markdown document with the current codebase reality.
 - `refine-development-changes`: Inspects and actively improves selected commits and working changes against applicable development rules and intended behavior, through necessary reimplementation and verification.
-- `release-risk-analyzer`: Concisely assesses new contracts, their appropriateness, preservation of existing contracts, and primary-data risk between a public release and a candidate.
+- `release-risk-analyzer`: Reviews the next candidate against a public release, prioritizing primary-data risk in a readable HTML report with short diffs for important hard-to-change contracts.
 - `repo-agent-contract-maintainer`: Maintains concise, clone-ready repository `AGENTS.md` contracts and routes longer guidance to the correct durable layer.
 - `repo-and-app-footprint-inspector`: Diagnoses repository and app size, concentration, maintenance burden, and structural hotspots without modifying source code.
 - `repo-consistency-refiner`: Audits one repository at a time for structural, architectural, workflow, and documentation drift, then proposes low-risk refinements.

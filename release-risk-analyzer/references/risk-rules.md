@@ -92,6 +92,26 @@ the actual contract have no contract contribution. Version consumers that alter
 migrations, gates, or formats are separate effects; co-located identity, capability,
 minimum-OS, or schema changes remain reviewable.
 
+## Select material contracts for the report
+
+The coverage record remains broad. The final contract supplement selects only
+commitments whose reversal has a substantial consequence: primary-data or
+meaningful preference migration, loss of readable exported files, changes to
+published identities or saved external references, coordination with deployed
+clients, or costly recovery and user action. A persistent enum or AppStorage key
+qualifies through its stored meaning and consumers, not its declaration alone.
+Remote update endpoints, configuration fields, activation/expiry semantics, and
+failure behavior qualify when installed binaries depend on them to remain usable
+or updateable; they do not need to live in a database to create a commitment.
+
+Do not promote every cache, generated message ID, notification identifier, or
+temporary OS activity into a critical contract. Report one when its actual
+replacement or retirement cost is material, and state that bounded lifetime.
+Easily regenerated state usually stays in working evidence. This is a presentation
+filter, not a narrower inspection scope, a new scoring threshold, or a reason to
+hide an independent serious risk. Necessary commitments may still be important
+to explain with a zero risk score.
+
 ## Scoring
 
 Scores are review priority, not failure probability. Path matches are low-confidence
@@ -124,11 +144,11 @@ Keep rules technology-independent: frameworks and paths are anchors for primary
 data, compatibility, external identity, capability, packaging, or operational risk.
 Keep the detector read-only and ref-specific. Preserve concrete awareness values,
 unverified shipping/consumer/recovery evidence, and short diffs in JSON and verbose
-Markdown. Default Markdown groups candidates into a compact overview and clearly
+Markdown. Script-default Markdown groups candidates into a compact overview and clearly
 discloses that contextual review is required. Do not mistake that overview for the
-final assessment or restrict investigation to its matches. Keep the final answer
-focused on the three contract questions and material consequences. New contracts
-remain reportable when they are appropriate and do not raise the score. Summarize
-related obligations together, explicitly including their storage and external
-surfaces, so brevity does not hide additions that the user must discover by asking.
+final assessment or restrict investigation to its matches. Keep overall release
+risks primary in the final report, followed by the selected contract supplement
+with short verified source diffs; see [reporting.md](reporting.md). Important
+contracts remain reportable when appropriate and unscored. Group related
+obligations so brevity does not hide a material storage or external commitment.
 Use generic Git fixtures for behavior regression; do not hard-code app histories.
