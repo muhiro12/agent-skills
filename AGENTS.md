@@ -8,9 +8,14 @@ portable, English, and usable from a fresh clone.
 - A tracked top-level directory containing `SKILL.md` is a maintained custom
   skill. Keep its `SKILL.md`, `agents/openai.yaml`, and directly referenced
   tracked resources consistent.
-- `.system/`, `codex-primary-runtime/`, `chronicle/`, and `ci_scripts/` are
+- `.system/`, `codex-primary-runtime/`, and `ci_scripts/` are
   workspace-local or runtime-managed. Do not treat them as repository-owned
   skills or verification inputs.
+- Keep third-party skill sources outside this checkout and provider-managed
+  plugins in their runtime locations. When discovery requires a link here,
+  exclude it in local Git metadata before creating it. Keep installation names,
+  source URLs, and local paths out of tracked files and commit messages unless
+  their publication is explicitly authorized. See README Local Installation.
 - `records/`, `archives/`, and `cache/` paths ignored by this repository hold
   private or disposable local data. Do not scan, publish, or migrate their
   contents unless the user explicitly requests that work.

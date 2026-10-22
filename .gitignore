@@ -2,7 +2,6 @@
 /.system/
 /codex-primary-runtime/
 /ci_scripts/
-/chronicle/
 
 # Skill-owned local data
 track-developer-principles/records/

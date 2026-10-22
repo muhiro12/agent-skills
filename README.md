@@ -14,6 +14,23 @@ Codex settings and global instructions remain in `~/.codex/config.toml` and
 `~/.codex/AGENTS.md`. Bundled system skills and plugin caches are owned by Codex
 and should remain in their provider-managed locations.
 
+Keep third-party skill sources outside this public checkout, preserving their
+upstream files and license. If Codex needs to discover one through this root,
+create a symlink to the external skill folder containing `SKILL.md`.
+
+Before creating the link, add `/<skill-name>` to the local exclude file returned
+by `git rev-parse --git-path info/exclude`. Do not add a trailing slash: Git
+does not treat a symlink as a directory for ignore matching. Confirm the link
+is ignored with `git check-ignore -v -- <skill-name>` and absent from
+`git ls-files -- <skill-name>`.
+
+The local exclude file is not committed or cloned; configure it separately on
+each machine. Ignore rules do not untrack existing files or prevent forced
+staging. Keep third-party installation names, source URLs, and local paths out
+of tracked ignore files, inventories, documentation, and commit messages unless
+their publication is explicitly authorized. Skill-owned local data and the
+generated Xcode skill set continue to use the tracked ignore rules below.
+
 ## Development Tools
 
 Source search uses rg; passive publication scans use Betterleaks. Setup,
