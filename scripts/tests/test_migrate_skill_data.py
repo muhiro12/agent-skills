@@ -6,6 +6,7 @@ import io
 import json
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -490,6 +491,44 @@ class ExternalSkillMigrationTests(unittest.TestCase):
         self.assertTrue(self.legacy.exists())
         self.assertTrue(self.link.is_symlink())
         self.assertEqual((destination / "LICENSE").read_text(), "Keep existing destination.")
+
+    def test_moved_repository_retains_git_metadata_and_remote(self) -> None:
+        subprocess.run(["git", "init", "--quiet", str(self.source)], check=True)
+        remote_url = "https://example.invalid/upstream.git"
+        subprocess.run(
+            ["git", "-C", str(self.source), "config", "remote.origin.url", remote_url],
+            check=True,
+        )
+        stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 0)
+        target = self.root / "external/upstream-bundle"
+        result = subprocess.run(
+            ["git", "-C", str(target), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True,
+        )
+        self.assertEqual(Path(result.stdout.strip()).resolve(), target)
+        result = subprocess.run(
+            ["git", "-C", str(target), "config", "--get", "remote.origin.url"],
+            check=True, capture_output=True, text=True,
+        )
+        self.assertEqual(result.stdout.strip(), remote_url)
+
+    def test_reserved_directory_names_block_case_variants_before_moving(self) -> None:
+        for name in ("XCODE", "Manual"):
+            with self.subTest(name=name):
+                root = self.base / f"empty-skills-{name}"
+                root.mkdir()
+                source = self.base / name
+                source.mkdir()
+                (source / "SKILL.md").write_text("---\nname: example\ndescription: Example.\n---\n")
+                stats = MODULE.MigrationStats()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    MODULE.migrate_external_skills(
+                        root, self.base, True, {"external-skills"}, stats, [source]
+                    )
+                self.assertEqual(stats.conflicts, 1)
+                self.assertTrue((source / "SKILL.md").is_file())
+                self.assertFalse((root / "external").exists())
 
     def test_unmanaged_reserved_directory_blocks_the_whole_migration(self) -> None:
         (self.legacy / self.sync.MARKER_FILE).unlink()

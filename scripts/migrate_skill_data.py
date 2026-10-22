@@ -716,7 +716,7 @@ def migrate_external_skills(
                 print(f"missing  {source}")
                 continue
             source = source.resolve()
-            if source.name in {"xcode", "manual"}:
+            if source.name.casefold() in {"xcode", "manual"}:
                 raise ValueError(f"source name conflicts with a reserved external directory: {source.name}")
             target = external_root / source.name
             moves.append((source, target))
