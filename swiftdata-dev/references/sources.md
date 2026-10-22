@@ -80,9 +80,8 @@ implementation worked for every configuration at the time.
 ## Authorship and reuse
 
 The short entrypoint and topic-specific references were informed by Xcode's
-exported specialist skills and
-[d-date/iphone-duo-skill](https://github.com/d-date/iphone-duo-skill).
-That community repository is a structural reference, not a SwiftData authority.
+exported specialist skills and other community skill guides.
+Those guides inform organization, not SwiftData API guidance.
 This skill does not redistribute those skills, Apple transcripts, or sample code.
 
 The topic references summarize linked Apple APIs and their immediate implications

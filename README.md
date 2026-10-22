@@ -6,7 +6,8 @@ System-managed skills, runtime assets, generated artifacts, and private local da
 ## Local Installation
 
 Use `~/.agents/skills` for user skills shared across repositories. Keep one
-maintained checkout there; Codex discovers the top-level skill directories.
+maintained checkout there; Codex discovers the maintained top-level skills and
+the nested external skill directories.
 For an alternate checkout, link selected skill directories into that discovery
 root instead of keeping separately maintained copies.
 
@@ -14,22 +15,37 @@ Codex settings and global instructions remain in `~/.codex/config.toml` and
 `~/.codex/AGENTS.md`. Bundled system skills and plugin caches are owned by Codex
 and should remain in their provider-managed locations.
 
-Keep third-party skill sources outside this public checkout, preserving their
-upstream files and license. If Codex needs to discover one through this root,
-create a symlink to the external skill folder containing `SKILL.md`.
+Keep externally authored skills in `external/`, which is ignored as a whole:
 
-Before creating the link, add `/<skill-name>` to the local exclude file returned
-by `git rev-parse --git-path info/exclude`. Do not add a trailing slash: Git
-does not treat a symlink as a directory for ignore matching. Confirm the link
-is ignored with `git check-ignore -v -- <skill-name>` and absent from
-`git ls-files -- <skill-name>`.
+- `external/xcode/`: generated installations managed only by `sync-xcode-skills`.
+- `external/manual/`: manually installed upstream skill bundles, preserving their
+  files, relative layout, and licenses.
 
-The local exclude file is not committed or cloned; configure it separately on
-each machine. Ignore rules do not untrack existing files or prevent forced
-staging. Keep third-party installation names, source URLs, and local paths out
-of tracked ignore files, inventories, documentation, and commit messages unless
-their publication is explicitly authorized. Skill-owned local data and the
-generated Xcode skill set continue to use the tracked ignore rules below.
+Codex discovers nested skill folders here; per-skill discovery links and local
+exclude entries are unnecessary. Use the visible directory name `external`;
+hidden directories are not interchangeable discovery locations. Provider-owned
+plugin caches stay in their runtime-managed locations.
+
+The generic `/external/` ignore rule travels with a clone. The installed
+contents do not: each machine installs its own external skills. Keep individual
+installation names, source URLs, and local paths out of tracked ignore files,
+inventories, documentation, and commit messages unless their publication is
+explicitly authorized. Ignore rules do not untrack existing files or prevent
+forced staging; repository verification also rejects tracked `external/` content.
+
+For an existing installation, preview the scoped migration before applying it:
+
+```sh
+python3 scripts/migrate_skill_data.py --only external-skills
+python3 scripts/migrate_skill_data.py --only external-skills --external-source /path/to/upstream-bundle
+```
+
+Add `--apply` to move the previewed installations. The migration preserves
+upstream bundles, removes their matching old top-level discovery links, and
+regenerates the Xcode catalog with the new installation paths. It refuses
+conflicting destinations and rolls back a failed move. Remove obsolete local
+exclude entries for the removed links after confirming discovery at the new
+locations; preserve unrelated local patterns.
 
 ## Development Tools
 
@@ -116,9 +132,10 @@ installing its instructions alone does not provide those tools.
 Local data migrations are explicit maintenance operations. Run
 `python3 scripts/migrate_skill_data.py --list` to inspect available migrations
 when a known legacy layout needs updating. Select the relevant scope, review the
-dry run, and use `--apply` only for an authorized migration. The helper copies
-missing targets, preserves conflicts, and stops the version chain on conflict;
-it is not a required step after every pull or on a fresh installation.
+dry run, and use `--apply` only for an authorized migration. The helper preserves
+conflicts and stops the version chain on conflict. Legacy private-data migrations
+copy missing targets; external-skill migration moves the selected installations.
+It is not a required step after every pull or on a fresh installation.
 
 ## Verification
 
@@ -132,9 +149,9 @@ bash scripts/verify_repository.sh
 The command uses the Git index as its inventory. It validates every tracked
 skill's frontmatter and `agents/openai.yaml`, checks the Included Skills list,
 compiles tracked Python, syntax-checks tracked shell files, runs tracked Python
-and shell tests, and checks both staged and unstaged diffs for whitespace errors. Ignored
-runtime skills, generated Xcode skills, private records, archives, and caches
-are not traversed.
+and shell tests, and checks both staged and unstaged diffs for whitespace errors.
+Tracked `external/` content is rejected. Ignored external skills, runtime skills,
+private records, archives, and caches are not traversed.
 
 ## Intentionally Untracked
 
@@ -144,4 +161,5 @@ are not traversed.
 - `context-capture/archives/` is kept out of git because it holds private or work-local evidence captures.
 - `apple-sample-code-advisor/cache/` is kept out of git because cached Apple sample projects are disposable local evidence.
 - `organize-photos-for-line-sharing/work/` is kept out of git because inventories, media exports, contact sheets, and run reports are private task artifacts.
-- `xcode-skill-*` and `sync-xcode-skills/state/` are generated locally by `sync-xcode-skills`; never edit or commit them directly.
+- `external/` contains externally authored skill bundles and generated installations; individual installation names and contents remain local.
+- `external/xcode/` and `sync-xcode-skills/state/` are generated locally by `sync-xcode-skills`; never edit or commit them directly.

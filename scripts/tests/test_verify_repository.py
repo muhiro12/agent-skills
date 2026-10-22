@@ -91,6 +91,23 @@ class VerifyRepositoryTests(unittest.TestCase):
 
         self.assertEqual(VERIFY.verify_repository(self.root), [])
 
+    def test_rejects_forced_staging_of_external_content(self):
+        self.write(".gitignore", "/external/\n")
+        self.write("external/manual/example/SKILL.md", "External instructions.\n")
+        (self.root / "external/SKILL.md").write_bytes(b"\xff")
+        self.stage_all()
+        subprocess.run(
+            ["git", "-C", str(self.root), "add", "--force", "external"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        self.assertIn(
+            "external/ content must remain untracked",
+            VERIFY.verify_repository(self.root),
+        )
+
     def test_reports_prompt_that_invokes_another_skill(self):
         self.write(
             "example-skill/agents/openai.yaml",

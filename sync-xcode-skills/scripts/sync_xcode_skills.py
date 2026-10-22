@@ -903,7 +903,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list-xcodes", action="store_true", help="List discovered local Xcodes as JSON, newest first; do not export or install.")
     parser.add_argument("--developer-dir", type=Path, help="Use this verified Xcode app or Contents/Developer directory instead of the newest local Xcode.")
     parser.add_argument("--export-dir", type=Path, default=DEFAULT_EXPORT_DIR)
-    parser.add_argument("--skills-root", type=Path, default=Path.home() / ".agents" / "skills")
+    parser.add_argument(
+        "--skills-root", type=Path,
+        default=Path.home() / ".agents" / "skills" / "external" / "xcode",
+        help="Destination for managed skills; defaults to ~/.agents/skills/external/xcode.",
+    )
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE_DIR)
     parser.add_argument("--name-prefix", default="xcode-skill-")
     mode = parser.add_mutually_exclusive_group()
@@ -929,6 +933,15 @@ def main() -> int:
             for item in installations
         ], indent=2))
         return 0 if installations else 2
+    destination = args.skills_root.expanduser().absolute()
+    if not args.export_only and destination.name == "xcode" and destination.parent.name == "external":
+        discovery_root = destination.parent.parent
+        if any(discovery_root.glob("xcode-skill-*")):
+            print(
+                "Legacy top-level Xcode skills remain; run the scoped migration "
+                "with scripts/migrate_skill_data.py --only external-skills before syncing."
+            )
+            return 2
     try:
         validate_safe_slug(args.name_prefix, label="name prefix")
         installation = resolve_xcode(args.developer_dir, install_only=args.install_only)

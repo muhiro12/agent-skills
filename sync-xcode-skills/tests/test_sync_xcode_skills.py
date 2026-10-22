@@ -148,6 +148,69 @@ class XcodeSourceSelectionTests(unittest.TestCase):
         self.assertEqual(catalog["xcode_version"], marker["xcode_version"])
         self.assertEqual(catalog["selected_developer_dir"], str(developer_dir))
 
+    def test_default_install_and_prune_preserve_manual_external_skills(self) -> None:
+        app = self.write_xcode("Export Source", "27.0", "100")
+        export_dir = self.root / "export"
+        source = export_dir / "sample"
+        source.mkdir(parents=True)
+        skill_file = source / "SKILL.md"
+        skill_file.write_text("---\nname: alpha\ndescription: Example.\n---\nBody.\n")
+        home = self.root / "home"
+        discovery_root = home / ".agents/skills"
+        manual = discovery_root / "external/manual/example/SKILL.md"
+        manual.parent.mkdir(parents=True)
+        manual.write_text("Preserve this upstream skill.\n")
+        with mock.patch.object(Path, "home", return_value=home), mock.patch.object(
+            sys, "argv", [
+                "sync_xcode_skills.py", "--install-only", "--developer-dir", str(app),
+                "--export-dir", str(export_dir), "--state-dir", str(self.root / "state"),
+            ]
+        ), mock.patch.object(sync_xcode_skills, "run_command", return_value=(
+            sync_xcode_skills.CommandResult(0, "Xcode 27.0\nBuild version TEST123", "")
+        )), mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(sync_xcode_skills.main(), 0)
+            target_root = discovery_root / "external/xcode"
+            self.assertTrue((target_root / "xcode-skill-alpha/SKILL.md").is_file())
+            skill_file.write_text("---\nname: beta\ndescription: Replacement.\n---\nBody.\n")
+            self.assertEqual(sync_xcode_skills.main(), 0)
+
+        self.assertFalse((target_root / "xcode-skill-alpha").exists())
+        self.assertTrue((target_root / "xcode-skill-beta/SKILL.md").is_file())
+        self.assertFalse((discovery_root / "xcode-skill-beta").exists())
+        self.assertEqual(manual.read_text(), "Preserve this upstream skill.\n")
+
+    def test_nested_destination_requires_migration_before_duplicate_installation(self) -> None:
+        discovery_root = self.root / "skills"
+        legacy = discovery_root / "xcode-skill-alpha"
+        legacy.mkdir(parents=True)
+        with mock.patch.object(sys, "argv", [
+            "sync_xcode_skills.py", "--skills-root", str(discovery_root / "external/xcode"),
+        ]), mock.patch.object(sync_xcode_skills, "resolve_xcode") as resolve, mock.patch(
+            "sys.stdout", new_callable=io.StringIO
+        ):
+            self.assertEqual(sync_xcode_skills.main(), 2)
+        resolve.assert_not_called()
+        self.assertTrue(legacy.is_dir())
+        self.assertFalse((discovery_root / "external").exists())
+
+    def test_export_only_can_diagnose_a_legacy_installation_without_migrating(self) -> None:
+        app = self.write_xcode("Export Source", "27.0", "100")
+        discovery_root = self.root / "skills"
+        (discovery_root / "xcode-skill-alpha").mkdir(parents=True)
+        with mock.patch.object(sys, "argv", [
+            "sync_xcode_skills.py", "--export-only", "--developer-dir", str(app),
+            "--skills-root", str(discovery_root / "external/xcode"),
+            "--export-dir", str(self.root / "export"),
+        ]), mock.patch.object(sync_xcode_skills, "run_command", return_value=(
+            sync_xcode_skills.CommandResult(0, "Xcode 27.0\nBuild version TEST123", "")
+        )), mock.patch.object(sync_xcode_skills, "export_direct", return_value=(
+            sync_xcode_skills.CommandResult(0, "", "")
+        )) as export, mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(sync_xcode_skills.main(), 0)
+        export.assert_called_once()
+        self.assertTrue((discovery_root / "xcode-skill-alpha").is_dir())
+        self.assertFalse((discovery_root / "external").exists())
+
     def test_export_pins_bridge_and_running_app_to_the_same_source(self) -> None:
         app = self.write_xcode("Xcode Beta", "27.2", "100")
         developer_dir = app / "Contents/Developer"

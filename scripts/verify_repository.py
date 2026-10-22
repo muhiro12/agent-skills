@@ -139,6 +139,10 @@ def verify_repository(repo_root: Path) -> List[str]:
     files = tracked_files(repo_root)
     skill_names = tracked_skill_names(files)
 
+    if any(path == "external" or path.startswith("external/") for path in files):
+        issues.append("external/ content must remain untracked")
+        return issues
+
     for required_path in ("AGENTS.md", "README.md", "scripts/verify_repository.sh"):
         if required_path not in files:
             issues.append(f"required repository contract is not tracked: {required_path}")

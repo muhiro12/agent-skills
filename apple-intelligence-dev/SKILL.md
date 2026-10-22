@@ -63,6 +63,6 @@ information, raw diagnostics, and unreleased product plans. Summarize relevant
 technical observations instead of copying private records or official manuals.
 
 The compact entrypoint and topic references follow Xcode-exported skill
-organization. [d-date/iphone-duo-skill](https://github.com/d-date/iphone-duo-skill)
-informed the distinction between announced and confirmed APIs; its specific
-platform instructions are not incorporated here.
+organization. Community skill guides also informed the distinction between
+announced and confirmed APIs; their specific platform instructions are not
+incorporated here.

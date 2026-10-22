@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import importlib.util
+import contextlib
+import io
 import json
 import os
 import stat
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -408,6 +411,129 @@ class MigrateSkillDataTests(unittest.TestCase):
 
             self.assertEqual(stats.conflicts, 1)
             self.assertEqual(stats.metadata_rebased, 2)
+
+
+class ExternalSkillMigrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.base = Path(self.temporary_directory.name).resolve()
+        self.root = self.base / "skills"
+        self.root.mkdir()
+        self.source = self.base / "upstream-bundle"
+        self.source_skill = self.source / "skills/example/SKILL.md"
+        self.source_skill.parent.mkdir(parents=True)
+        self.source_skill.write_text("---\nname: example\ndescription: Example.\n---\nBody.\n")
+        (self.source / "LICENSE").write_text("Upstream license.\n")
+        self.link = self.root / "example-link"
+        self.link.symlink_to(self.source_skill.parent, target_is_directory=True)
+        self.legacy = self.root / "xcode-skill-alpha"
+        self.legacy.mkdir()
+        (self.legacy / "SKILL.md").write_text("---\nname: xcode-skill-alpha\ndescription: Example.\n---\n")
+        self.sync = MODULE.load_xcode_sync()
+        self.sync.write_marker(self.legacy, "alpha", self.legacy.name, xcode_version="Xcode Test")
+        self.state = self.root / "sync-xcode-skills/state"
+        self.sync.write_catalog(
+            self.state, developer_dir=None, export_dir=self.base / "export",
+            skills_root=self.root, name_prefix="xcode-skill-", xcode_version="Xcode Test",
+            installed=[{
+                "installed_name": self.legacy.name, "original_name": "alpha",
+                "path": str(self.legacy), "source_path": str(self.base / "export/alpha"),
+                "description": "Example.",
+            }], skipped=[], pruned=[],
+        )
+
+    def migrate(self, *, apply: bool) -> object:
+        stats = MODULE.MigrationStats()
+        with contextlib.redirect_stdout(io.StringIO()):
+            MODULE.migrate_external_skills(
+                self.root, self.base, apply, {"external-skills"}, stats, [self.source]
+            )
+        return stats
+
+    def test_dry_run_does_not_move_or_create_any_destination(self) -> None:
+        stats = self.migrate(apply=False)
+        self.assertEqual((stats.would_move, stats.would_remove_links), (2, 1))
+        self.assertTrue(self.source_skill.is_file())
+        self.assertTrue(self.legacy.is_dir())
+        self.assertTrue(self.link.is_symlink())
+        self.assertFalse((self.root / "external").exists())
+
+    def test_move_preserves_upstream_and_rebases_catalog_without_duplicate_links(self) -> None:
+        original_marker = (self.legacy / self.sync.MARKER_FILE).read_bytes()
+        original_body = self.source_skill.read_bytes()
+        stats = self.migrate(apply=True)
+        self.assertEqual((stats.moved, stats.removed_links, stats.conflicts), (2, 1, 0))
+        target = self.root / "external/manual/upstream-bundle"
+        self.assertEqual((target / "skills/example/SKILL.md").read_bytes(), original_body)
+        self.assertEqual((target / "LICENSE").read_text(), "Upstream license.\n")
+        xcode = self.root / "external/xcode/xcode-skill-alpha"
+        self.assertEqual((xcode / self.sync.MARKER_FILE).read_bytes(), original_marker)
+        self.assertFalse(self.source.exists())
+        self.assertFalse(self.legacy.exists())
+        self.assertFalse(self.link.is_symlink())
+        catalog = json.loads((self.state / "catalog.json").read_text())
+        self.assertEqual(catalog["skills_root"], str(xcode.parent))
+        self.assertEqual(catalog["skills"][0]["path"], str(xcode))
+        snapshot = (self.state / "catalog.json").read_bytes()
+        repeated = self.migrate(apply=True)
+        self.assertEqual((repeated.moved, repeated.conflicts), (0, 0))
+        self.assertEqual((self.state / "catalog.json").read_bytes(), snapshot)
+
+    def test_destination_conflict_preserves_all_original_installations(self) -> None:
+        destination = self.root / "external/manual/upstream-bundle"
+        destination.mkdir(parents=True)
+        (destination / "LICENSE").write_text("Keep existing destination.")
+        stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 1)
+        self.assertTrue(self.source_skill.exists())
+        self.assertTrue(self.legacy.exists())
+        self.assertTrue(self.link.is_symlink())
+        self.assertEqual((destination / "LICENSE").read_text(), "Keep existing destination.")
+
+    def test_unmanaged_reserved_directory_blocks_the_whole_migration(self) -> None:
+        (self.legacy / self.sync.MARKER_FILE).unlink()
+        stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 1)
+        self.assertTrue(self.source_skill.exists())
+        self.assertFalse((self.root / "external").exists())
+
+    def test_symbolic_link_destination_cannot_redirect_moved_data(self) -> None:
+        outside = self.base / "outside"
+        outside.mkdir()
+        (self.root / "external").symlink_to(outside, target_is_directory=True)
+        stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 1)
+        self.assertTrue(self.source_skill.exists())
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_source_tree_link_blocks_moves_instead_of_omitting_files(self) -> None:
+        (self.source / "linked-license").symlink_to(self.source / "LICENSE")
+        stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 1)
+        self.assertTrue(self.source_skill.exists())
+        self.assertTrue(self.legacy.exists())
+
+    def test_catalog_failure_restores_directories_links_and_previous_catalog(self) -> None:
+        snapshot = {path.name: path.read_bytes() for path in self.state.iterdir()}
+        with mock.patch.object(self.sync, "write_catalog", side_effect=OSError("catalog failure")):
+            stats = self.migrate(apply=True)
+        self.assertEqual(stats.conflicts, 1)
+        self.assertTrue(self.source_skill.exists())
+        self.assertTrue(self.legacy.exists())
+        self.assertTrue(self.link.is_symlink())
+        self.assertEqual(self.link.resolve(), self.source_skill.parent)
+        self.assertEqual({path.name: path.read_bytes() for path in self.state.iterdir()}, snapshot)
+
+    def test_cli_defaults_to_dry_run_and_only_runs_external_group(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = MODULE.main([
+                "--only", "external-skills", "--skills-root", str(self.root),
+                "--external-source", str(self.source),
+            ])
+        self.assertEqual(result, 0)
+        self.assertTrue(self.legacy.exists())
+        self.assertFalse((self.root / "external").exists())
 
 
 if __name__ == "__main__":

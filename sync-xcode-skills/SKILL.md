@@ -12,9 +12,18 @@ newest usable local Xcode exposes through its agent integration, including beta
 releases. Honor an explicitly requested source Xcode.
 Use the conversation's language for explanations.
 
-The default installation root is `~/.agents/skills`, Codex's user skill location.
-Use `--skills-root` for an explicitly selected alternate installation; changing
-`CODEX_HOME` does not redirect shared user skills.
+The default installation root is `~/.agents/skills/external/xcode`, inside the
+ignored external area of Codex's user skill location. Codex discovers these
+nested skill folders without top-level links. Use `--skills-root` for an
+explicit alternate managed installation directory; the argument remains the
+actual destination, not the parent discovery root. Changing `CODEX_HOME` does
+not redirect shared user skills. Do not point the managed destination at
+`external/manual/` or a runtime-owned plugin cache.
+
+Migrate an existing top-level installation with the repository's
+`scripts/migrate_skill_data.py --only external-skills` dry-run, then `--apply`
+when authorized. It moves managed directories and regenerates catalog paths;
+do not manually relocate generated content or edit the catalog.
 
 Discover installed Xcodes from this skill directory before exporting:
 
@@ -79,7 +88,9 @@ default, verifies its running process, and pins both `DEVELOPER_DIR` and
 workflow decision. `--developer-dir` accepts an app or developer directory to
 override discovery. By default, installed skill names are prefixed with
 `xcode-skill-` to avoid collisions with local custom skills.
-Treat the `xcode-skill-*` namespace as reserved for this sync output.
+Treat the `xcode-skill-*` namespace within the managed destination as reserved
+for this sync output. Update and prune only that directory; manually installed
+bundles remain separate under `external/manual/`.
 
 ## Design Position
 

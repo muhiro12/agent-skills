@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
-"""Migrate legacy local skill data into skill-owned data directories."""
+"""Migrate legacy local skill data and external skill installations."""
 
 from __future__ import annotations
 
 import argparse
 import copy
 import filecmp
+import importlib.util
 import json
 import os
 import re
 import stat
 import shutil
+import sys
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 
-GROUPS = ("principles", "context-archives", "apple-sample-cache")
+PRIVATE_DATA_GROUPS = ("principles", "context-archives", "apple-sample-cache")
+GROUPS = (*PRIVATE_DATA_GROUPS, "external-skills")
 SAFE_CACHE_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 INITIAL_DATA_LAYOUT_VERSION = 1
-CURRENT_DATA_LAYOUT_VERSION = 2
+CURRENT_DATA_LAYOUT_VERSION = 3
 
 
 @dataclass
@@ -36,6 +39,10 @@ class MigrationStats:
     permissions_would_change: int = 0
     metadata_rebased: int = 0
     metadata_would_rebase: int = 0
+    moved: int = 0
+    would_move: int = 0
+    removed_links: int = 0
+    would_remove_links: int = 0
 
 
 @dataclass(frozen=True)
@@ -45,7 +52,7 @@ class Migration:
     to_version: int
     description: str
     groups: tuple[str, ...]
-    run: Callable[[Path, Path, bool, set[str], MigrationStats], None]
+    run: Callable[[Path, Path, bool, set[str], MigrationStats, list[Path]], None]
 
 
 def file_size(path: Path) -> int:
@@ -623,6 +630,7 @@ def migrate_skill_owned_data_directories(
     apply: bool,
     groups: set[str],
     stats: MigrationStats,
+    external_sources: list[Path],
 ) -> None:
     if "principles" in groups:
         migrate_principles(skills_root, apply=apply, stats=stats)
@@ -632,14 +640,194 @@ def migrate_skill_owned_data_directories(
         migrate_apple_cache(skills_root, home, apply=apply, stats=stats)
 
 
+def load_xcode_sync():
+    module_name = "migration_xcode_sync"
+    if module_name not in sys.modules:
+        path = Path(__file__).resolve().parents[1] / "sync-xcode-skills/scripts/sync_xcode_skills.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise ValueError("cannot load Xcode synchronization helpers")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[module_name]
+
+
+def validate_external_tree(source: Path) -> None:
+    if source.is_symlink() or not source.is_dir():
+        raise ValueError(f"expected a real source directory: {source}")
+    for path in source.rglob("*"):
+        if path.is_symlink() or not (path.is_dir() or path.is_file()):
+            raise ValueError(f"unsupported source entry: {path}")
+    if not any(source.rglob("SKILL.md")):
+        raise ValueError(f"source contains no skill instructions: {source}")
+
+
+def migrate_external_skills(
+    skills_root: Path,
+    home: Path,
+    apply: bool,
+    groups: set[str],
+    stats: MigrationStats,
+    external_sources: list[Path],
+) -> None:
+    sync = load_xcode_sync()
+    external_root = skills_root / "external"
+    xcode_root = external_root / "xcode"
+    state_root = skills_root / "sync-xcode-skills/state"
+    moves: list[tuple[Path, Path]] = []
+    links: list[tuple[Path, str]] = []
+    catalog = None
+    try:
+        legacy_xcode = sorted(skills_root.glob("xcode-skill-*"))
+        for source in legacy_xcode:
+            if not sync.is_managed_skill(source):
+                raise ValueError(f"unmanaged reserved Xcode path: {source}")
+            moves.append((source, xcode_root / source.name))
+
+        if legacy_xcode:
+            if has_symbolic_link_component(state_root, skills_root):
+                raise ValueError(f"symbolic link in catalog path: {state_root}")
+            catalog = load_json_object(state_root / "catalog.json")
+            expected_names = {source.name for source in legacy_xcode}
+            entries = catalog.get("skills")
+            if (
+                catalog.get("managed_by") != sync.MANAGED_BY
+                or Path(catalog.get("skills_root", "")).resolve() != skills_root
+                or not isinstance(entries, list)
+                or len(entries) != len(expected_names)
+                or not all(isinstance(entry, dict) for entry in entries)
+                or {entry.get("installed_name") for entry in entries} != expected_names
+            ):
+                raise ValueError("legacy Xcode catalog does not match the installed set")
+            for entry in entries:
+                if Path(entry["path"]) != skills_root / entry["installed_name"]:
+                    raise ValueError("legacy Xcode catalog has an unexpected installation path")
+                entry["path"] = str(xcode_root / entry["installed_name"])
+
+        for supplied_source in external_sources:
+            source = supplied_source.expanduser().absolute()
+            if source.is_symlink():
+                raise ValueError(f"source must not be a discovery link: {source}")
+            if not os.path.lexists(source):
+                stats.missing_sources += 1
+                print(f"missing  {source}")
+                continue
+            source = source.resolve()
+            target = external_root / "manual" / source.name
+            moves.append((source, target))
+            for link in skills_root.iterdir():
+                if not link.is_symlink():
+                    continue
+                try:
+                    matches_source = link.resolve().is_relative_to(source)
+                except (OSError, RuntimeError):
+                    continue
+                if matches_source:
+                    links.append((link, os.readlink(link)))
+
+        targets: set[str] = set()
+        sources = [source for source, _ in moves]
+        for source, target in moves:
+            validate_external_tree(source)
+            if has_symbolic_link_component(target, skills_root):
+                raise ValueError(f"symbolic link in destination path: {target}")
+            if target.is_relative_to(source) or source.is_relative_to(external_root):
+                raise ValueError(f"source overlaps the external destination: {source}")
+            if any(other != source and source.is_relative_to(other) for other in sources):
+                raise ValueError(f"overlapping migration sources: {source}")
+            key = str(target).casefold()
+            if key in targets or os.path.lexists(target):
+                raise ValueError(f"destination already exists or is duplicated: {target}")
+            targets.add(key)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        stats.conflicts += 1
+        print(f"conflict external skill migration: {error}")
+        return
+
+    if not apply:
+        for source, target in moves:
+            stats.would_move += 1
+            print(f"move     {source} -> {target}")
+        for link, _ in links:
+            stats.would_remove_links += 1
+            print(f"unlink   {link}")
+        return
+
+    moved: list[tuple[Path, Path]] = []
+    removed_links: list[tuple[Path, str]] = []
+    try:
+        for source, target in moves:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if has_symbolic_link_component(target, skills_root) or os.path.lexists(target):
+                raise ValueError(f"destination changed before move: {target}")
+            source.rename(target)
+            moved.append((source, target))
+        for link, target in links:
+            if not link.is_symlink() or os.readlink(link) != target:
+                raise ValueError(f"discovery link changed before removal: {link}")
+            link.unlink()
+            removed_links.append((link, target))
+        if catalog is not None:
+            sync.write_catalog(
+                state_root,
+                developer_dir=Path(catalog["selected_developer_dir"]) if catalog.get("selected_developer_dir") else None,
+                export_dir=Path(catalog["export_dir"]),
+                skills_root=xcode_root,
+                name_prefix=catalog["name_prefix"],
+                xcode_version=catalog["xcode_version"],
+                installed=catalog["skills"],
+                skipped=catalog.get("skipped", []),
+                pruned=catalog.get("pruned", []),
+            )
+    except BaseException as error:
+        rollback_errors: list[str] = []
+        for source, target in reversed(moved):
+            try:
+                if os.path.lexists(source):
+                    raise ValueError(f"original source path was recreated: {source}")
+                target.rename(source)
+            except (OSError, ValueError) as rollback_error:
+                rollback_errors.append(str(rollback_error))
+        for link, target in removed_links:
+            try:
+                link.symlink_to(target, target_is_directory=True)
+            except OSError as rollback_error:
+                rollback_errors.append(str(rollback_error))
+        if isinstance(error, (KeyboardInterrupt, SystemExit)) and not rollback_errors:
+            raise
+        stats.conflicts += 1
+        print(f"conflict external skill migration failed: {error}")
+        if not rollback_errors:
+            print("rollback restored original installations and discovery links")
+        for rollback_error in rollback_errors:
+            print(f"conflict rollback incomplete: {rollback_error}")
+        return
+
+    stats.moved += len(moved)
+    stats.removed_links += len(removed_links)
+    for source, target in moved:
+        print(f"moved    {source} -> {target}")
+    for link, _ in removed_links:
+        print(f"unlinked {link}")
+
+
 MIGRATIONS = (
     Migration(
         identifier="v1-to-v2-skill-owned-data-directories",
         from_version=1,
         to_version=2,
         description="Copy legacy local skill data into ignored skill-owned records, archives, and cache directories.",
-        groups=GROUPS,
+        groups=PRIVATE_DATA_GROUPS,
         run=migrate_skill_owned_data_directories,
+    ),
+    Migration(
+        identifier="v2-to-v3-external-skill-installations",
+        from_version=2,
+        to_version=3,
+        description="Move external skill installations into the ignored external area.",
+        groups=("external-skills",),
+        run=migrate_external_skills,
     ),
 )
 
@@ -692,7 +880,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Copy missing legacy data into the new skill-owned locations. Default is dry-run.",
+        help="Apply the selected data-layout migrations. Default is dry-run.",
     )
     parser.add_argument(
         "--only",
@@ -712,6 +900,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--skills-root",
         default=str(Path(__file__).resolve().parents[1]),
         help="Path to the skills root. Defaults to the parent of this script directory.",
+    )
+    parser.add_argument(
+        "--external-source",
+        action="append",
+        type=Path,
+        default=[],
+        help="Explicit upstream skill bundle to move into external/manual; repeat for multiple bundles.",
     )
     parser.add_argument(
         "--home",
@@ -753,7 +948,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
         conflicts_before = stats.conflicts
         print(f"migration {migration.identifier}")
-        migration.run(skills_root, home, args.apply, active_groups, stats)
+        migration.run(skills_root, home, args.apply, active_groups, stats, args.external_source)
         if stats.conflicts > conflicts_before:
             print(f"blocked  stopping after conflicts in {migration.identifier}")
             break
@@ -777,6 +972,10 @@ def main(argv: list[str] | None = None) -> int:
         f"permissions_would_change={stats.permissions_would_change} "
         f"metadata_rebased={stats.metadata_rebased} "
         f"metadata_would_rebase={stats.metadata_would_rebase} "
+        f"moved={stats.moved} "
+        f"would_move={stats.would_move} "
+        f"removed_links={stats.removed_links} "
+        f"would_remove_links={stats.would_remove_links} "
         f"bytes_to_copy={human_size(stats.bytes_to_copy)}"
     )
     if stats.conflicts:

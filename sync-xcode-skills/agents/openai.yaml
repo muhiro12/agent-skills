@@ -1,4 +1,4 @@
 interface:
   display_name: "Sync Xcode Skills"
   short_description: "Import skills from the newest usable local Xcode"
-  default_prompt: "Use $sync-xcode-skills to export skills from the newest usable local Xcode and install them into the shared user skill root, reporting the source version and any fallback."
+  default_prompt: "Use $sync-xcode-skills to export skills from the newest usable local Xcode and install them under external/xcode in the shared user skill root, reporting the source version and any fallback."

@@ -3,6 +3,9 @@
 /codex-primary-runtime/
 /ci_scripts/
 
+# External skill sources and generated installations
+/external/
+
 # Skill-owned local data
 track-developer-principles/records/
 track-personal-principles/records/
@@ -11,8 +14,7 @@ mh-issue-workflow/records/
 apple-sample-code-advisor/cache/
 organize-photos-for-line-sharing/work/
 
-# Xcode-provided generated skills synced by sync-xcode-skills
-/xcode-skill-*/
+# Generated synchronization state
 /sync-xcode-skills/state/
 
 # Legacy private local data paths
