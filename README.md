@@ -18,8 +18,12 @@ and should remain in their provider-managed locations.
 Keep externally authored skills in `external/`, which is ignored as a whole:
 
 - `external/xcode/`: generated installations managed only by `sync-xcode-skills`.
-- `external/manual/`: manually installed upstream skill bundles, preserving their
-  files, relative layout, and licenses.
+- `external/<repository>/`: upstream repositories or downloaded bundles,
+  preserving their files, relative layout, and licenses. Clone or extract each
+  repository directly here; no installation-method grouping is needed.
+
+The name `external` describes the content's origin. The ignore rule controls
+publication independently. Reserve `external/xcode/` for generated installations.
 
 Codex discovers nested skill folders here; per-skill discovery links and local
 exclude entries are unnecessary. Use the visible directory name `external`;
@@ -42,7 +46,9 @@ python3 scripts/migrate_skill_data.py --only external-skills --external-source /
 
 Add `--apply` to move the previewed installations. The migration preserves
 upstream bundles, removes their matching old top-level discovery links, and
-regenerates the Xcode catalog with the new installation paths. It refuses
+regenerates the Xcode catalog with the new installation paths. Existing bundles
+under the legacy `external/manual/` container are moved directly under
+`external/`, and the empty container is removed. The migration refuses
 conflicting destinations and rolls back a failed move. Remove obsolete local
 exclude entries for the removed links after confirming discovery at the new
 locations; preserve unrelated local patterns.

@@ -464,7 +464,7 @@ class ExternalSkillMigrationTests(unittest.TestCase):
         original_body = self.source_skill.read_bytes()
         stats = self.migrate(apply=True)
         self.assertEqual((stats.moved, stats.removed_links, stats.conflicts), (2, 1, 0))
-        target = self.root / "external/manual/upstream-bundle"
+        target = self.root / "external/upstream-bundle"
         self.assertEqual((target / "skills/example/SKILL.md").read_bytes(), original_body)
         self.assertEqual((target / "LICENSE").read_text(), "Upstream license.\n")
         xcode = self.root / "external/xcode/xcode-skill-alpha"
@@ -481,7 +481,7 @@ class ExternalSkillMigrationTests(unittest.TestCase):
         self.assertEqual((self.state / "catalog.json").read_bytes(), snapshot)
 
     def test_destination_conflict_preserves_all_original_installations(self) -> None:
-        destination = self.root / "external/manual/upstream-bundle"
+        destination = self.root / "external/upstream-bundle"
         destination.mkdir(parents=True)
         (destination / "LICENSE").write_text("Keep existing destination.")
         stats = self.migrate(apply=True)
@@ -534,6 +534,85 @@ class ExternalSkillMigrationTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertTrue(self.legacy.exists())
         self.assertFalse((self.root / "external").exists())
+
+
+class FlatExternalRepositoryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.base = Path(self.temporary_directory.name).resolve()
+        self.root = self.base / "skills"
+        self.external = self.root / "external"
+        self.legacy = self.external / "manual"
+        for name in ("alpha-repository", "beta-repository"):
+            bundle = self.legacy / name
+            skill = bundle / "skills/example/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(f"---\nname: {name}\ndescription: Example.\n---\nBody.\n")
+            (bundle / "LICENSE").write_text("Preserve upstream license.\n")
+        self.xcode_marker = self.external / "xcode/sentinel.txt"
+        self.xcode_marker.parent.mkdir()
+        self.xcode_marker.write_text("Do not change generated installations.")
+
+    def migrate(self, *, apply: bool, extra: list[str] | None = None) -> int:
+        args = ["--only", "external-skills", "--skills-root", str(self.root)]
+        if apply:
+            args.append("--apply")
+        with contextlib.redirect_stdout(io.StringIO()):
+            return MODULE.main(args + (extra or []))
+
+    def test_dry_run_preserves_the_legacy_container(self) -> None:
+        self.assertEqual(self.migrate(apply=False), 0)
+        self.assertTrue((self.legacy / "alpha-repository/LICENSE").is_file())
+        self.assertFalse((self.external / "alpha-repository").exists())
+
+    def test_apply_preserves_repository_layout_and_license_and_is_idempotent(self) -> None:
+        self.assertEqual(self.migrate(apply=True), 0)
+        for name in ("alpha-repository", "beta-repository"):
+            bundle = self.external / name
+            self.assertTrue((bundle / "skills/example/SKILL.md").is_file())
+            self.assertEqual((bundle / "LICENSE").read_text(), "Preserve upstream license.\n")
+        self.assertFalse(self.legacy.exists())
+        self.assertEqual(self.xcode_marker.read_text(), "Do not change generated installations.")
+        self.assertEqual(self.migrate(apply=True), 0)
+
+    def test_collision_blocks_all_moves_and_preserves_the_existing_target(self) -> None:
+        target = self.external / "beta-repository"
+        target.mkdir()
+        (target / "keep.txt").write_text("Keep existing target.")
+        self.assertEqual(self.migrate(apply=True), 2)
+        self.assertTrue((self.legacy / "alpha-repository/LICENSE").is_file())
+        self.assertTrue((self.legacy / "beta-repository/LICENSE").is_file())
+        self.assertFalse((self.external / "alpha-repository").exists())
+        self.assertEqual((target / "keep.txt").read_text(), "Keep existing target.")
+
+    def test_symbolic_link_container_cannot_redirect_the_migration(self) -> None:
+        outside = self.base / "outside"
+        self.legacy.rename(outside)
+        self.legacy.symlink_to(outside, target_is_directory=True)
+        self.assertEqual(self.migrate(apply=True), 2)
+        self.assertTrue((outside / "alpha-repository/LICENSE").is_file())
+        self.assertFalse((self.external / "alpha-repository").exists())
+
+    def test_move_failure_restores_all_repositories_to_the_container(self) -> None:
+        rename = Path.rename
+        def fail_second_move(source: Path, destination: Path):
+            if source == self.legacy / "beta-repository":
+                raise OSError("simulated move failure")
+            return rename(source, destination)
+        with mock.patch.object(Path, "rename", fail_second_move):
+            self.assertEqual(self.migrate(apply=True), 2)
+        self.assertTrue((self.legacy / "alpha-repository/LICENSE").is_file())
+        self.assertTrue((self.legacy / "beta-repository/LICENSE").is_file())
+        self.assertFalse((self.external / "alpha-repository").exists())
+
+    def test_explicit_repository_cannot_claim_the_generated_installation_directory(self) -> None:
+        source = self.base / "xcode"
+        source.mkdir()
+        (source / "SKILL.md").write_text("---\nname: example\ndescription: Example.\n---\n")
+        self.assertEqual(self.migrate(apply=True, extra=["--external-source", str(source)]), 2)
+        self.assertTrue((source / "SKILL.md").is_file())
+        self.assertTrue((self.legacy / "alpha-repository/LICENSE").is_file())
 
 
 if __name__ == "__main__":

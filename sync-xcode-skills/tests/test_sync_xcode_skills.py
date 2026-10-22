@@ -148,7 +148,7 @@ class XcodeSourceSelectionTests(unittest.TestCase):
         self.assertEqual(catalog["xcode_version"], marker["xcode_version"])
         self.assertEqual(catalog["selected_developer_dir"], str(developer_dir))
 
-    def test_default_install_and_prune_preserve_manual_external_skills(self) -> None:
+    def test_default_install_and_prune_preserve_upstream_repositories(self) -> None:
         app = self.write_xcode("Export Source", "27.0", "100")
         export_dir = self.root / "export"
         source = export_dir / "sample"
@@ -157,7 +157,7 @@ class XcodeSourceSelectionTests(unittest.TestCase):
         skill_file.write_text("---\nname: alpha\ndescription: Example.\n---\nBody.\n")
         home = self.root / "home"
         discovery_root = home / ".agents/skills"
-        manual = discovery_root / "external/manual/example/SKILL.md"
+        manual = discovery_root / "external/example-repository/SKILL.md"
         manual.parent.mkdir(parents=True)
         manual.write_text("Preserve this upstream skill.\n")
         with mock.patch.object(Path, "home", return_value=home), mock.patch.object(

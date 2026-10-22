@@ -17,8 +17,9 @@ ignored external area of Codex's user skill location. Codex discovers these
 nested skill folders without top-level links. Use `--skills-root` for an
 explicit alternate managed installation directory; the argument remains the
 actual destination, not the parent discovery root. Changing `CODEX_HOME` does
-not redirect shared user skills. Do not point the managed destination at
-`external/manual/` or a runtime-owned plugin cache.
+not redirect shared user skills. Keep the managed destination separate from
+upstream repositories stored directly under `external/` and runtime-owned
+plugin caches.
 
 Migrate an existing top-level installation with the repository's
 `scripts/migrate_skill_data.py --only external-skills` dry-run, then `--apply`
@@ -90,7 +91,7 @@ override discovery. By default, installed skill names are prefixed with
 `xcode-skill-` to avoid collisions with local custom skills.
 Treat the `xcode-skill-*` namespace within the managed destination as reserved
 for this sync output. Update and prune only that directory; manually installed
-bundles remain separate under `external/manual/`.
+repositories remain separate as siblings under `external/`.
 
 ## Design Position
 

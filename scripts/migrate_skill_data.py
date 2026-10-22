@@ -23,7 +23,7 @@ PRIVATE_DATA_GROUPS = ("principles", "context-archives", "apple-sample-cache")
 GROUPS = (*PRIVATE_DATA_GROUPS, "external-skills")
 SAFE_CACHE_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 INITIAL_DATA_LAYOUT_VERSION = 1
-CURRENT_DATA_LAYOUT_VERSION = 3
+CURRENT_DATA_LAYOUT_VERSION = 4
 
 
 @dataclass
@@ -670,6 +670,8 @@ def migrate_external_skills(
     groups: set[str],
     stats: MigrationStats,
     external_sources: list[Path],
+    *,
+    move_legacy_xcode: bool = True,
 ) -> None:
     sync = load_xcode_sync()
     external_root = skills_root / "external"
@@ -679,7 +681,7 @@ def migrate_external_skills(
     links: list[tuple[Path, str]] = []
     catalog = None
     try:
-        legacy_xcode = sorted(skills_root.glob("xcode-skill-*"))
+        legacy_xcode = sorted(skills_root.glob("xcode-skill-*")) if move_legacy_xcode else []
         for source in legacy_xcode:
             if not sync.is_managed_skill(source):
                 raise ValueError(f"unmanaged reserved Xcode path: {source}")
@@ -714,7 +716,9 @@ def migrate_external_skills(
                 print(f"missing  {source}")
                 continue
             source = source.resolve()
-            target = external_root / "manual" / source.name
+            if source.name in {"xcode", "manual"}:
+                raise ValueError(f"source name conflicts with a reserved external directory: {source.name}")
+            target = external_root / source.name
             moves.append((source, target))
             for link in skills_root.iterdir():
                 if not link.is_symlink():
@@ -732,7 +736,10 @@ def migrate_external_skills(
             validate_external_tree(source)
             if has_symbolic_link_component(target, skills_root):
                 raise ValueError(f"symbolic link in destination path: {target}")
-            if target.is_relative_to(source) or source.is_relative_to(external_root):
+            if target.is_relative_to(source) or (
+                source.is_relative_to(external_root)
+                and source.parent != external_root / "manual"
+            ):
                 raise ValueError(f"source overlaps the external destination: {source}")
             if any(other != source and source.is_relative_to(other) for other in sources):
                 raise ValueError(f"overlapping migration sources: {source}")
@@ -812,6 +819,38 @@ def migrate_external_skills(
         print(f"unlinked {link}")
 
 
+def flatten_external_repositories(
+    skills_root: Path,
+    home: Path,
+    apply: bool,
+    groups: set[str],
+    stats: MigrationStats,
+    external_sources: list[Path],
+) -> None:
+    legacy_root = skills_root / "external/manual"
+    if has_symbolic_link_component(legacy_root, skills_root):
+        stats.conflicts += 1
+        print(f"conflict symbolic link in legacy container path: {legacy_root}")
+        return
+    if not legacy_root.exists():
+        return
+    if not legacy_root.is_dir():
+        stats.conflicts += 1
+        print(f"conflict legacy container is not a directory: {legacy_root}")
+        return
+    conflicts_before = stats.conflicts
+    migrate_external_skills(
+        skills_root, home, apply, groups, stats, sorted(legacy_root.iterdir()),
+        move_legacy_xcode=False,
+    )
+    if apply and stats.conflicts == conflicts_before:
+        try:
+            legacy_root.rmdir()
+        except OSError as error:
+            stats.conflicts += 1
+            print(f"conflict could not remove legacy container: {error}")
+
+
 MIGRATIONS = (
     Migration(
         identifier="v1-to-v2-skill-owned-data-directories",
@@ -828,6 +867,14 @@ MIGRATIONS = (
         description="Move external skill installations into the ignored external area.",
         groups=("external-skills",),
         run=migrate_external_skills,
+    ),
+    Migration(
+        identifier="v3-to-v4-flat-external-repositories",
+        from_version=3,
+        to_version=4,
+        description="Place upstream repositories directly under external and remove the legacy grouping directory.",
+        groups=("external-skills",),
+        run=flatten_external_repositories,
     ),
 )
 
@@ -906,7 +953,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         type=Path,
         default=[],
-        help="Explicit upstream skill bundle to move into external/manual; repeat for multiple bundles.",
+        help="Explicit upstream repository or bundle to move directly into external; repeat for multiple sources.",
     )
     parser.add_argument(
         "--home",

@@ -12,8 +12,8 @@ portable, English, and usable from a fresh clone.
   workspace-local or runtime-managed. Do not treat them as repository-owned
   skills or verification inputs.
 - Keep externally authored skills under the ignored `external/` directory:
-  generated Xcode installations in `external/xcode/`, and manually installed
-  upstream bundles in `external/manual/`. Preserve upstream files and licenses;
+  generated Xcode installations in `external/xcode/`, and upstream repositories
+  or bundles directly under `external/`. Preserve upstream files and licenses;
   leave provider-managed plugins in their runtime locations. Keep individual
   installation names, source URLs, and local paths out of tracked files and
   commit messages unless their publication is explicitly authorized.
