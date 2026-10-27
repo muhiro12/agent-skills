@@ -143,7 +143,7 @@ def verify_repository(repo_root: Path) -> List[str]:
         issues.append("external/ content must remain untracked")
         return issues
 
-    for required_path in ("AGENTS.md", "README.md", "scripts/verify_repository.sh"):
+    for required_path in ("README.md", "scripts/verify_repository.sh"):
         if required_path not in files:
             issues.append(f"required repository contract is not tracked: {required_path}")
 
@@ -199,9 +199,10 @@ def verify_repository(repo_root: Path) -> List[str]:
     if readme_relative not in files:
         issues.append("tracked README.md is missing")
     else:
-        inventory = readme_inventory(
-            (repo_root / readme_relative).read_text(encoding="utf-8")
-        )
+        readme_text = (repo_root / readme_relative).read_text(encoding="utf-8")
+        if "bash scripts/verify_repository.sh" not in readme_text:
+            issues.append("README.md does not document the standard verification command")
+        inventory = readme_inventory(readme_text)
         if inventory != sorted(inventory):
             issues.append("README Included Skills entries are not sorted")
         duplicates = sorted({name for name in inventory if inventory.count(name) > 1})
@@ -215,12 +216,6 @@ def verify_repository(repo_root: Path) -> List[str]:
             issues.append("README Included Skills is missing: " + ", ".join(missing))
         if extra:
             issues.append("README Included Skills has untracked entries: " + ", ".join(extra))
-
-    agents_relative = "AGENTS.md"
-    if agents_relative in files:
-        agents_text = (repo_root / agents_relative).read_text(encoding="utf-8")
-        if "bash scripts/verify_repository.sh" not in agents_text:
-            issues.append("AGENTS.md does not document the standard verification command")
 
     return issues
 

@@ -25,15 +25,12 @@ class VerifyRepositoryTests(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        self.write(
-            "AGENTS.md",
-            "Run `bash scripts/verify_repository.sh` before completion.\n",
-        )
         self.write("scripts/verify_repository.sh", "#!/usr/bin/env bash\n")
         self.write(
             "README.md",
             "# Skills\n\n## Included Skills\n\n"
-            "- `example-skill`: Example.\n\n## Layout\n",
+            "- `example-skill`: Example.\n\n## Verification\n\n"
+            "Run `bash scripts/verify_repository.sh`.\n\n## Layout\n",
         )
         self.write(
             "example-skill/SKILL.md",
@@ -64,8 +61,24 @@ class VerifyRepositoryTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
 
-    def test_accepts_valid_metadata_and_block_scalar_description(self):
+    def test_accepts_readme_only_contract_and_valid_metadata(self):
+        self.assertFalse((self.root / "AGENTS.md").exists())
         self.assertEqual(VERIFY.verify_repository(self.root), [])
+
+    def test_reports_missing_readme_verification_entrypoint(self):
+        readme = self.root / "README.md"
+        readme.write_text(
+            readme.read_text(encoding="utf-8").replace(
+                "Run `bash scripts/verify_repository.sh`.", "No verification entrypoint."
+            ),
+            encoding="utf-8",
+        )
+        self.stage_all()
+
+        self.assertIn(
+            "README.md does not document the standard verification command",
+            VERIFY.verify_repository(self.root),
+        )
 
     def test_reports_readme_inventory_drift(self):
         self.write(

@@ -61,6 +61,32 @@ to [the publication tools reference](git-publication-review/references/publicati
 Install and check these tools on each execution host; installing skills alone
 supplies no binaries. This does not enable hooks or complete a repository's QA.
 
+## Repository Maintenance
+
+Use this README as the repository contract. Keep public instructions portable,
+English, action-focused, and usable from a fresh clone.
+
+- A tracked top-level directory containing `SKILL.md` is a maintained custom
+  skill. Keep its entrypoint, `agents/openai.yaml`, referenced resources, and
+  Included Skills entry consistent. Read the selected skill before editing it.
+- `.system/`, `codex-primary-runtime/`, and `ci_scripts/` are local or managed
+  content, not portable custom skills or verification inputs.
+- Ignored `records/`, `archives/`, and `cache/` contain private or disposable
+  data. They are not inputs to definition maintenance. Consult or maintain
+  records through their owning workflow; migration and external distribution
+  require their own explicit scope. Never copy private context into tracked files.
+- Preserve external bundles and licenses. Do not edit generated Xcode skills or
+  catalog state directly; update the owning synchronization workflow instead.
+- Local data layout changes belong in `scripts/migrate_skill_data.py`, with
+  dry-run defaults, idempotence, and conflict preservation.
+- Keep long procedures in their owning skills. Describe Xcode verification by
+  stable evidence capabilities and resolve tool actions at runtime; exact tool
+  spellings belong in executable adapters or generated upstream guidance.
+- Preserve unrelated work and keep commits scoped to one coherent purpose.
+- Run the [verification entrypoint](#verification) after changes. Add Python
+  behavior tests as `test_*.py` under a `tests/` or `scripts/` directory and shell
+  behavior tests as `tests/test_*.sh`; fixture inputs are not executed as tests.
+
 ## Included Skills
 
 - `app-store-release-notes-writer`: Generates App Store Connect-ready release notes across supported locales from a git range and project localization settings.
@@ -92,8 +118,8 @@ supplies no binaries. This does not enable hooks or complete a repository's QA.
 - `swiftdata-dev`: Implements and troubleshoots SwiftData using Apple guidance, scoped incident reports, and persistence verification.
 - `swiftdata-schema-auditor`: Reviews SwiftData schema definitions and explains entities, relationships, persistence, and migration risk.
 - `sync-xcode-skills`: Exports agent Skills from the newest usable local Xcode and installs Codex-compatible local copies.
-- `track-developer-principles`: Maintains a personal cross-repository principle system; the private record files themselves are intentionally not tracked here.
-- `track-personal-principles`: Maintains private weighted personal operating principles while keeping the record files out of git.
+- `track-developer-principles`: Consults and automatically maintains weighted developer judgment expressed by the user; private records stay outside this repository history.
+- `track-personal-principles`: Consults and automatically maintains weighted personal judgment expressed by the user, without inferring personality or copying raw conversations.
 - `verify-contract-maintainer`: Creates, audits, and maintains minimal verification contracts, with Apple bootstrap guidance and compatible existing-entrypoint maintenance.
 - `xcode-preview-auditor`: Audits SwiftUI `#Preview` coverage and capture results screen-by-screen, with audit-first reporting.
 - `xcode-ui-smoke-auditor`: Runs safe Simulator UI smoke audits for Apple-platform apps and reports visual or interaction risks without auto-fixing by default.
@@ -121,6 +147,14 @@ profiles can travel with their user and depend on reusable specialists; the
 reverse dependency is avoided. Private records are separate from the reusable
 procedures that maintain them. Installing a profile never supplies its private
 data, reference checkouts, tool access, or authorization.
+
+Principle skills maintain reusable judgment expressed by the user without a
+separate save request. Read-only and no-record instructions take precedence;
+raw archive capture, migration, external synchronization, and publication stay
+separate operations. They work with local skill-owned records and require no
+repository inside `records/`, private README, GitHub connection, or sync setup.
+If a host still requires explicit consent for every local principle update,
+that host instruction takes precedence until its owner aligns the host policy.
 
 ## Layout
 

@@ -1,7 +1,8 @@
-# Authorized Record Updates
+# Principle Record Updates
 
-Read this only when the user has explicitly requested or approved recording,
-revision, promotion, or migration. Implicit consultation remains read-only.
+Read before automatically capturing reusable judgment expressed by the user or
+performing a requested revision. Honor read-only, no-record, and narrower host
+or task instructions. Migration remains a separate explicit operation.
 
 For personal records, omit secrets, unnecessary third-party details, medical or
 legal specifics, and inferred mental states. Capture only the reusable decision
@@ -30,7 +31,8 @@ Update the index when its entries change, and record the previous and new stance
 with the reason in the evolution log. Keep raw evidence in an explicitly
 requested context archive, not in the principle files.
 
-Keep records Git-ignored and outside product repositories. Use owner-only
+Keep records outside product repositories and untracked by the skill distribution
+repository. Use owner-only
 permissions (`0700` directories, `0600` files), same-directory temporary files,
 and atomic replacement. Do not traverse or replace symbolic links in the record
 tree. Preserve unrelated files and confirm the written diff.
@@ -92,5 +94,5 @@ targets and preserves conflicts. Never delete old records to make an audit pass.
 
 Confirm active entries are current, signals retain their weight, the index points
 to the right domains, and the evolution entry has an absolute date. Every write
-must be traceable to the user's explicit persistence request. Report the files
-and the substance of the update.
+must be traceable to the user's expressed judgment and its retention or
+endorsement status. Report the files and substance so the user can correct them.
