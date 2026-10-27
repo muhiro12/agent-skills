@@ -156,6 +156,35 @@ repository inside `records/`, private README, GitHub connection, or sync setup.
 If a host still requires explicit consent for every local principle update,
 that host instruction takes precedence until its owner aligns the host policy.
 
+## Optional Private Record Synchronization
+
+`scripts/sync_principles.py` supports an explicitly configured host that chooses
+Git synchronization for existing principle records. Shared principle skills do
+not invoke it or require Git, a README, remote access, or a host configuration.
+Keep host targets, paths, repository identities and authorization outside this
+public checkout's tracked content. Unconfigured installations remain local.
+
+The helper takes `--config PATH --target NAME` and an action: `status`, `refresh`,
+`begin`, `finish`, or `abort`. Configuration maps `targets` to `enabled`,
+`push_on_update`, canonical `path`, exact `remote`, and GitHub `repository` fields.
+It requires Python 3.9+, Git, the existing GitHub CLI authentication and a private
+repository on `main`. A host must explicitly enable ordinary commit and push.
+
+`refresh` only fast-forwards a clean checkout without outgoing commits. `begin`
+reserves an edit lease across agent calls; `begin --offline` can use the clean
+last-synchronized base. Before `finish`, review the full changes and provide a
+JSON manifest containing the base commit and a `files` map of relative paths to
+SHA-256 values (null for a reviewed deletion). Pass the lease token, manifest
+path and commit message. The helper checks the review against current bytes,
+commits only those files, pushes normally, and reads back the remote commit.
+
+Competing edits, pre-staged changes, unrelated commits, changed bases and remote
+advancement stop the operation. A failed push preserves its commit and lease
+for retry. `abort` releases only the matching lease, never discarding changes.
+The host owns recovery, content/privacy review and semantic consistency; hashes
+and advisory leases cannot prevent arbitrary nonparticipating editors. Strict
+read-only work must read existing Git state without `refresh` or `begin`.
+
 ## Layout
 
 Each skill lives in its own directory and typically includes:
