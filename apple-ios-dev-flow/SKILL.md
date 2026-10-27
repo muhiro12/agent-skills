@@ -102,4 +102,5 @@ for a demonstrated capability gap.
 State what changed, the material decision, checks that actually completed, and
 remaining limitations. Link reviewable artifacts when useful. Preserve the
 user's requested scope through verification instead of ending after an arbitrary
-number of steps. Do not persist new principles without an explicit request.
+number of steps. Follow `track-developer-principles` for recording reusable
+judgment expressed by the user, honoring read-only, no-record, and host constraints.
