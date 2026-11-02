@@ -79,6 +79,15 @@ the final non-destructive checks.
 | Public API, persisted schema, wire format, products, adopter wiring | Relevant tests plus an affected consumer/surface build |
 | Navigation, lifecycle, persistence, sync, notifications, entitlements, visible UI | Add targeted runtime, logs, Preview, or live UI evidence for the actual risk |
 
+Before repeating a Simulator flow, trace the affected entry points to the code
+that decides the outcome. Check that changing that decision would fail a unit or
+integration test of the production path. Cover missing behavior there, including
+persistence after reopen or edits made while work is pending when relevant.
+Then exercise the remaining native interaction on the affected surface, such as
+Back followed by reselection or a Shortcut presenting the app. Record what the
+interaction established. Follow the repository's test policy; repeated captures
+during one redesign do not by themselves justify a new XCUITest suite.
+
 Mixed changes need both relevant test and surface evidence. Do not infer runtime
 success from a build, visual acceptance from source, or release approval from a
 risk score. Report current-change failures separately from pre-existing failures.
