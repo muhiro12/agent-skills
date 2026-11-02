@@ -5,6 +5,7 @@ import hashlib
 import io
 from pathlib import Path
 import plistlib
+import shutil
 import sys
 import tempfile
 import unittest
@@ -148,6 +149,48 @@ class XcodeSourceSelectionTests(unittest.TestCase):
         self.assertEqual(catalog["xcode_version"], marker["xcode_version"])
         self.assertEqual(catalog["selected_developer_dir"], str(developer_dir))
 
+    def test_removed_xcode_requires_explicit_downgrade_before_pruning(self) -> None:
+        newer = self.write_xcode("New", "27.2", "200", "NEW")
+        export = self.root / "export"
+        source = export / "sample"
+        source.mkdir(parents=True)
+        skills = self.root / "skills"
+        state = self.root / "state"
+
+        def install(app, name, *options):
+            (source / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Sample.\n---\n")
+            installation = sync_xcode_skills.xcode_installation(app)
+            with mock.patch.object(sys, "argv", [
+                "sync", "--install-only", "--developer-dir", str(app), "--export-dir", str(export),
+                "--skills-root", str(skills), "--state-dir", str(state), *options,
+            ]), mock.patch.object(sync_xcode_skills, "xcode_version_text", return_value=installation.version_text):
+                return sync_xcode_skills.main()
+
+        def snapshot():
+            return {p: p.read_bytes() for root in (skills, state) for p in root.rglob("*") if p.is_file()}
+
+        self.assertEqual(install(newer, "new"), 0)
+        shutil.rmtree(newer)
+        original = snapshot()
+        older_build = self.write_xcode("Earlier build", "27.2", "190", "OLD")
+        self.assertEqual(install(older_build, "old"), 2)
+        self.assertEqual(snapshot(), original)
+        older = self.write_xcode("Old", "26.2", "180")
+        self.assertEqual(install(older, "old"), 2)
+        self.assertEqual(snapshot(), original)
+        self.assertEqual(install(older, "old", "--allow-downgrade"), 0)
+        self.assertFalse((skills / "xcode-skill-new").exists())
+        self.assertTrue((skills / "xcode-skill-old").is_dir())
+        self.assertEqual(json.loads((state / "catalog.json").read_text())["pruned"], ["xcode-skill-new"])
+
+    def test_legacy_same_version_build_needs_verifiable_order(self) -> None:
+        prior = sync_xcode_skills.XcodeInstallation(self.root, "27.2", "199.9", "OLD")
+        new = sync_xcode_skills.XcodeInstallation(self.root, "27.2", "199.10", "NEW")
+        with mock.patch.object(sync_xcode_skills, "discover_xcodes", return_value=[new, prior]):
+            self.assertTrue(sync_xcode_skills.can_replace_source(new, prior.version_text, None))
+        with mock.patch.object(sync_xcode_skills, "discover_xcodes", return_value=[new]):
+            self.assertFalse(sync_xcode_skills.can_replace_source(new, prior.version_text, None))
+
     def test_default_install_and_prune_preserve_upstream_repositories(self) -> None:
         app = self.write_xcode("Export Source", "27.0", "100")
         export_dir = self.root / "export"
@@ -267,7 +310,7 @@ class XcodeSourceSelectionTests(unittest.TestCase):
 
 class SyncXcodeSkillsTests(unittest.TestCase):
     name_prefix = "xcode-skill-"
-    xcode_version = "Xcode Test\nBuild version TEST123"
+    xcode_version = "Xcode 27.2\nBuild version TEST123"
 
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
@@ -315,7 +358,7 @@ class SyncXcodeSkillsTests(unittest.TestCase):
             "original_name": original_name,
             "installed_name": installed_name,
             "synced_at": "2026-01-01T00:00:00+00:00",
-            "xcode_version": "Old Xcode",
+            "xcode_version": "Xcode 27.1\nBuild version TEST100",
         }
         (skill_directory / sync_xcode_skills.MARKER_FILE).write_text(
             json.dumps(marker),
@@ -332,9 +375,8 @@ class SyncXcodeSkillsTests(unittest.TestCase):
             self.export_root,
             self.skills_root,
             state_dir=self.state_root,
-            developer_dir=Path("/Applications/Xcode.app/Contents/Developer"),
+            installation=sync_xcode_skills.XcodeInstallation(self.root, "27.2", "200", "TEST123"),
             name_prefix=name_prefix or self.name_prefix,
-            xcode_version=self.xcode_version,
         )
 
     def assert_no_transaction_directories(self) -> None:
@@ -619,7 +661,7 @@ class SyncXcodeSkillsTests(unittest.TestCase):
             installed_names,
         )
         self.assertIn(f"Generated at: `{catalog['generated_at']}`", catalog_markdown)
-        self.assertIn("Xcode version: `Xcode Test Build version TEST123`", catalog_markdown)
+        self.assertIn("Xcode version: `Xcode 27.2 Build version TEST123`", catalog_markdown)
         self.assertIn("`xcode-skill-alpha`", catalog_markdown)
         self.assertIn("`xcode-skill-beta`", catalog_markdown)
         self.assertIn("`xcode-skill-stale`", catalog_markdown)

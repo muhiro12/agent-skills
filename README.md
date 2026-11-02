@@ -117,7 +117,7 @@ English, action-focused, and usable from a fresh clone.
 - `swift-code-guardian`: Audits and repairs Swift code against official Swift guidance, API design conventions, and concurrency safety expectations.
 - `swiftdata-dev`: Implements and troubleshoots SwiftData using Apple guidance, scoped incident reports, and persistence verification.
 - `swiftdata-schema-auditor`: Reviews SwiftData schema definitions and explains entities, relationships, persistence, and migration risk.
-- `sync-xcode-skills`: Exports agent Skills from the newest usable local Xcode and installs Codex-compatible local copies.
+- `sync-xcode-skills`: Refreshes skills from the newest installed Xcode and preserves skills from a newer source unless a downgrade is requested.
 - `track-developer-principles`: Consults and automatically maintains weighted developer judgment expressed by the user; private records stay outside this repository history.
 - `track-personal-principles`: Consults and automatically maintains weighted personal judgment expressed by the user, without inferring personality or copying raw conversations.
 - `verify-contract-maintainer`: Creates, audits, and maintains minimal verification contracts, with Apple bootstrap guidance and compatible existing-entrypoint maintenance.

@@ -1,6 +1,6 @@
 ---
 name: sync-xcode-skills
-description: "Export skills from the newest usable local Xcode and install managed copies in the shared user skill root. Use to discover, import, refresh, or synchronize bundled Apple guidance."
+description: "Export skills from the newest local Xcode and install managed copies in the shared user skill root. Use to discover, import, refresh, or synchronize bundled Apple guidance."
 ---
 
 # Sync Xcode Skills
@@ -8,7 +8,7 @@ description: "Export skills from the newest usable local Xcode and install manag
 ## Overview
 
 Use this skill to keep Codex's local skill set aligned with the Skills that the
-newest usable local Xcode exposes through its agent integration, including beta
+newest local Xcode exposes through its agent integration, including beta
 releases. Honor an explicitly requested source Xcode.
 Use the conversation's language for explanations.
 
@@ -63,12 +63,11 @@ establish which Xcode answered. Keep all selection local to the invocation.
    its workspaces, distinguish shell access from an application failure. Use the
    current approval mechanism for the same standalone export when additional
    access is required; do not invent wrappers or persistent permission exceptions.
-3. If the newest installation cannot export after resolving ordinary startup or
-   access requirements, record the reason and try the next newest usable entry.
-   Missing export support, an unusable installation, or a persistent connection
-   failure can justify fallback; an older app already running cannot. Use a fresh
-   export directory for each attempt. Do not silently substitute another version
-   for an explicitly requested Xcode. If none succeeds, preserve installed skills.
+3. If the chosen Xcode cannot export, report the reason and preserve the
+   installed skills. After a newer Xcode is removed, keep its installed skills
+   until the user explicitly requests replacement from the older Xcode.
+   Only then add `--allow-downgrade` to the install command. This also permits
+   replacing legacy skills whose source build order cannot be established.
 4. Install only the successful, complete export with the same verified source:
 
    ```bash
@@ -80,13 +79,12 @@ establish which Xcode answered. Keep all selection local to the invocation.
    version consistently. Never infer an existing export's source from whichever
    Xcode is newest or globally selected. If provenance cannot be established,
    keep the export for inspection without installing it.
-5. Report the source app, Xcode version/build, any fallback reason, exported and
+5. Report the source app, Xcode version/build, any explicit downgrade, exported and
    installed skill names, and the generated catalog path.
 
 For Python-driven export, the script selects the newest discovered Xcode by
 default, verifies its running process, and pins both `DEVELOPER_DIR` and
-`MCP_XCODE_PID`. It stops on failure so fallback remains an explicit, reported
-workflow decision. `--developer-dir` accepts an app or developer directory to
+`MCP_XCODE_PID`. It stops on failure and preserves installed skills. `--developer-dir` accepts an app or developer directory to
 override discovery. By default, installed skill names are prefixed with
 `xcode-skill-` to avoid collisions with local custom skills.
 Treat the `xcode-skill-*` namespace within the managed destination as reserved

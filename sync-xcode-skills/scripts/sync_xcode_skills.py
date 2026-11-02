@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import datetime as dt
 from dataclasses import dataclass
+import fcntl
 import hashlib
 import json
 import os
@@ -137,6 +139,10 @@ class XcodeInstallation:
     @property
     def developer_dir(self) -> Path:
         return self.app / "Contents" / "Developer"
+
+    @property
+    def version_text(self) -> str:
+        return f"Xcode {self.version}\nBuild version {self.build}"
 
     @property
     def sort_key(self) -> tuple[tuple[int, ...], tuple[int, ...]]:
@@ -406,6 +412,7 @@ def write_marker(
     installed_name: str,
     *,
     xcode_version: str,
+    bundle_version: str | None = None,
 ) -> None:
     marker = {
         "managed_by": MANAGED_BY,
@@ -414,6 +421,8 @@ def write_marker(
         "synced_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "xcode_version": xcode_version,
     }
+    if bundle_version is not None:
+        marker["bundle_version"] = bundle_version
     (skill_dir / MARKER_FILE).write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
 
 
@@ -619,20 +628,86 @@ def rollback_installation(
     return errors
 
 
+def can_replace_source(installation: XcodeInstallation, prior: str, bundle_version: str | None) -> bool:
+    if prior == installation.version_text:
+        return True
+    match = re.fullmatch(r"Xcode (\d+(?:\.\d+)*)\nBuild version (\S+)", prior)
+    if not match:
+        return False
+    prior_version = numeric_version(match[1])
+    if prior_version != numeric_version(installation.version):
+        return prior_version < numeric_version(installation.version)
+    if bundle_version is None:
+        # Legacy markers only stored the build identifier. Recover its numeric
+        # bundle version from the exact source if that Xcode is still installed.
+        for item in discover_xcodes():
+            if item.version_text == prior:
+                bundle_version = item.bundle_version
+                break
+    if not isinstance(bundle_version, str):
+        return False
+    try:
+        return numeric_version(bundle_version) < numeric_version(installation.bundle_version)
+    except ValueError:
+        return False
+
+
+def check_installed_sources(skills_root: Path, name_prefix: str, installation: XcodeInstallation) -> None:
+    checked = set()
+    for target in skills_root.glob(f"{name_prefix}*"):
+        marker = json.loads((target / MARKER_FILE).read_text(encoding="utf-8"))
+        prior = marker.get("xcode_version")
+        bundle = marker.get("bundle_version")
+        if not isinstance(prior, str) or (bundle is not None and not isinstance(bundle, str)):
+            raise SyncError(f"Unknown source for {target.name}. Use --allow-downgrade to replace it explicitly.")
+        if (prior, bundle) in checked:
+            continue
+        if not can_replace_source(installation, prior, bundle):
+            raise SyncError(
+                f"Keeping skills from {prior!r}. Cannot verify {installation.version_text!r} "
+                "is as new. Use --allow-downgrade only for an explicit replacement."
+            )
+        checked.add((prior, bundle))
+
+
+@contextmanager
+def locked_skills_root(path: Path):
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        fd = os.open(path, os.O_RDONLY)
+    except OSError as error:
+        raise SyncError(f"Could not open skills root {path}: {error}") from error
+    try:
+        # Serialize the version check with the swaps and catalog update.
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
 def synchronize_exported_skills(
     export_dir: Path,
     skills_root: Path,
     *,
     state_dir: Path,
-    developer_dir: Path | None,
+    installation: XcodeInstallation,
     name_prefix: str,
-    xcode_version: str,
+    allow_downgrade: bool = False,
 ) -> tuple[list[dict[str, str]], list[str], list[str]]:
-    try:
-        skills_root = skills_root.resolve()
-        skills_root.mkdir(parents=True, exist_ok=True)
-    except OSError as error:
-        raise SyncError(f"Could not prepare skills root {skills_root}: {error}") from error
+    skills_root = skills_root.resolve()
+    with locked_skills_root(skills_root):
+        return install_locked(export_dir, skills_root, state_dir, installation, name_prefix, allow_downgrade)
+
+
+def install_locked(
+    export_dir: Path,
+    skills_root: Path,
+    state_dir: Path,
+    installation: XcodeInstallation,
+    name_prefix: str,
+    allow_downgrade: bool,
+) -> tuple[list[dict[str, str]], list[str], list[str]]:
+    xcode_version = installation.version_text
     installed: list[dict[str, str]] = []
     entries, skipped = exported_skill_entries(export_dir, skills_root, name_prefix=name_prefix)
     if not entries:
@@ -641,6 +716,9 @@ def synchronize_exported_skills(
     unmanaged_reserved = unmanaged_reserved_skills(skills_root, name_prefix=name_prefix)
     if unmanaged_reserved:
         raise SyncError(format_unmanaged_reserved_skills(unmanaged_reserved, name_prefix))
+
+    if not allow_downgrade:
+        check_installed_sources(skills_root, name_prefix, installation)
 
     current_installed_names = {entry["installed_name"] for entry in entries}
     stale_targets = stale_managed_skills(
@@ -666,6 +744,7 @@ def synchronize_exported_skills(
                 original_name,
                 installed_name,
                 xcode_version=xcode_version,
+                bundle_version=installation.bundle_version,
             )
             validate_staged_skill(
                 staged_target,
@@ -733,7 +812,7 @@ def synchronize_exported_skills(
 
         write_catalog(
             state_dir,
-            developer_dir=developer_dir,
+            developer_dir=installation.developer_dir,
             export_dir=export_dir,
             skills_root=skills_root,
             name_prefix=name_prefix,
@@ -910,6 +989,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE_DIR)
     parser.add_argument("--name-prefix", default="xcode-skill-")
+    parser.add_argument("--allow-downgrade", action="store_true",
+                        help="Explicitly replace skills from a newer or unverifiable source.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--export-only", action="store_true", help="Export but do not install into the skills root.")
     mode.add_argument("--install-only", action="store_true", help="Install from an existing export directory using an explicitly verified Xcode source.")
@@ -947,8 +1028,7 @@ def main() -> int:
         installation = resolve_xcode(args.developer_dir, install_only=args.install_only)
         developer_dir = installation.developer_dir
         xcode_version = xcode_version_text(developer_dir)
-        expected_version = f"Xcode {installation.version}\nBuild version {installation.build}"
-        if xcode_version != expected_version:
+        if xcode_version != installation.version_text:
             raise SyncError(f"Could not verify Xcode version for {developer_dir}: {xcode_version}")
     except SyncError as error:
         print(str(error))
@@ -983,9 +1063,9 @@ def main() -> int:
             args.export_dir,
             args.skills_root,
             state_dir=args.state_dir,
-            developer_dir=developer_dir,
+            installation=installation,
             name_prefix=args.name_prefix,
-            xcode_version=xcode_version,
+            allow_downgrade=args.allow_downgrade,
         )
     except SyncError as error:
         print(str(error))
