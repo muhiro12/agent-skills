@@ -12,9 +12,9 @@ skills and providing the relevant personal records and reference checkouts.
 Resolve them from the active skill inventory and explicit paths, not this
 machine's layout. Missing context must be reported rather than invented.
 
-Start with the affected code, diagnostics, tests, worktree changes, and repository
-`AGENTS.md`. Complete the requested outcome, preserve unrelated work, and explain
-results concisely. Keep repository artifacts in the required language.
+Start with the affected code, diagnostics, tests, worktree changes, and the
+repository README and applicable contracts. Preserve unrelated work and keep
+repository artifacts in the required language.
 
 ## Choose Guidance for the Actual Decision
 
@@ -44,10 +44,12 @@ completion with evidence.
 | --- | --- |
 | UI composition, navigation, accessibility, resizing and platform fit | `apple-hig-ui-guardian`; matching Xcode SwiftUI guidance |
 | Swift API, concurrency, ownership, package boundaries | `swift-code-guardian` |
+| Shared business behavior or ordering consumed by multiple surfaces | [Operations and ordering](references/operations-and-ordering.md) |
 | Local Swift formatting and naming | `mh-swift-style` |
 | Framework adoption, lifecycle, entitlements, unfamiliar data wiring | `apple-sample-code-advisor` when a relevant sample clarifies implementation |
 | Preview capture or live screen audit | `xcode-preview-auditor` or `xcode-ui-smoke-auditor` |
-| Localization, schema, release risk, release notes | The corresponding focused skill when that is the requested work |
+| Added or changed user-facing text | Apply the lookup and coverage checks in `string-catalog-maintainer` to the affected targets |
+| Schema, release risk, release notes | The corresponding focused skill when that is the requested work |
 | App Intents, SwiftUI performance, leaks, browser mirroring | A matching installed specialist with the required runtime capabilities |
 
 A plugin's guidance-only skill can remain useful without its execution MCP.
@@ -63,14 +65,22 @@ repositories. Weigh change cost, tests, release coupling, and demonstrated reuse
 
 ## Implement and Verify
 
-For a requested review and refinement of existing changes, use
-`refine-development-changes` for scope, development-contract inspection, active
-correction, and closure. This workflow still guides Apple implementation and
-evidence selection; an independent review does not require Claude coordination.
+Review each completed implementation unit yourself before reporting it done,
+including when the user requested only implementation. Use
+`refine-development-changes` on the actual diff with the original scope,
+applicable product decisions and evidence. Correct in-scope findings, inspect
+the resulting diff and rerun affected checks until the agreed behavior is
+verified. Close when no required correction remains. Pause dependent work for
+an unresolved product decision, an irreversible action needing approval, or a
+genuine verification blocker. A review-only request stays read-only.
+
+For work intended for publication, include the [pre-commit content review](../git-publication-review/SKILL.md#before-a-public-bound-commit)
+before each authorized commit. A later authorized push gets its own outgoing-history review.
 
 Choose the smallest complete change and verify it against the repository contract.
 When editing code covered by a documented formatter/autofix, run it before
-the final non-destructive checks.
+the final non-destructive checks. Include regression tests added during a fix
+in the same repository style checks as the production change.
 
 | Changed boundary | Evidence |
 | --- | --- |
@@ -83,6 +93,8 @@ Before repeating a Simulator flow, trace the affected entry points to the code
 that decides the outcome. Check that changing that decision would fail a unit or
 integration test of the production path. Cover missing behavior there, including
 persistence after reopen or edits made while work is pending when relevant.
+When adding a write path beside an existing one, check how the existing path
+preserves later edits and exercise that behavior through the new entry point.
 Then exercise the remaining native interaction on the affected surface, such as
 Back followed by reselection or a Shortcut presenting the app. Record what the
 interaction established. Follow the repository's test policy; repeated captures

@@ -67,6 +67,12 @@ intentional divergence, and uncertainty. Evaluate the result's current
 compliance; missing historical tool or skill-read evidence is unverified
 process, not proof of misconduct. Keep private records out of public artifacts.
 
+Judge earlier work against the behavior agreed at the time. A later request
+may change that behavior. When an existing choice meets the requirement,
+identify what a proposed change would improve or put at risk before reopening
+it. For public guidance, keep the decision a reader can apply. Include project
+names or history only when the reader needs them to use the guidance.
+
 ## Make the Necessary Improvements
 
 In a refinement request, actively correct confirmed problems and evidence-backed
@@ -76,15 +82,18 @@ or low-risk edits, or return only recommendations because the fix is substantial
 Preserve the product outcome and established contracts; do not impose a personal
 style where the governing sources allow several valid approaches.
 
-Use the relevant implementation workflow and specialists when available; honor
-any personal orchestration selected by the user's contracts. This skill itself
+Use implementation guidance selected by the request or repository contract.
+During a correction, keep the current review scope and reuse the caller's
+platform guidance and evidence. This skill itself
 requires no particular provider, second agent, or external implementation session.
 Resolve routine implementation choices independently. A materially unsettled
 product decision, destructive operation, or change beyond the authorized scope
 needs resolution before dependent work; difficulty alone is not such a boundary.
 
 Keep corrections in meaningful functional units and commit them as authorized,
-following the repository's branch and message conventions. Prefer follow-up
+following the repository's branch and message conventions. Before committing
+public-bound corrections, apply the [pre-commit content review](../git-publication-review/SKILL.md#before-a-public-bound-commit)
+when available. Reuse the caller's review of the same candidate. Prefer follow-up
 commits over rewriting existing history. Before an authorized rewrite, verify
 publication and other-writer status against current upstream evidence, retain a
 recovery reference and original attribution, and protect unrelated work. An
@@ -96,6 +105,12 @@ Choose evidence for the important original changes as well as the new fixes.
 Relate the changed behavior and failure paths to checks that actually exercise
 them. Repair missing behavior coverage where it is needed; do not add tests
 that only mirror implementation or impose exhaustive UI testing on a small edit.
+
+When a defect violates a shared rule, trace the other in-scope paths that can
+violate it independently. Test the observable consequence on those paths. For
+an edit that stays open across another write, check both the intended field
+and unrelated newer data after saving. Stop expanding the review when the
+remaining paths share the verified decision or fall outside the agreed scope.
 
 Before expensive checks, confirm that required tools and runtimes are available,
 identify a usable verification route, and assess whether existing evidence is
@@ -116,6 +131,10 @@ by the change. Reuse credible evidence for matching inputs and environment.
 Separate introduced failures from existing failures; do not hide either through
 test exclusions, warning suppression, or weaker assertions. Record important
 changes that remain untested and the reason instead of implying full coverage.
+If the same correction recurs, distinguish a missed existing check from an
+ambiguous implementation rule or a problem observable only in the assembled
+product. This identifies where prevention belongs when workflow maintenance
+is in scope.
 
 ## Finish the Requested Work
 
