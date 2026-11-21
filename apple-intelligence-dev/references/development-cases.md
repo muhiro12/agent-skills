@@ -19,6 +19,12 @@ proves correction behavior, not improved raw model output. This method does not
 validate the truth of the source or apply automatically to creative generation.
 See [generation guidance](generation-and-state.md#prompts-and-guided-generation).
 
+For exact numeric fields, replay a plausible model output against a source
+whose sign or decimal separator changes the value. For example, pair a source
+of `-.75` with an output of `75`; the validator must not accept positive
+seventy-five as source-backed. Include a valid match in the same locale so
+rejecting every input cannot pass the check.
+
 ## Missing values and a lost one-period boundary
 
 Build cases with absent targets/dates, ambiguous references, and a change limited
