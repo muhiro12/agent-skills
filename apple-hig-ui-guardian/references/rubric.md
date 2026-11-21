@@ -26,9 +26,16 @@ Use this rubric for creation, audit, and repair. The goal is not to make every a
 
 - Create: Prefer system controls and styles for buttons, toggles, pickers, sliders, forms, lists, search, menus, alerts, sheets, and toolbars.
 - Audit: Treat custom controls as suspect when they duplicate native behavior without improving product meaning.
+- Review an action in its actual placement. Compare the title and symbol with what the first tap does and with neighboring actions or status indicators. Keep familiar wording when shortening it would hide a meaningful difference.
 - Fix: Replace custom controls with native equivalents or make custom controls match native semantics, focus, accessibility, state, and interaction expectations.
 
 ### 4. Visual Hierarchy and Layout
+
+In settings and data-entry forms, use rows for controls, values and navigation.
+Use a short header when the group needs a name. Put guidance about the group
+or the consequences of an action in its footer, or use a detail view for extended help. A subtitle
+that distinguishes one option belongs with that option. Judge the purpose of
+the text in context; wrapping at larger text sizes is expected.
 
 - Create: Establish a clear hierarchy of content, primary actions, secondary actions, and supporting metadata. Respect safe areas, spacing, and platform-adaptive layout.
 - Audit: Look for crowded surfaces, unclear primary actions, clipped text, overlapping controls, unsafe-area mistakes, inconsistent spacing, and poor iPad/macOS resizing.
@@ -44,6 +51,7 @@ Use this rubric for creation, audit, and repair. The goal is not to make every a
 
 - Create: Include accessibility labels, traits, values, hints when needed, sensible focus order, Dynamic Type support, sufficient hit targets, and alternatives to complex gestures.
 - Audit: Check VoiceOver meaning, Voice Control labels, keyboard/pointer paths, gesture-only actions, text scaling, contrast, and whether controls are comfortable to tap or click.
+- When a symbol carries the action, inspect its resolved accessible name in the rendered interface. Report a hierarchy inspection separately from a spoken VoiceOver interaction.
 - Fix: Add or repair semantic labels, roles, hit areas, gesture alternatives, scalable text, and color-independent indicators.
 
 ### 7. States, Feedback, and Safety

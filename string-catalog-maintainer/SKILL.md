@@ -28,6 +28,13 @@ Scope static reference analysis with `--source-root` for target-owned catalogs;
 use `--required-locales` for an explicit policy. Treat unused matches as candidates,
 not proof that runtime-generated keys can be deleted.
 
+For changed user-facing copy, trace the call site to the actual resource
+bundle, table and key, including strings displayed by extensions or packages.
+Check interpolation and plural variants in the target's supported locales.
+A completed catalog entry cannot localize an already concatenated string.
+When lookup or formatting is uncertain, exercise the real consumer in an
+affected non-source locale and check its resolved text.
+
 Read only the procedure needed for the requested operation:
 
 - For stale or unused key deletion, read [pruning](references/pruning.md) before
