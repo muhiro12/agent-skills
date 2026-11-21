@@ -1,18 +1,20 @@
 ---
 name: git-publication-review
-description: Audit and push Git changes to a public or potentially public repository. Use for publishing commits or checking whether they are safe to push; resolve destination visibility and outgoing history, then push when the audit passes. Honor explicit review-only or no-push requests.
+description: Review public-bound changes before committing, and audit outgoing history before an authorized push. Use for commit content review or publication; honor review-only requests.
 ---
 
 # Git Publication Review
 
-Complete publication of the intended commits, with a mandatory pre-push audit.
+Match the review to the requested Git operation.
 Use the current request and repository contract; require no personal archive,
 sibling skill, particular Git host, or owner-specific policy. Tool access and
 credentials belong to the active environment, not this skill.
 
 ## Invocation and Intent
 
-Invoking this workflow explicitly, or asking in natural language to publish or
+For a pre-commit request or an implementation workflow using the pre-commit
+section, stop after reviewing the candidate. For publication, invoking this
+workflow explicitly without a narrower scope, or asking in natural language to publish or
 check whether commits are safe to push, means audit and then push if the gate
 passes. Do not stop at a favorable report or ask again for routine push approval.
 An explicit review-only, no-push, or dry-run constraint overrides this default.
@@ -22,6 +24,20 @@ Automatic skill selection alone must not expand an unrelated task into publishin
 This is an agent workflow with a pre-push gate, not an installed Git hook. Do not
 install hooks, alter global Git settings, or imply that every external push is
 protected. Preserve active tool permissions and repository requirements.
+
+## Before a public-bound commit
+
+During development in a public or intended-public repository, inspect the
+candidate files and proposed message while they can still be corrected.
+Immediately before committing, compare the index (`git diff --cached` for an
+ordinary staged commit) with the reviewed content, including additions,
+binaries, fixtures and generated output. For a path-limited commit, inspect
+the paths and content that command will record. Apply the
+[exposure criteria](#inspect-what-will-be-exposed) to the candidate. Resolve
+unintended disclosure and recheck changed content before the authorized commit.
+This local review neither requires a remote update nor authorizes one.
+At push time, independently check the actual destination and newly reachable
+history, including intermediate commits.
 
 ## Establish the Publication Boundary
 

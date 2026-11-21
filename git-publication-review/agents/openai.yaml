@@ -1,4 +1,4 @@
 interface:
   display_name: "Git Publication Review and Push"
-  short_description: "Audit outgoing history and push when checks pass"
-  default_prompt: "Use $git-publication-review to audit the intended destination and outgoing history, then push the reviewed commits if no blockers remain and verify the remote result."
+  short_description: "Review commit content and audit authorized pushes"
+  default_prompt: "Use $git-publication-review for the requested Git operation. Review the staged candidate before committing, or audit outgoing history and verify the destination for an authorized push."

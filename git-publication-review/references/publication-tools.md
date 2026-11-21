@@ -89,8 +89,8 @@ global suppression of identifiers or automatic dismissal of future findings.
 Review commit/tag metadata, private information, final relevant tree content,
 binary/LFS/submodule content, default-rule allowlists and archive/decode limits
 separately. A clean scan is one piece of evidence, not publication clearance.
-The emitted summary is not an Incomes pilot receipt and must not be relabeled
-as a Gitleaks report.
+Record the scanner and report format that actually produced the evidence.
+A receiving verifier must support that format before using it in a receipt.
 
 ## Verification and Hook Boundary
 

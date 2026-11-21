@@ -99,7 +99,7 @@ English, action-focused, and usable from a fresh clone.
 - `context-capture`: On explicit `$context-capture` invocation, saves user-provided material as near-raw local Markdown evidence.
 - `context-consult`: On explicit `$context-consult` invocation, searches local context archives and returns cited context packs.
 - `coordinate-codex-claude`: Explicitly coordinates Claude implementation and return handoffs, applies `refine-development-changes` before acceptance, and owns optional Claude adapter guidance.
-- `git-publication-review`: Audits destination visibility and outgoing history, pushes reviewed commits when checks pass, and verifies the remote result; honors explicit review-only requests.
+- `git-publication-review`: Reviews public-bound commit content and audits the destination and outgoing history before an authorized push.
 - `issue-implementation-planner`: Turns existing issues into code-grounded implementation plans, dependency ordering, and acceptance criteria, with verified posting when requested.
 - `mh-issue-workflow`: Applies the owner's GitHub Issue and Project workflow across repositories, including non-development work, privacy-aware routing, association read-back, and resumption reconciliation.
 - `mh-swift-style`: Applies this repository owner's established Swift formatting and code-organization preferences to Apple-platform code.
