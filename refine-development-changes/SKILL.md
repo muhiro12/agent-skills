@@ -106,6 +106,10 @@ Relate the changed behavior and failure paths to checks that actually exercise
 them. Repair missing behavior coverage where it is needed; do not add tests
 that only mirror implementation or impose exhaustive UI testing on a small edit.
 
+When the user gives examples of past failures, use each relevant example to
+identify the same failure mode in the current scope. Inspect a real entry
+point or changed implementation where it could recur.
+
 When a defect violates a shared rule, trace the other in-scope paths that can
 violate it independently. Test the observable consequence on those paths. For
 an edit that stays open across another write, check both the intended field
@@ -142,6 +146,12 @@ Reconcile findings, corrections, and verification against the final revision.
 Report the selected range and dirty-diff scope, meaningful improvements, actual
 checks and their coverage limits, and unresolved work. Close only when required
 in-scope work is complete or a remaining boundary is explicitly reported.
+
+For each user-supplied example, report what happened in the reviewed scope.
+If it recurred, say whether it was fixed or remains open. If a new
+implementation avoided it, show how. If existing behavior already met the
+criterion, say what you checked and kept. Cite the deciding code path, test
+or observation, and identify any example you could not check and why.
 
 When publication is requested, use `git-publication-review` if available for the
 final outgoing history, destination, push, and remote read-back. Keep that range

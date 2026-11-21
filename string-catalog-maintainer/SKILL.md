@@ -1,6 +1,6 @@
 ---
 name: string-catalog-maintainer
-description: "Audit and repair Xcode string catalogs (.xcstrings). Use for stale-key cleanup, missing locale coverage, or validated translation patches; preserve placeholders and distinguish dynamic references before pruning."
+description: "Review changed Apple UI copy for missing localization and audit or repair Xcode string catalogs (.xcstrings). Use for lookup checks, locale coverage, stale-key cleanup, and validated translation patches."
 ---
 
 # String Catalog Maintainer
@@ -11,6 +11,18 @@ catalog fixes after validation. Source-code changes require their own scope.
 Apply the repository's locale policy and established product terminology.
 
 ## Select the Work
+
+For an implementation or diff review, start with the added or edited text
+that a person can see, including conditional alerts and diagnostic screens.
+Follow text through state and formatting to the displayed control. Flag
+verbatim display of text that needs translation, even when a matching catalog
+entry exists. Trace each lookup to its key, table and runtime bundle. A
+package view may use resources supplied by its host app. Check the key in the owning
+resources for the supported locales, even when the package has no catalog.
+The catalog audit counts keys already registered. Report a missing key or
+unresolved resource owner even if that audit finds zero missing translations.
+For provider-supplied copy, check the provider's localized metadata or the
+displayed result. Honor documented locale exceptions for the affected surface.
 
 Find catalogs with `rg --files <repo> | rg '\.xcstrings$'`. Derive required
 locales from target behavior, explicit policy, or the script's sibling-catalog
@@ -28,8 +40,6 @@ Scope static reference analysis with `--source-root` for target-owned catalogs;
 use `--required-locales` for an explicit policy. Treat unused matches as candidates,
 not proof that runtime-generated keys can be deleted.
 
-For changed user-facing copy, trace the call site to the actual resource
-bundle, table and key, including strings displayed by extensions or packages.
 Check interpolation and plural variants in the target's supported locales.
 A completed catalog entry cannot localize an already concatenated string.
 When lookup or formatting is uncertain, exercise the real consumer in an
