@@ -14,6 +14,14 @@ authorization, input revisions, and valid evidence. Reuse its existing brief or
 task record. The calling workflow retains responsibility for dispatch, session
 management, and correction routing.
 
+On an independent review assignment, inspect the supplied candidate directly
+and keep it read-only. Apply the relevant criteria to real entry points.
+Return findings with the observed or expected consequence and supporting
+evidence. Include checked behavior worth retaining and material gaps. Send
+findings to the caller for correction. On recheck, compare the revised
+candidate with the one reviewed, resolve or retain each finding from the
+evidence, and inspect the correction for new issues within scope.
+
 ## Resolve the Requested Outcome
 
 A refinement or finish request includes necessary fixes, cleanup, refactoring,

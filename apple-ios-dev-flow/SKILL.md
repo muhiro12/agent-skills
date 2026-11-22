@@ -65,14 +65,32 @@ repositories. Weigh change cost, tests, release coupling, and demonstrated reuse
 
 ## Implement and Verify
 
-Review each completed implementation unit yourself before reporting it done,
-including when the user requested only implementation. Use
-`refine-development-changes` on the actual diff with the original scope,
-applicable product decisions and evidence. Correct in-scope findings, inspect
-the resulting diff and rerun affected checks until the agreed behavior is
-verified. Close when no required correction remains. Pause dependent work for
-an unresolved product decision, an irreversible action needing approval, or a
-genuine verification blocker. A review-only request stays read-only.
+The session working with the user owns implementation, corrections and final
+verification. Review each completed unit, even on an implementation-only
+request. For behavior shared across surfaces, a past failure that could recur,
+or an explicit independent-review request, delegate the review as follows.
+For routine, isolated edits, apply `refine-development-changes` directly.
+
+1. Start a reviewer with a fresh context and a read-only assignment using
+   `refine-development-changes`. Give it the exact revision range or a stable
+   snapshot of the working diff, the agreed behavior, affected surfaces,
+   applicable quality criteria and material constraints. Preserve the user's
+   actual requirements. Leave out the planning transcript, the implementer's
+   verdict and speculative diagnoses. Keep the candidate stable during review.
+2. Assess findings against the agreed intent. Fix confirmed in-scope issues in
+   the original session and rerun affected checks. If retaining the behavior,
+   give the reviewer the deciding evidence. Refer unresolved product choices
+   to the user and continue other authorized work.
+3. Return the updated candidate and evidence to the same reviewer to recheck
+   its findings and inspect the corrective diff for regressions. Repeat for
+   actionable issues. Close when the reviewed candidate has no outstanding
+   required correction and the applicable checks are complete. Report any
+   verification blocker, or a disagreement that requires the user's decision.
+
+If the host cannot provide a fresh reviewer or delegation is disallowed, do
+the available local checks and disclose the coverage limit. An explicitly
+requested independent check remains open until it can be performed. A
+review-only request keeps the entire workflow read-only.
 
 For work intended for publication, include the [pre-commit content review](../git-publication-review/SKILL.md#before-a-public-bound-commit)
 before each authorized commit. A later authorized push gets its own outgoing-history review.
