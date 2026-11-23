@@ -40,9 +40,11 @@ the text in context; wrapping at larger text sizes is expected.
 - For a crowded standard control, inspect its plain presentation and try the
   platform's default modifier, such as SwiftUI’s `.padding()`, before choosing
   explicit insets. Check the result in the control's actual placement.
-- Group fields around what a person saves together. When a form edits multiple
-  entries, make each entry's fields and actions visually identifiable. In a
-  collection, consider showing an existing user-provided image when it helps
+- Start with the form's content hierarchy, as in a document outline. If a
+  section becomes dense enough that readers may lose track of which fields
+  belong together, consider a section break at a meaningful boundary, such
+  as between repeated entries with similar labels.
+- In a collection, consider showing an existing user-provided image when it helps
   distinguish records, and check a row without an image as well.
 - Create: Establish a clear hierarchy of content, primary actions, secondary actions, and supporting metadata. Respect safe areas, spacing, and platform-adaptive layout.
 - Audit: Look for crowded surfaces, unclear primary actions, clipped text, overlapping controls, unsafe-area mistakes, inconsistent spacing, and poor iPad/macOS resizing.
