@@ -29,6 +29,12 @@ completion with evidence.
   as the platform baseline. Verify version-sensitive behavior against the app's
   actual SDK and release toolchain. A newer installed beta is not automatically
   the app's release baseline.
+- For UI and processing decisions, first check what the OS already supplies.
+  If that leaves a concrete gap, try the standard API with its default behavior,
+  then an existing shared capability (MHDesign, MHUI or MHPlatform). Stop at the
+  first option that meets the product and compatibility requirements. If a gap
+  remains, propose a shared enhancement when other apps have the same need or
+  keep the behavior local when it belongs to this product.
 - Consult the relevant developer-principle domain when a reusable architectural,
   product, or workflow tradeoff matters. Current user instructions and hard
   repository constraints take precedence over older principles.
