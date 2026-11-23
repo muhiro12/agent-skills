@@ -49,6 +49,13 @@ and uncertainty. Tie findings to concrete files, diagnostics, or inspected UI.
 Do not manufacture findings from a checklist or widen a local fix into an
 unrequested redesign or architecture migration.
 
+When prioritizing a UI finding, follow the interaction through its effect.
+Moving a control can be refined after everyday use. Changing what it saves,
+shares, or deletes can affect existing records or workflows even after the
+screen is redesigned. Check that consequence against the product's intended
+behavior. If placement already prevents someone from completing the task,
+report the observed barrier and who encounters it.
+
 For an audit-only request, report findings without changing code. For creation or
 fixes, complete the authorized change, update affected call sites and meaningful
 behavioral checks, and use the repository's verification contract. Separate

@@ -34,6 +34,9 @@ probability, permission to ship, or an operation-approval gate.
 - Separate shipped contracts, candidate additions, unpublished prototypes, and
   development-only state. Compare the net endpoints; a reverted experiment or
   moved definition is not a new or retired contract.
+- For a first-release review, inspect the full candidate for the commitments
+  its first users will rely on. A diff from a provisional baseline can omit
+  decisions already present there.
 
 ### Gather evidence
 
@@ -81,6 +84,12 @@ Use the applicable classes: `identity-fixed`, `migration-required`, and
 do not call every convention permanent. Necessary new contracts are not defects
 or automatic risk surcharges. Disposable UI state and caches carry different
 consequences from primary data.
+
+When the distinction affects the release recommendation, say which decision
+needs settling before users depend on it and why. For example, losing date
+precision on save can make later recovery impossible. If the recorded facts
+remain intact and the task is usable and accessible, the way the screen
+presents those facts can be refined after observing everyday use.
 
 ### Check serious consequences and calibrate risk
 

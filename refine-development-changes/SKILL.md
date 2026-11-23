@@ -65,9 +65,21 @@ choose an owner's private profile or recursively load every installed skill.
 
 Evaluate behavior and failure paths, architecture and ownership, native platform
 guidance, source style, naming, useful documentation, verification, and public
-artifact hygiene in proportion to the change. For persistence, settings, files,
-routes, external identifiers, or public APIs, check actual producers, consumers,
-stored representations, and compatibility rather than only renamed symbols.
+artifact hygiene in proportion to the change. For a product change, ask what
+would happen if the next release reversed it. Identify what survives the
+update and who relies on it. For records, settings, shared files or links,
+trace the stored or published representation from writer to reader. For
+external identifiers and public APIs, check installed clients or saved
+workflows that depend on their identity, inputs, results, or effects.
+
+For a new commitment, check that the product needs it and the representation
+preserves what the user actually knows. For an existing commitment, follow an
+older value or caller through the changed path and verify its meaning and
+effects. A date entered as a year, for example, must retain that precision
+where the product promises it, however the screen formats it. If the intended
+promise is genuinely undecided and changes the design, take that choice to
+the owner. Reversible presentation preferences can be refined through everyday
+use once the affected task works.
 
 Tie a finding to the concrete behavior or rule, code/commit location, practical
 impact, and governing source. Distinguish required rules, preferences,
